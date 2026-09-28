@@ -34,16 +34,20 @@ for Bricolage Grotesque, DM Sans, and DM Mono per the design tokens.
 
 ## Environment
 
-| Variable | Purpose |
-|---|---|
-| `CONVEX_DEPLOYMENT` | Convex deployment name (written by `npx convex dev`) |
-| `NEXT_PUBLIC_CONVEX_URL` | Convex client URL for the browser |
-| `APP_BASE_URL` | Base URL of this app (OAuth callbacks, cron health) |
-| `THREADS_APP_ID` / `THREADS_APP_SECRET` / `THREADS_REDIRECT_URI` | Threads API OAuth — from Use Cases → Threads → Customize Settings, NOT the general app credentials |
-| `IG_APP_ID` / `IG_APP_SECRET` / `IG_REDIRECT_URI` | Instagram Platform API OAuth (Instagram Login path) |
-| `LLM_API_KEY` / `LLM_MODEL` | Draft generation provider key + model (swappable) |
-| `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Dashboard login (REQUIRED in production; omit only for local dev) |
-| `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) |
+| Variable | Purpose | Where |
+|---|---|---|
+| `CONVEX_DEPLOYMENT` | Convex deployment name (written by `npx convex dev`) | Local only |
+| `NEXT_PUBLIC_CONVEX_URL` | Convex client URL for the browser | Vercel: **prod** URL from Convex dashboard |
+| `APP_BASE_URL` | Base URL of this app (OAuth callbacks, cron health) | Vercel: `https://<app>.vercel.app` |
+| `THREADS_APP_ID` / `THREADS_APP_SECRET` / `THREADS_REDIRECT_URI` | Threads API OAuth — from Use Cases → Threads → Customize Settings, NOT the general app credentials | **Both** Vercel and Convex prod (`npx convex env set … --prod`) |
+| `IG_APP_ID` / `IG_APP_SECRET` / `IG_REDIRECT_URI` | Instagram Platform API OAuth (Instagram Login path) | **Both** Vercel and Convex prod |
+| `LLM_API_KEY` / `LLM_MODEL` | Draft generation provider key + model (swappable) | Vercel (Phase 2); Convex prod when drafting actions need it |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Dashboard login (REQUIRED in production; omit only for local dev) | Vercel only |
+| `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) | Vercel only |
+
+Backend actions run on Convex Cloud and read **Convex** env vars — Vercel
+vars never reach them. If a Meta flow fails with a bare server error, check
+both sides (`npx convex env list --prod --names-only`).
 
 ## Deploy
 
