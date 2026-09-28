@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Solo Queue
+
+Personal publishing engine — research once, stay weeks ahead on Threads and
+Instagram with zero per-post fees. Single operator, no auth, no billing.
+
+Design system: `../docs/design.md` (Espresso Collage tokens) +
+`../docs/design.html` (live renders). Strategy and specs: `../docs/`.
 
 ## Getting Started
 
-First, run the development server:
+First, copy the env template and fill in values (see Environment below):
+
+```bash
+cp .env.example .env.local
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+In a second terminal, run the Convex local backend (watch mode; safe to stop
+with Ctrl+C at any time — schema and data live on disk):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx convex dev
+```
 
-## Learn More
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts)
+for Bricolage Grotesque, DM Sans, and DM Mono per the design tokens.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Purpose |
+|---|---|
+| `CONVEX_DEPLOYMENT` | Convex deployment name (written by `npx convex dev`) |
+| `NEXT_PUBLIC_CONVEX_URL` | Convex client URL for the browser |
+| `APP_BASE_URL` | Base URL of this app (OAuth callbacks, cron health) |
+| `THREADS_APP_ID` / `THREADS_APP_SECRET` / `THREADS_REDIRECT_URI` | Threads API OAuth — from Use Cases → Threads → Customize Settings, NOT the general app credentials |
+| `IG_APP_ID` / `IG_APP_SECRET` / `IG_REDIRECT_URI` | Instagram Platform API OAuth (Instagram Login path) |
+| `LLM_API_KEY` / `LLM_MODEL` | Draft generation provider key + model (swappable) |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Dashboard login (REQUIRED in production; omit only for local dev) |
+| `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
+Vercel (Hobby) for the Next.js app, Convex Cloud for the backend:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npx convex login      # link a hosted Convex project (one-time, opens browser)
+npx convex deploy     # push functions + schema to the hosted project
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Then create the Vercel project from this directory, add every variable from
+`.env.example` (with production values) to the Vercel project environment —
+including `BASIC_AUTH_USER`/`BASIC_AUTH_PASS`, which are REQUIRED in
+production. Then in the Vercel dashboard go to the project → Settings →
+Deployment Protection and enable **Vercel Authentication** (Standard
+Protection). Why both: on the Hobby plan, Vercel Authentication covers preview
+and deployment URLs but NOT the production domain — the in-app Basic Auth gate
+(`src/proxy.ts`) covers everything, and refuses to serve production at all if
+its vars are missing.
