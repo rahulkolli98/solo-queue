@@ -99,7 +99,13 @@ function RefreshButton({ platform }: { platform: "threads" | "instagram" }) {
     setBusy(true);
     try {
       const r = await refresh({ platform });
-      setMsg(r.error ? `Refresh: ${r.status} — ${r.error}` : "Token refreshed.");
+      setMsg(
+        r.skipped
+          ? "Token is fresh — no refresh needed."
+          : r.error
+            ? `Refresh: ${r.status} — ${r.error}`
+            : "Token refreshed."
+      );
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Refresh failed.");
     } finally {

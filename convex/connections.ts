@@ -156,7 +156,9 @@ async function exchangeInstagram(code: string): Promise<{
     throw new Error("Instagram exchange returned no token.");
 
   const long = (await getJson(
-    `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(
+    `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_id=${encodeURIComponent(
+      appId
+    )}&client_secret=${encodeURIComponent(
       appSecret
     )}&access_token=${encodeURIComponent(short.access_token)}`
   )) as { access_token?: string; expires_in?: number };
@@ -169,7 +171,12 @@ async function exchangeInstagram(code: string): Promise<{
     )}`
   )) as { user_id?: string; username?: string; account_type?: string };
   if (!me?.user_id) throw new Error("Instagram profile fetch failed.");
-  if (me.account_type !== "Business" && me.account_type !== "Media_Creator") {
+  const accountType = (me.account_type ?? "").toLowerCase();
+  if (
+    accountType !== "business" &&
+    accountType !== "media_creator" &&
+    accountType !== "creator"
+  ) {
     throw new Error(
       `NOT_PROFESSIONAL: account type is ${me.account_type ?? "unknown"}.`
     );
@@ -195,25 +202,32 @@ async function exchangeInstagram(code: string): Promise<{
 export const exchangeCode = action({
   args: { platform: platformArg, code: v.string() },
   handler: async (ctx, args): Promise<{ handle: string }> => {
-    if (args.platform === "threads") {
-      const t = await exchangeThreads(args.code);
+    try {
+      if (args.platform === "threads") {
+        const t = await exchangeThreads(args.code);
+        await ctx.runMutation(internal.connections.upsertConnection, {
+          platform: "threads",
+          ...t,
+          scopes: ["threads_basic", "threads_content_publish"],
+        });
+        return { handle: t.handle };
+      }
+      const g = await exchangeInstagram(args.code);
       await ctx.runMutation(internal.connections.upsertConnection, {
-        platform: "threads",
-        ...t,
-        scopes: ["threads_basic", "threads_content_publish"],
+        platform: "instagram",
+        platformUserId: g.platformUserId,
+        handle: g.handle,
+        accessToken: g.accessToken,
+        tokenExpiresAt: g.tokenExpiresAt,
+        scopes: g.scopes,
       });
-      return { handle: t.handle };
+      return { handle: g.handle };
+    } catch (e) {
+      // Logged (not just thrown) so the Convex dashboard Logs carry the
+      // provider's message — the client only ever sees a generic wrapper.
+      console.error(`exchangeCode[${args.platform}] failed:`, e);
+      throw e;
     }
-    const g = await exchangeInstagram(args.code);
-    await ctx.runMutation(internal.connections.upsertConnection, {
-      platform: "instagram",
-      platformUserId: g.platformUserId,
-      handle: g.handle,
-      accessToken: g.accessToken,
-      tokenExpiresAt: g.tokenExpiresAt,
-      scopes: g.scopes,
-    });
-    return { handle: g.handle };
   },
 });
 
@@ -300,8 +314,9 @@ async function refreshWithProvider(
   current: string
 ): Promise<{ accessToken: string; tokenExpiresAt: number }> {
   if (platform === "threads") {
+    // NOTE: refresh lives on /refresh_access_token, NOT /access_token.
     const data = (await getJson(
-      `https://graph.threads.com/access_token?grant_type=th_refresh_token&access_token=${encodeURIComponent(
+      `https://graph.threads.com/refresh_access_token?grant_type=th_refresh_token&access_token=${encodeURIComponent(
         current
       )}`
     )) as { access_token?: string; expires_in?: number };
@@ -328,11 +343,20 @@ async function refreshWithProvider(
 /** Manual refresh (dashboard "Refresh tokens" button). Never throws. */
 export const refresh = action({
   args: { platform: platformArg },
-  handler: async (ctx, args): Promise<{ status: string; error?: string }> => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ status: string; error?: string; skipped?: boolean }> => {
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: args.platform,
     });
     if (!row) return { status: "missing", error: "No connection stored." };
+    // Both providers reject refreshes for tokens less than 24h old. A token
+    // with ~59+ days remaining was minted within the last day — skip the
+    // provider call instead of burning a failure against it.
+    if (row.tokenExpiresAt - Date.now() > 59 * 24 * 3600 * 1000) {
+      return { status: row.status, skipped: true };
+    }
     try {
       const t = await refreshWithProvider(args.platform, row.accessToken);
       const status = await ctx.runMutation(
