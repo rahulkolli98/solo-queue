@@ -1,9 +1,11 @@
 "use client";
 
 import { useAction, useQuery } from "convex/react";
-import Link from "next/link";
 import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
+// NOTE: OAuth start links below are plain <a> on purpose. Next <Link>
+// navigates via fetch (RSC), and fetch cannot follow the cross-origin
+// 307 to Meta (CORS) — the flow dies before leaving the site.
 import ConnectionCard, {
   type ConnectionInfo,
 } from "@/components/features/ConnectionCard";
@@ -157,14 +159,14 @@ export default function ConnectionsInner() {
                   <>
                     <ThreadsTest onDone={setNotice} />
                     <RefreshButton platform="threads" />
-                    <Link className="sq-btn" href="/api/oauth/threads/start">
+                    <a className="sq-btn" href="/api/oauth/threads/start">
                       Reconnect
-                    </Link>
+                    </a>
                   </>
                 ) : (
-                  <Link className="sq-btn" href="/api/oauth/threads/start">
+                  <a className="sq-btn" href="/api/oauth/threads/start">
                     Connect Threads
-                  </Link>
+                  </a>
                 )
               }
             />
@@ -177,17 +179,17 @@ export default function ConnectionsInner() {
                   <>
                     <InstagramTest onDone={setNotice} />
                     <RefreshButton platform="instagram" />
-                    <Link
+                    <a
                       className="sq-btn"
                       href="/api/oauth/instagram/start"
                     >
                       Reconnect
-                    </Link>
+                    </a>
                   </>
                 ) : (
-                  <Link className="sq-btn" href="/api/oauth/instagram/start">
+                  <a className="sq-btn" href="/api/oauth/instagram/start">
                     Connect Instagram
-                  </Link>
+                  </a>
                 )
               }
             />
