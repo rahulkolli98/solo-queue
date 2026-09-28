@@ -17,7 +17,10 @@ export function proxy(request: NextRequest) {
 
   if (!user || !pass) {
     if (process.env.NODE_ENV === "production") {
-      return new NextResponse("Auth not configured.", { status: 503 });
+      return new NextResponse(
+        "Auth not configured. Set BASIC_AUTH_USER and BASIC_AUTH_PASS.",
+        { status: 503 }
+      );
     }
     return NextResponse.next();
   }
