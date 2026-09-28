@@ -5,8 +5,10 @@ import type { NextRequest } from "next/server";
 import { api } from "../../../../../../convex/_generated/api";
 import { THREADS_STATE_COOKIE, verifyState } from "@/lib/oauth";
 
-function fail(code: string): never {
-  redirect(`/connections?error=${code}&platform=threads`);
+function fail(code: string, detail?: string): never {
+  const params = new URLSearchParams({ error: code, platform: "threads" });
+  if (detail) params.set("detail", detail.slice(0, 200));
+  redirect(`/connections?${params.toString()}`);
 }
 
 export async function GET(request: NextRequest) {
@@ -34,8 +36,8 @@ export async function GET(request: NextRequest) {
       platform: "threads",
       code,
     });
-  } catch {
-    fail("exchange");
+  } catch (e) {
+    fail("exchange", e instanceof Error ? e.message : undefined);
   }
   redirect("/connections?connected=threads");
 }

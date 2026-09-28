@@ -5,8 +5,10 @@ import type { NextRequest } from "next/server";
 import { api } from "../../../../../../convex/_generated/api";
 import { INSTAGRAM_STATE_COOKIE, verifyState } from "@/lib/oauth";
 
-function fail(code: string): never {
-  redirect(`/connections?error=${code}&platform=instagram`);
+function fail(code: string, detail?: string): never {
+  const params = new URLSearchParams({ error: code, platform: "instagram" });
+  if (detail) params.set("detail", detail.slice(0, 200));
+  redirect(`/connections?${params.toString()}`);
 }
 
 export async function GET(request: NextRequest) {
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
     if (e instanceof Error && e.message.includes("NOT_PROFESSIONAL")) {
       fail("not-professional");
     }
-    fail("exchange");
+    fail("exchange", e instanceof Error ? e.message : undefined);
   }
   redirect("/connections?connected=instagram");
 }

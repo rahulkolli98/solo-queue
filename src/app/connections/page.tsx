@@ -5,7 +5,7 @@ import { ERROR_COPY } from "@/lib/connectionErrors";
 export default async function ConnectionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; connected?: string }>;
+  searchParams: Promise<{ error?: string; connected?: string; detail?: string }>;
 }) {
   const params = await searchParams;
   const errCopy = params.error
@@ -31,6 +31,11 @@ export default async function ConnectionsPage({
       {errCopy && (
         <div className="sq-banner sq-banner-bad" role="alert">
           <strong>{errCopy.title}</strong> {errCopy.body}
+          {params.detail && (
+            <span className="sq-kv-mono" style={{ display: "block", marginTop: 8 }}>
+              Detail: {params.detail}
+            </span>
+          )}
         </div>
       )}
 
