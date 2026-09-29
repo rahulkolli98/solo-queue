@@ -218,11 +218,11 @@ export const exchangeCode = action({
     try {
       if (args.platform === "threads") {
         const t = await exchangeThreads(args.code);
-        await ctx.runMutation(internal.connections.upsertConnection, {
-          platform: "threads",
-          ...t,
-          scopes: ["threads_basic", "threads_content_publish"],
-        });
+      await ctx.runMutation(internal.connections.upsertConnection, {
+        platform: "threads",
+        ...t,
+        scopes: ["threads_basic", "threads_content_publish", "threads_delete"],
+      });
         return { handle: t.handle };
       }
       const g = await exchangeInstagram(args.code);
@@ -466,8 +466,10 @@ export const drillSetConnection = internalMutation({
 const TEST_POST_TEXT = "Solo Queue connection test — delete me.";
 
 /**
- * Threads proof: publish a labeled throwaway via the text fast-path,
- * then delete it with deleteThreadsTest. Returns the platform media id.
+ * Threads proof: publish a labeled throwaway with the explicit two-step
+ * flow (create container → poll status → publish), then delete it with
+ * deleteThreadsTest. Returns the published media id (NOT the container id —
+ * DELETE only accepts media object ids).
  */
 export const publishThreadsTest = action({
   args: {},
@@ -476,7 +478,9 @@ export const publishThreadsTest = action({
       platform: "threads",
     });
     if (!row) throw new Error("No threads connection stored.");
-    const res = await fetch(
+    const token = encodeURIComponent(row.accessToken);
+
+    const createRes = await fetch(
       `https://graph.threads.com/v1.0/${row.platformUserId}/threads`,
       {
         method: "POST",
@@ -484,22 +488,61 @@ export const publishThreadsTest = action({
         body: JSON.stringify({
           media_type: "TEXT",
           text: TEST_POST_TEXT,
-          auto_publish_text: true,
           access_token: row.accessToken,
         }),
       }
     );
-    const data = (await res.json().catch(() => null)) as {
+    const created = (await createRes.json().catch(() => null)) as {
       id?: string;
       error_message?: string;
       error?: { message?: string };
     } | null;
-    if (!res.ok || !data?.id) {
+    if (!createRes.ok || !created?.id) {
       throw new Error(
-        `Threads test publish failed: ${data?.error_message ?? data?.error?.message ?? `HTTP ${res.status}`}`
+        `Threads test container failed: ${created?.error_message ?? created?.error?.message ?? `HTTP ${createRes.status}`}`
       );
     }
-    return { id: data.id };
+
+    // Text containers are near-instant, but never publish blind: poll the
+    // status endpoint, fail fast on ERROR, attempt publish on timeout.
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      const status = (await getJson(
+        `https://graph.threads.com/v1.0/${created.id}?fields=status,error_message&access_token=${token}`
+      )) as { status?: string; error_message?: string };
+      const s = (status?.status ?? "").toUpperCase();
+      if (s.includes("ERROR") || s.includes("EXPIRED")) {
+        throw new Error(
+          `Threads test container error: ${status?.error_message ?? s}`
+        );
+      }
+      if (s.includes("FINISH") || s === "READY" || s === "OK") break;
+      if (Date.now() > deadline) break;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+
+    const pubRes = await fetch(
+      `https://graph.threads.com/v1.0/${row.platformUserId}/threads_publish`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creation_id: created.id,
+          access_token: row.accessToken,
+        }),
+      }
+    );
+    const published = (await pubRes.json().catch(() => null)) as {
+      id?: string;
+      error_message?: string;
+      error?: { message?: string };
+    } | null;
+    if (!pubRes.ok || !published?.id) {
+      throw new Error(
+        `Threads test publish failed: ${published?.error_message ?? published?.error?.message ?? `HTTP ${pubRes.status}`}`
+      );
+    }
+    return { id: published.id };
   },
 });
 

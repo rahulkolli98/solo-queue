@@ -1,6 +1,10 @@
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
-export const THREADS_SCOPES = ["threads_basic", "threads_content_publish"];
+export const THREADS_SCOPES = [
+  "threads_basic",
+  "threads_content_publish",
+  "threads_delete",
+];
 export const INSTAGRAM_SCOPES = [
   "instagram_business_basic",
   "instagram_business_content_publish",
