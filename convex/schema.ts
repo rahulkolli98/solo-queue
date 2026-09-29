@@ -98,4 +98,12 @@ export default defineSchema({
     ),
     providerMessage: v.optional(v.string()),
   }),
+
+  // Public waitlist (landing site). No auth by design — validation + dedupe
+  // only; see Decisions Log for the rate-limiting follow-up.
+  waitlist: defineTable({
+    email: v.string(), // lowercased + trimmed at write time
+    source: v.optional(v.string()), // e.g. "landing"
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
 });

@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as seed from "../seed.js";
 import type * as slots from "../slots.js";
 import type * as templates from "../templates.js";
+import type * as waitlist from "../waitlist.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   slots: typeof slots;
   templates: typeof templates;
+  waitlist: typeof waitlist;
 }>;
 
 /**
