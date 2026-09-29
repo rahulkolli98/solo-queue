@@ -146,12 +146,20 @@ async function exchangeInstagram(code: string): Promise<{
       code,
     }
   )) as
-    | { access_token?: string; permissions?: string }
-    | { data?: { access_token?: string; permissions?: string }[] };
+    | { access_token?: string; permissions?: string | string[] }
+    | {
+        data?: { access_token?: string; permissions?: string | string[] }[];
+      };
   const short = Array.isArray((shortRaw as { data?: unknown }).data)
-    ? (shortRaw as { data: { access_token?: string; permissions?: string }[] })
-        .data[0]
-    : (shortRaw as { access_token?: string; permissions?: string });
+    ? (
+        shortRaw as {
+          data: { access_token?: string; permissions?: string | string[] }[];
+        }
+      ).data[0]
+    : (shortRaw as {
+        access_token?: string;
+        permissions?: string | string[];
+      });
   if (!short?.access_token)
     throw new Error("Instagram exchange returned no token.");
 
@@ -182,11 +190,16 @@ async function exchangeInstagram(code: string): Promise<{
     );
   }
 
-  const scopes =
-    short.permissions
-      ?.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean) ?? [];
+  // Meta documents `permissions` as a comma string but actually returns an
+  // array of scope names. Handle both (plus missing).
+  const rawPerms = short.permissions;
+  const scopes = (
+    Array.isArray(rawPerms)
+      ? rawPerms.map(String)
+      : typeof rawPerms === "string"
+        ? rawPerms.split(",").map((s) => s.trim())
+        : []
+  ).filter(Boolean);
   return {
     platformUserId: me.user_id,
     handle: me.username ? `@${me.username}` : me.user_id,
