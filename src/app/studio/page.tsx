@@ -1,4 +1,4 @@
-export default function ComposePage() {
+export default function StudioPage() {
   return (
     <>
       <span className="sq-tag">Studio</span>

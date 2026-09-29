@@ -1,13 +1,19 @@
-export default function QueuePage() {
+export default function TodayPage() {
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
   return (
     <>
-      <span className="sq-tag">Week view</span>
+      <span className="sq-tag">Today</span>
+      <p className="sq-sub">{today}</p>
       <h1 className="sq-headline">
-        Queue&apos;s empty. <em>Fill it Sunday.</em>
+        Today, <em>handled.</em>
       </h1>
       <p className="sq-sub">
-        Drop a topic in Compose and I&apos;ll draft both platforms. This week
-        view will show every scheduled slot per platform with live coverage.
+        Coverage per platform, today&apos;s slots, and anything needing
+        attention will live here.
       </p>
     </>
   );
