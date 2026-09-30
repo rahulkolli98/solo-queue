@@ -68,3 +68,19 @@ export function plainConstraint(body: string): {
 } {
   return { charCount: body.trim().length, constraintOk: true };
 }
+
+/**
+ * Recompute charCount/constraintOk for an edited draft body, using the same
+ * mapping as generation: threads posts ≤500 each, IG captions ≤2200,
+ * everything else unconstrained. Shared by the update mutation and (via
+ * mirrored client logic) the composer's live badges.
+ */
+export function checkEditedBody(
+  platform: "threads" | "instagram" | "blog",
+  templateKey: string,
+  body: string
+): { charCount: number; constraintOk: boolean } {
+  if (platform === "threads") return threadsConstraint(body);
+  if (templateKey === "ig-caption-beats") return captionConstraint(body);
+  return plainConstraint(body);
+}

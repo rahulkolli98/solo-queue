@@ -1,8 +1,8 @@
 "use client";
 
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -72,10 +72,79 @@ export default function Composer({ topicId }: { topicId: string }) {
   const topic = useQuery(api.topics.get, { id });
   const drafts = useQuery(api.drafts.listByTopic, { topicId: id });
   const generate = useAction(api.drafting.generate);
+  const saveDraft = useMutation(api.drafts.update);
 
   const [active, setActive] = useState<TabKey>("threads");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Inline edits, keyed by draft id. Displayed body = edit ?? server body.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [savedAt, setSavedAt] = useState<Record<string, number>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pending = useRef<Record<string, string>>({});
+  const saveRef = useRef(saveDraft);
+  saveRef.current = saveDraft;
+
+  async function flushSave(draftId: string): Promise<void> {
+    const body = pending.current[draftId];
+    if (body === undefined) return;
+    delete pending.current[draftId];
+    const timer = timers.current[draftId];
+    if (timer) {
+      clearTimeout(timer);
+      delete timers.current[draftId];
+    }
+    setSaving((s) => ({ ...s, [draftId]: true }));
+    setSaveError(null);
+    try {
+      await saveRef.current({ id: draftId as Id<"drafts">, body });
+      setEdits((prev) =>
+        prev[draftId] === body
+          ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== draftId))
+          : prev
+      );
+      setSavedAt((s) => ({ ...s, [draftId]: Date.now() }));
+    } catch (err) {
+      // Keep the edit locally and re-stage it so nothing is lost.
+      pending.current[draftId] = body;
+      setSaveError(err instanceof Error ? err.message : "Couldn't save edits.");
+    } finally {
+      setSaving((s) => ({ ...s, [draftId]: false }));
+    }
+  }
+
+  function scheduleSave(draftId: string, body: string) {
+    pending.current[draftId] = body;
+    const old = timers.current[draftId];
+    if (old) clearTimeout(old);
+    timers.current[draftId] = setTimeout(() => void flushSave(draftId), 800);
+  }
+
+  async function flushAll(): Promise<void> {
+    await Promise.all(Object.keys(pending.current).map((d) => flushSave(d)));
+  }
+
+  // Flush unsaved edits when the tab closes/navigates — best effort.
+  useEffect(() => {
+    function onUnload() {
+      for (const [draftId, body] of Object.entries(pending.current)) {
+        try {
+          void saveRef.current({ id: draftId as Id<"drafts">, body });
+        } catch {
+          // Unload path: nothing left to do.
+        }
+      }
+    }
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      void flushAll();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const byTab = useMemo(() => {
     const map = new Map<TabKey, Draft[]>();
@@ -95,12 +164,21 @@ export default function Composer({ topicId }: { topicId: string }) {
     setBusy(true);
     setError(null);
     try {
+      await flushAll();
       await generate({ topicId: id });
+      // Fresh server bodies win — drop any lingering local edits.
+      setEdits({});
+      pending.current = {};
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function switchTab(key: TabKey) {
+    if (key !== active) void flushAll();
+    setActive(key);
   }
 
   if (topic === undefined || drafts === undefined) {
@@ -117,14 +195,17 @@ export default function Composer({ topicId }: { topicId: string }) {
   const tab = TABS.find((t) => t.key === active)!;
   const tabDrafts = byTab.get(active) ?? [];
   const latest = tabDrafts.length > 0 ? tabDrafts[tabDrafts.length - 1] : null;
-  const posts = latest && active === "threads" ? threadsPosts(latest.body) : [];
+  // Live badges read the edited text when present, so counts move as you type.
+  const shownBody = latest ? (edits[latest._id] ?? latest.body) : "";
+  const posts = latest && active === "threads" ? threadsPosts(shownBody) : [];
   const overBy =
     latest && tab.limit !== null && active === "threads"
       ? Math.max(0, ...posts.map((p) => charLen(p) - tab.limit!))
       : latest && tab.limit !== null
-        ? Math.max(0, charLen(latest.body) - tab.limit)
+        ? Math.max(0, charLen(shownBody) - tab.limit)
         : 0;
   const hasDrafts = (byTab.get("threads") ?? []).length > 0;
+  const edited = latest ? edits[latest._id] !== undefined : false;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -171,7 +252,7 @@ export default function Composer({ topicId }: { topicId: string }) {
                   ? { borderColor: "var(--color-ink)", fontWeight: 700 }
                   : undefined
               }
-              onClick={() => setActive(t.key)}
+              onClick={() => switchTab(t.key)}
             >
               {t.label}
               {count > 0 ? ` · ${count}` : ""}
@@ -185,7 +266,8 @@ export default function Composer({ topicId }: { topicId: string }) {
           <h2 className="sq-card-title">{tab.label}</h2>
           {latest && (
             <span className="sq-tag" style={{ marginLeft: "auto" }}>
-              v{latest.templateVersion} · {latest.constraintOk ? "WITHIN LIMIT" : "OVER LIMIT"}
+              v{latest.templateVersion} · {overBy > 0 ? "OVER LIMIT" : "WITHIN LIMIT"}
+              {edited ? " · EDITED" : ""}
             </span>
           )}
         </div>
@@ -198,8 +280,50 @@ export default function Composer({ topicId }: { topicId: string }) {
           </p>
         )}
 
+        {latest && (
+          <div className="sq-form-row">
+            <label htmlFor={`draft-edit-${latest._id}`}>
+              Edit {tab.label.toLowerCase()} draft
+            </label>
+            <textarea
+              id={`draft-edit-${latest._id}`}
+              className="sq-field"
+              style={{ width: "100%", minHeight: active === "threads" ? 160 : 120, paddingTop: 10, resize: "vertical" }}
+              value={shownBody}
+              maxLength={20000}
+              onChange={(e) => {
+                const body = e.target.value;
+                setEdits((prev) => ({ ...prev, [latest._id]: body }));
+                setSaveError(null);
+                scheduleSave(latest._id, body);
+              }}
+            />
+            <span className="t-meta" style={{ color: "var(--color-muted-on-surface)" }} aria-live="polite">
+              {saving[latest._id]
+                ? "SAVING…"
+                : edited
+                  ? "UNSAVED CHANGES…"
+                  : savedAt[latest._id]
+                    ? `SAVED ${new Date(savedAt[latest._id]).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }).toUpperCase()}`
+                    : "NO UNSAVED CHANGES"}
+            </span>
+          </div>
+        )}
+        {saveError && (
+          <div className="sq-error-box" role="alert">
+            {saveError}{" "}
+            <button
+              className="sq-btn"
+              style={{ height: 32, fontSize: 12, marginLeft: 8 }}
+              onClick={() => latest && void flushSave(latest._id)}
+            >
+              Retry save
+            </button>
+          </div>
+        )}
+
         {latest && active === "threads" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
             {posts.map((p, i) => {
               const n = charLen(p);
               const over = n - 500;
@@ -208,7 +332,6 @@ export default function Composer({ topicId }: { topicId: string }) {
                   <span className="t-meta" style={{ color: "var(--color-muted-on-surface)" }}>
                     POST {i + 1} · {n} / 500{over > 0 ? ` · OVER BY ${over}` : ""}
                   </span>
-                  <p style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>{p}</p>
                 </div>
               );
             })}
@@ -216,13 +339,12 @@ export default function Composer({ topicId }: { topicId: string }) {
         )}
 
         {latest && active !== "threads" && (
-          <div>
+          <div style={{ marginTop: 8 }}>
             <span className="t-meta" style={{ color: "var(--color-muted-on-surface)" }}>
-              {charLen(latest.body)} CHARS
+              {charLen(shownBody)} CHARS
               {tab.limit !== null ? ` / ${tab.limit}` : ""}
               {overBy > 0 ? ` · OVER BY ${overBy}` : ""}
             </span>
-            <p style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>{latest.body}</p>
           </div>
         )}
 
