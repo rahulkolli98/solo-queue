@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
 import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -91,6 +92,13 @@ function TopicRow({
           {topic.sourceUrl ? " · 1 SOURCE" : ""}
         </span>
         <div className="sq-row">
+          <Link
+            className="sq-btn sq-btn-primary"
+            style={{ height: 36, fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            href={`/studio/${topic._id}`}
+          >
+            Open in Studio
+          </Link>
           <button
             className="sq-btn"
             style={{ height: 36, fontSize: 13 }}

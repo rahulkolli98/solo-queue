@@ -35,7 +35,7 @@ const DEFAULT_FORMATS: Format[] = [
   "blog",
 ];
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1";
 
 /**
  * Store one generated draft, replacing any prior draft for the same
@@ -148,20 +148,31 @@ export const generate = action({
 
       let body: string;
       if (format === "threads") {
-        const { object } = await generateObject({
-          model,
-          system,
-          prompt,
-          schema: z.object({
-            posts: z
-              .array(z.object({ beat: z.string(), text: z.string() }))
-              .min(1)
-              .max(6),
-          }),
-        });
-        body = object.posts
-          .map((p) => `${p.beat.toUpperCase()} · ${p.text.length} / 500\n${p.text}`)
-          .join("\n---\n");
+        // Prefer structured output (exact beats); fall back to plain text
+        // for models without JSON-mode support (common on free tiers) —
+        // the template already asks for --- separators, so parsing holds.
+        try {
+          const { object } = await generateObject({
+            model,
+            system,
+            prompt,
+            schema: z.object({
+              posts: z
+                .array(z.object({ beat: z.string(), text: z.string() }))
+                .min(1)
+                .max(6),
+            }),
+          });
+          body = object.posts
+            .map((p) => `${p.beat.toUpperCase()} · ${p.text.length} / 500\n${p.text}`)
+            .join("\n---\n");
+        } catch {
+          console.warn(
+            `drafting: structured output failed for ${modelId}, falling back to text.`
+          );
+          const { text } = await generateText({ model, system, prompt });
+          body = text.trim();
+        }
         const check = threadsConstraint(body);
         const id: string = await ctx.runMutation(api.drafting.storeDraft, {
           topicId: args.topicId,
