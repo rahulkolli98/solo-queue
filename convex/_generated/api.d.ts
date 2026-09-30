@@ -14,6 +14,7 @@ import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as seed from "../seed.js";
 import type * as settings from "../settings.js";
 import type * as slots from "../slots.js";
+import type * as templateCopy from "../templateCopy.js";
 import type * as templates from "../templates.js";
 import type * as topics from "../topics.js";
 import type * as waitlist from "../waitlist.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   settings: typeof settings;
   slots: typeof slots;
+  templateCopy: typeof templateCopy;
   templates: typeof templates;
   topics: typeof topics;
   waitlist: typeof waitlist;

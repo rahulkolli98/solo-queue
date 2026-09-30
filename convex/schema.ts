@@ -28,7 +28,7 @@ export default defineSchema({
     body: v.string(), // template text with {{slots}}
     isActive: v.boolean(),
     createdAt: v.number(),
-  }),
+  }).index("by_key", ["key"]),
 
   // Research capture: one topic, rough notes/link.
   topics: defineTable({
