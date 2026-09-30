@@ -8,7 +8,7 @@ import { INSTAGRAM_STATE_COOKIE, verifyState } from "@/lib/oauth";
 function fail(code: string, detail?: string): never {
   const params = new URLSearchParams({ error: code, platform: "instagram" });
   if (detail) params.set("detail", detail.slice(0, 200));
-  redirect(`/settings/connections?${params.toString()}`);
+  redirect(`/settings?${params.toString()}`);
 }
 
 export async function GET(request: NextRequest) {
@@ -41,5 +41,5 @@ export async function GET(request: NextRequest) {
     }
     fail("exchange", e instanceof Error ? e.message : undefined);
   }
-  redirect("/settings/connections?connected=instagram");
+  redirect("/settings?connected=instagram");
 }

@@ -5,10 +5,11 @@ const nextConfig: NextConfig = {
     return [
       // TASK-054 route rename: old placeholders moved.
       { source: "/compose", destination: "/studio", permanent: true },
-      // TASK-057: connections moved under settings.
+      // Connections live directly on /settings (no nested route).
+      { source: "/connections", destination: "/settings", permanent: true },
       {
-        source: "/connections",
-        destination: "/settings/connections",
+        source: "/settings/connections",
+        destination: "/settings",
         permanent: true,
       },
       // Health placeholder removed; Phase 3 rebuilds the real Health

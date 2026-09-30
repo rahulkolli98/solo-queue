@@ -2,7 +2,7 @@
 
 import { useAction, useQuery } from "convex/react";
 import { useState } from "react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 // NOTE: OAuth start links below are plain <a> on purpose. Next <Link>
 // navigates via fetch (RSC), and fetch cannot follow the cross-origin
 // 307 to Meta (CORS) — the flow dies before leaving the site.
@@ -123,7 +123,7 @@ function RefreshButton({ platform }: { platform: "threads" | "instagram" }) {
   );
 }
 
-export default function ConnectionsInner() {
+export default function ConnectionsPanel() {
   const connections = useQuery(api.connections.listPublic);
   const threadsRisk =
     useQuery(api.slots.countScheduledByPlatform, { platform: "threads" }) ?? 0;

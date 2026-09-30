@@ -1,7 +1,21 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import ConnectionsPanel from "@/components/features/ConnectionsPanel";
 import SlotRulesForm from "@/components/features/SlotRulesForm";
+import { ERROR_COPY } from "@/lib/connectionErrors";
 
-export default function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; connected?: string; detail?: string }>;
+}) {
+  const params = await searchParams;
+  const errCopy = params.error
+    ? ERROR_COPY[params.error] ?? {
+        title: "Something went wrong.",
+        body: "Try connecting again.",
+      }
+    : null;
+
   return (
     <>
       <span className="sq-tag">Settings</span>
@@ -13,6 +27,23 @@ export default function SettingsPage() {
         accounts only.
       </p>
 
+      {params.connected && (
+        <div className="sq-banner sq-banner-good" role="status">
+          {params.connected === "threads" ? "Threads" : "Instagram"}{" "}
+          connected. The queue can now publish for you.
+        </div>
+      )}
+      {errCopy && (
+        <div className="sq-banner sq-banner-bad" role="alert">
+          <strong>{errCopy.title}</strong> {errCopy.body}
+          {params.detail && (
+            <span className="sq-kv-mono" style={{ display: "block", marginTop: 8 }}>
+              Detail: {params.detail}
+            </span>
+          )}
+        </div>
+      )}
+
       <section className="sq-card" aria-label="Connections">
         <div className="sq-card-h">
           <h2 className="sq-card-title">Connections</h2>
@@ -20,15 +51,9 @@ export default function SettingsPage() {
             Standard Access
           </span>
         </div>
-        <p className="sq-muted" style={{ margin: 0 }}>
-          Threads and Instagram tokens, health, and test actions live on the
-          connections screen.
-        </p>
-        <div className="sq-row">
-          <Link className="sq-btn" href="/settings/connections">
-            Open connections
-          </Link>
-        </div>
+        <Suspense fallback={<p className="sq-muted">Loading connections…</p>}>
+          <ConnectionsPanel />
+        </Suspense>
       </section>
 
       <section className="sq-card" aria-label="Slot rules">
