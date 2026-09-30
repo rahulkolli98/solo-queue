@@ -35,6 +35,7 @@ export default defineSchema({
     title: v.string(),
     notes: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
+    pillar: v.optional(v.string()), // content pillar; drafting defaults when unset
     status: v.union(
       v.literal("drafting"),
       v.literal("ready"),
