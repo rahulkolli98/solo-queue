@@ -185,6 +185,40 @@ body {
   min-width: 140px;
 }
 
+.sq-collapse-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.sq-collapse-btn:focus-visible {
+  outline: 1.5px solid var(--color-line);
+  outline-offset: 4px;
+  border-radius: var(--rounded-md);
+}
+
+.sq-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-muted-on-surface);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sq-chevron[data-open="true"] {
+  transform: rotate(90deg);
+}
+
 .sq-eyebrow {
   font-family: var(--font-mono), "DM Mono", monospace;
   font-size: 12px;

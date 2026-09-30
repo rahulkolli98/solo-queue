@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import CollapsibleSection from "@/components/features/CollapsibleSection";
 import ConnectionsPanel from "@/components/features/ConnectionsPanel";
 import SlotRulesForm from "@/components/features/SlotRulesForm";
 import { ERROR_COPY } from "@/lib/connectionErrors";
@@ -44,28 +45,24 @@ export default async function SettingsPage({
         </div>
       )}
 
-      <section className="sq-card" aria-label="Connections">
-        <div className="sq-card-h">
-          <h2 className="sq-card-title">Connections</h2>
-          <span className="sq-tag" style={{ marginLeft: "auto" }}>
-            Standard Access
-          </span>
-        </div>
+      <CollapsibleSection
+        title="Connections"
+        tag="Standard Access"
+        label="Connections"
+        defaultOpen
+      >
         <Suspense fallback={<p className="sq-muted">Loading connections…</p>}>
           <ConnectionsPanel />
         </Suspense>
-      </section>
+      </CollapsibleSection>
 
-      <section className="sq-card" aria-label="Slot rules">
-        <div className="sq-card-h">
-          <h2 className="sq-card-title">Slot rules</h2>
-        </div>
+      <CollapsibleSection title="Slot rules" label="Slot rules">
         <p className="sq-muted" style={{ margin: 0 }}>
           Default post times per platform. The composer pre-fills new slots
           with these; any slot can still be moved.
         </p>
         <SlotRulesForm />
-      </section>
+      </CollapsibleSection>
     </>
   );
 }
