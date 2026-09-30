@@ -67,3 +67,30 @@ Protection). Why both: on the Hobby plan, Vercel Authentication covers preview
 and deployment URLs but NOT the production domain — the in-app Basic Auth gate
 (`src/proxy.ts`) covers everything, and refuses to serve production at all if
 its vars are missing.
+
+## Local backend trouble
+
+If `npx convex dev` dies with `fetch failed` before doing anything, its
+backend bootstrap is broken (seen when the binary cache is wiped or a new
+backend version drops). Workaround that leaves everything else working:
+
+```powershell
+.\scripts\local-backend.ps1   # starts the backend from the cached binary
+npx convex dev --once         # push + codegen while it's listening
+```
+
+Stop the backend afterwards (`Stop-Process -Name convex-local-backend`) so a
+later `npx convex dev` doesn't collide on port 3210.
+
+## Verifying in a browser
+
+Client hydration does not run reliably under `npm run dev` in headless
+sandbox environments (pages render but stay static: no badges, eternal
+loading spinners, full-reload navigation — with zero console errors).
+Verify interactive behavior against a production build instead:
+
+```bash
+npm run build
+$env:BASIC_AUTH_USER = "localtest"; $env:BASIC_AUTH_PASS = "localtest123"
+npm run start -- --port 3100   # sign in with the creds above
+```

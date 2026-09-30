@@ -11,8 +11,10 @@
 import type * as connections from "../connections.js";
 import type * as crons from "../crons.js";
 import type * as seed from "../seed.js";
+import type * as settings from "../settings.js";
 import type * as slots from "../slots.js";
 import type * as templates from "../templates.js";
+import type * as topics from "../topics.js";
 import type * as waitlist from "../waitlist.js";
 
 import type {
@@ -25,8 +27,10 @@ declare const fullApi: ApiFromModules<{
   connections: typeof connections;
   crons: typeof crons;
   seed: typeof seed;
+  settings: typeof settings;
   slots: typeof slots;
   templates: typeof templates;
+  topics: typeof topics;
   waitlist: typeof waitlist;
 }>;
 

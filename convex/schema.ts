@@ -106,4 +106,11 @@ export default defineSchema({
     source: v.optional(v.string()), // e.g. "landing"
     createdAt: v.number(),
   }).index("by_email", ["email"]),
+
+  // Single-operator key/value settings (slot defaults, future preferences).
+  settings: defineTable({
+    key: v.string(),
+    value: v.string(), // JSON
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });

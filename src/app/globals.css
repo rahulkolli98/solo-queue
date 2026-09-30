@@ -121,6 +121,12 @@ body {
   font-weight: 600;
 }
 
+.sq-nav-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .sq-nav-badge {
   margin-left: auto;
   min-width: 24px;
@@ -142,6 +148,41 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-12);
+}
+
+.sq-posting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(244, 235, 217, 0.07);
+  color: var(--color-on-chrome-strong);
+  font-size: 14px;
+}
+
+.sq-field {
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-radius: var(--rounded-md);
+  border: 1.5px solid var(--color-line);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  font: 400 15px var(--font-body), "DM Sans", sans-serif;
+  width: 160px;
+}
+
+.sq-form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sq-form-row label {
+  font-size: 14px;
+  min-width: 140px;
 }
 
 .sq-eyebrow {

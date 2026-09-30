@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Sans, DM_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import SiteNav from "@/components/SiteNav";
+import SiteNav, { PostingAs } from "@/components/SiteNav";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 
 const display = Bricolage_Grotesque({
@@ -40,22 +40,20 @@ export default function RootLayout({
       className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body>
-        <div className="sq-shell">
-          <aside className="sq-sidebar">
-            <Link href="/" className="sq-logo">
-              solo queue<span className="sq-logo-dot" aria-hidden="true" />
-            </Link>
-            <SiteNav />
-            <div className="sq-accounts">
-              <span className="sq-eyebrow">Posting as</span>
-            </div>
-          </aside>
-          <main className="sq-main">
-            <div className="sq-panel">
-              <ConvexClientProvider>{children}</ConvexClientProvider>
-            </div>
-          </main>
-        </div>
+        <ConvexClientProvider>
+          <div className="sq-shell">
+            <aside className="sq-sidebar">
+              <Link href="/" className="sq-logo">
+                solo queue<span className="sq-logo-dot" aria-hidden="true" />
+              </Link>
+              <SiteNav />
+              <PostingAs />
+            </aside>
+            <main className="sq-main">
+              <div className="sq-panel">{children}</div>
+            </main>
+          </div>
+        </ConvexClientProvider>
       </body>
     </html>
   );
