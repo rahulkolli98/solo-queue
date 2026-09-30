@@ -1,3 +1,5 @@
+import MediaPicker from "@/components/features/MediaPicker";
+
 export default function LibraryPage() {
   return (
     <>
@@ -6,9 +8,11 @@ export default function LibraryPage() {
         Everything written, <em>worth posting twice.</em>
       </h1>
       <p className="sq-sub">
-        Published posts, drafts, story frames, and media will live here. The
-        evergreen engine arrives after the core loop works.
+        Photos and clips for your IG drafts live here. Every URL is verified
+        reachable before it can queue — Instagram rejects dead media at
+        publish time.
       </p>
+      <MediaPicker />
     </>
   );
 }

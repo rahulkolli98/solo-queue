@@ -14,6 +14,7 @@ import type * as drafting from "../drafting.js";
 import type * as drafts from "../drafts.js";
 import type * as lib_drafting from "../lib/drafting.js";
 import type * as lib_topicOrder from "../lib/topicOrder.js";
+import type * as media from "../media.js";
 import type * as seed from "../seed.js";
 import type * as settings from "../settings.js";
 import type * as slots from "../slots.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   drafts: typeof drafts;
   "lib/drafting": typeof lib_drafting;
   "lib/topicOrder": typeof lib_topicOrder;
+  media: typeof media;
   seed: typeof seed;
   settings: typeof settings;
   slots: typeof slots;
