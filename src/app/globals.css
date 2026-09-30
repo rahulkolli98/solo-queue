@@ -219,6 +219,16 @@ body {
   transform: rotate(90deg);
 }
 
+.t-body-strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.t-meta {
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 11px;
+}
+
 .sq-eyebrow {
   font-family: var(--font-mono), "DM Mono", monospace;
   font-size: 12px;

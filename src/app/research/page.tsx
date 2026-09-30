@@ -1,3 +1,6 @@
+import TopicCaptureForm from "@/components/features/TopicCaptureForm";
+import TopicList from "@/components/features/TopicList";
+
 export default function ResearchPage() {
   return (
     <>
@@ -7,8 +10,17 @@ export default function ResearchPage() {
       </h1>
       <p className="sq-sub">
         Links, quotes, and half-thoughts land here. When a topic has enough
-        behind it, it goes to Studio — the full inbox arrives in Phase 2.
+        behind it, it goes to Studio.
       </p>
+
+      <section className="sq-card" aria-label="Capture a topic">
+        <div className="sq-card-h">
+          <h2 className="sq-card-title">New topic</h2>
+        </div>
+        <TopicCaptureForm />
+      </section>
+
+      <TopicList />
     </>
   );
 }

@@ -10,6 +10,7 @@
 
 import type * as connections from "../connections.js";
 import type * as crons from "../crons.js";
+import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as seed from "../seed.js";
 import type * as settings from "../settings.js";
 import type * as slots from "../slots.js";
@@ -26,6 +27,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   connections: typeof connections;
   crons: typeof crons;
+  "lib/topicOrder": typeof lib_topicOrder;
   seed: typeof seed;
   settings: typeof settings;
   slots: typeof slots;
