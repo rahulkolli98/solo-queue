@@ -306,6 +306,57 @@ export const enqueue = mutation({
   },
 });
 
+/**
+ * Transactionally claim due slots (scheduledAt <= now), oldest first,
+ * capped per call. Single-winner under racing ticks: the status flip and
+ * the read happen in one transaction, so two concurrent callers racing over
+ * the same rows resolve to disjoint winners (the loser retries against the
+ * already-claimed rows and moves on).
+ */
+export const claimDue = mutation({
+  args: { now: v.number(), limit: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<Id<"slots">[]> => {
+    const cap = Math.min(Math.max(args.limit ?? 10, 1), 25);
+    const due: { _id: Id<"slots">; scheduledAt: number }[] = [];
+    for (const platform of ["threads", "instagram"] as const) {
+      const rows = await ctx.db
+        .query("slots")
+        .withIndex("by_platform_status_scheduled", (q) =>
+          q.eq("platform", platform).eq("status", "scheduled").lte("scheduledAt", args.now)
+        )
+        .take(cap);
+      for (const r of rows) due.push({ _id: r._id, scheduledAt: r.scheduledAt });
+    }
+    due.sort((a, b) => a.scheduledAt - b.scheduledAt);
+    const winners = due.slice(0, cap);
+    for (const w of winners) {
+      await ctx.db.patch(w._id, { status: "claimed" });
+    }
+    return winners.map((w) => w._id);
+  },
+});
+
+/**
+ * Return a claimed slot to scheduled (manual retry / drill restore).
+ * Bumps attempts so the tick's backoff accounting stays truthful.
+ */
+export const release = mutation({
+  args: { id: v.id("slots"), notBefore: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
+    if (slot.status !== "claimed")
+      throw refusal("BAD_STATE", "Only claimed slots can be released.");
+    const at = Math.max(slot.scheduledAt, args.notBefore ?? slot.scheduledAt);
+    await ctx.db.patch(args.id, {
+      status: "scheduled",
+      scheduledAt: at,
+      attempts: slot.attempts + 1,
+    });
+    return { slotId: args.id, scheduledAt: at, attempts: slot.attempts + 1 };
+  },
+});
+
 /** Queueable formats for the one-gesture flow, in lane order. */
 const WEEK_FORMATS = [
   { templateKey: "threads-hook-story", label: "Threads", platform: "threads" },
