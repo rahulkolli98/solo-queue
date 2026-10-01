@@ -23,6 +23,113 @@ export const countScheduledByPlatform = query({
 });
 
 /**
+ * Week view feed: scheduled slots in [from, from + days) with the draft
+ * snippet + topic title each card needs. Bounded — the week view never
+ * needs more than a screenful.
+ */
+export const week = query({
+  args: { from: v.number(), days: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const span = Math.min(Math.max(args.days ?? 7, 1), 31) * 86400000;
+    const end = args.from + span;
+    const out: {
+      _id: string;
+      platform: "threads" | "instagram";
+      draftId: string;
+      scheduledAt: number;
+      topicTitle: string;
+      snippet: string;
+      constraintOk: boolean;
+    }[] = [];
+    for (const platform of ["threads", "instagram"] as const) {
+      const rows = await ctx.db
+        .query("slots")
+        .withIndex("by_platform_status_scheduled", (q) =>
+          q.eq("platform", platform).eq("status", "scheduled")
+        )
+        .take(100);
+      for (const slot of rows) {
+        if (slot.scheduledAt < args.from || slot.scheduledAt >= end) continue;
+        const draft = await ctx.db.get(slot.draftId);
+        const topic = draft ? await ctx.db.get(draft.topicId) : null;
+        out.push({
+          _id: slot._id,
+          platform,
+          draftId: slot.draftId,
+          scheduledAt: slot.scheduledAt,
+          topicTitle: topic?.title ?? "(deleted topic)",
+          snippet: (draft?.body ?? "").slice(0, 140),
+          constraintOk: draft?.constraintOk ?? false,
+        });
+      }
+    }
+    out.sort((a, b) => a.scheduledAt - b.scheduledAt);
+    return out;
+  },
+});
+
+/** Move a scheduled slot to a new future time. */
+export const reschedule = mutation({
+  args: { id: v.id("slots"), scheduledAt: v.number() },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have fired already.");
+    if (slot.status !== "scheduled")
+      throw refusal("BAD_STATE", "Only scheduled slots can move.");
+    if (args.scheduledAt <= Date.now())
+      throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    await ctx.db.patch(args.id, { scheduledAt: args.scheduledAt });
+    return { slotId: args.id, scheduledAt: args.scheduledAt };
+  },
+});
+
+/**
+ * Cancel a scheduled slot. The draft is preserved; the topic drops back to
+ * ready unless its other drafts are still queued.
+ */
+export const cancel = mutation({
+  args: { id: v.id("slots") },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have fired already.");
+    if (slot.status !== "scheduled")
+      throw refusal("BAD_STATE", "Only scheduled slots can be cancelled.");
+    const draft = await ctx.db.get(slot.draftId);
+    await ctx.db.delete(args.id);
+    if (draft) {
+      const topicDrafts = (
+        await Promise.all(
+          (["threads", "instagram", "blog"] as const).map((platform) =>
+            ctx.db
+              .query("drafts")
+              .withIndex("by_topic_platform", (q) =>
+                q.eq("topicId", draft.topicId).eq("platform", platform)
+              )
+              .collect()
+          )
+        )
+      ).flat();
+      const ids = new Set(topicDrafts.map((d) => d._id));
+      let stillQueued = false;
+      for (const platform of ["threads", "instagram"] as const) {
+        const rows = await ctx.db
+          .query("slots")
+          .withIndex("by_platform_status_scheduled", (q) =>
+            q.eq("platform", platform).eq("status", "scheduled")
+          )
+          .take(200);
+        if (rows.some((s) => ids.has(s.draftId))) {
+          stillQueued = true;
+          break;
+        }
+      }
+      if (!stillQueued) await ctx.db.patch(draft.topicId, { status: "ready" });
+    }
+    return null;
+  },
+});
+
+/**
  * DEV-ONLY drill helper: insert a coherent topic → draft → scheduled slot
  * chain to verify at-risk warnings. Never call from UI code.
  */export const drillInsertSlot = internalMutation({

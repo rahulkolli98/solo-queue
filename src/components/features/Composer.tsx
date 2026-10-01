@@ -4,6 +4,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { parseRefusal } from "../../../convex/lib/slots";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 type Draft = FunctionReturnType<typeof api.drafts.listByTopic>[number];
@@ -73,6 +74,9 @@ export default function Composer({ topicId }: { topicId: string }) {
   const drafts = useQuery(api.drafts.listByTopic, { topicId: id });
   const generate = useAction(api.drafting.generate);
   const saveDraft = useMutation(api.drafts.update);
+  const enqueue = useMutation(api.slots.enqueue);
+  const attachMedia = useMutation(api.drafts.attachMedia);
+  const assets = useQuery(api.media.list);
 
   const [active, setActive] = useState<TabKey>("threads");
   const [busy, setBusy] = useState(false);
@@ -83,6 +87,10 @@ export default function Composer({ topicId }: { topicId: string }) {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [savedAt, setSavedAt] = useState<Record<string, number>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [queueBusy, setQueueBusy] = useState(false);
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [queueMsg, setQueueMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pending = useRef<Record<string, string>>({});
   const saveRef = useRef(saveDraft);
@@ -179,6 +187,57 @@ export default function Composer({ topicId }: { topicId: string }) {
   function switchTab(key: TabKey) {
     if (key !== active) void flushAll();
     setActive(key);
+    setQueueMsg(null);
+  }
+
+  async function onAttach(assetId: string | null) {
+    if (!latest) return;
+    setAttachBusy(true);
+    setQueueMsg(null);
+    try {
+      await flushSave(latest._id);
+      await attachMedia({
+        id: latest._id,
+        mediaAssetId: assetId as Id<"mediaAssets"> | null,
+      });
+    } catch (err) {
+      const r = err instanceof Error ? parseRefusal(err) : null;
+      setQueueMsg({
+        kind: "error",
+        text: r ? r.message : err instanceof Error ? err.message : "Couldn't attach media.",
+      });
+    } finally {
+      setAttachBusy(false);
+    }
+  }
+
+  async function onQueue() {
+    if (!latest || overBy > 0) return;
+    setQueueBusy(true);
+    setQueueMsg(null);
+    try {
+      await flushSave(latest._id);
+      const res = await enqueue({ draftId: latest._id });
+      setQueuedAt((q) => ({ ...q, [latest._id]: res.scheduledAt }));
+      const when = new Date(res.scheduledAt)
+        .toLocaleString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+        .toUpperCase();
+      setQueueMsg({ kind: "ok", text: `Queued for ${when}.` });
+    } catch (err) {
+      const r = err instanceof Error ? parseRefusal(err) : null;
+      setQueueMsg({
+        kind: "error",
+        text: r ? r.message : err instanceof Error ? err.message : "Couldn't queue.",
+      });
+    } finally {
+      setQueueBusy(false);
+    }
   }
 
   if (topic === undefined || drafts === undefined) {
@@ -206,6 +265,7 @@ export default function Composer({ topicId }: { topicId: string }) {
         : 0;
   const hasDrafts = (byTab.get("threads") ?? []).length > 0;
   const edited = latest ? edits[latest._id] !== undefined : false;
+  const isQueued = latest ? latest._id in queuedAt : false;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -348,30 +408,81 @@ export default function Composer({ topicId }: { topicId: string }) {
           </div>
         )}
 
-        {tab.mediaRequired && (
-          <p className="sq-muted" style={{ marginBottom: 0 }}>
-            Media required before queue — attach a photo or video in the
-            media library (Phase 2, TASK-021).
-          </p>
+        {tab.mediaRequired && latest && (
+          <div className="sq-form-row" style={{ marginTop: 8 }}>
+            <label htmlFor={`draft-media-${latest._id}`}>
+              Attached media {latest.mediaAssetId ? "(attached)" : "(none yet)"}
+            </label>
+            <div className="sq-row">
+              <select
+                id={`draft-media-${latest._id}`}
+                className="sq-field"
+                style={{ maxWidth: 320 }}
+                value={latest.mediaAssetId ?? ""}
+                disabled={attachBusy}
+                onChange={(e) => void onAttach(e.target.value || null)}
+              >
+                <option value="">No media attached</option>
+                {(assets ?? []).map((a) => (
+                  <option key={a._id} value={a._id}>
+                    {(a.mimeType.startsWith("video/") ? "Video" : "Image") +
+                      " · " +
+                      (a.verifiedAt ? "verified" : "unverified") +
+                      " · " +
+                      new Date(a.createdAt)
+                        .toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                        .toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <a className="sq-btn" style={{ height: 36, fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center" }} href="/library">
+                Library
+              </a>
+            </div>
+          </div>
+        )}
+
+        {queueMsg && (
+          <div
+            className={queueMsg.kind === "ok" ? "sq-card" : "sq-error-box"}
+            role={queueMsg.kind === "ok" ? "status" : "alert"}
+            style={queueMsg.kind === "ok" ? { marginTop: 8 } : undefined}
+          >
+            {queueMsg.kind === "ok" ? (
+              <p className="sq-muted" style={{ margin: 0 }}>
+                {queueMsg.text}{" "}
+                <a href="/queue">View queue</a>
+              </p>
+            ) : (
+              queueMsg.text
+            )}
+          </div>
         )}
 
         <div className="sq-row" style={{ marginTop: 8 }}>
           <button
-            className="sq-btn"
-            disabled
+            className="sq-btn sq-btn-primary"
+            disabled={!latest || overBy > 0 || queueBusy || isQueued}
             title={
               !latest
                 ? "Generate a draft first"
                 : overBy > 0
                   ? `Shorten by ${overBy} chars to queue`
-                  : "Queueing wires up in Phase 3"
+                  : isQueued
+                    ? "Already queued"
+                    : "Queue this draft at the next free slot"
             }
+            onClick={onQueue}
           >
             {!latest
               ? "Queue"
               : overBy > 0
                 ? `Over by ${overBy} chars`
-                : "Queue (Phase 3)"}
+                : queueBusy
+                  ? "Queueing…"
+                  : isQueued
+                    ? "Queued ✓"
+                    : "Queue"}
           </button>
         </div>
       </section>

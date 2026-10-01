@@ -29,8 +29,7 @@ export const listByTopic = query({
  * Persist an inline edit from the composer. Recomputes charCount/constraintOk
  * server-side with the same mapping as generation, so stored badges never
  * drift from what the queue validator will check.
- */
-export const update = mutation({
+ */export const update = mutation({
   args: { id: v.id("drafts"), body: v.string() },
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);
@@ -44,6 +43,25 @@ export const update = mutation({
       charCount: check.charCount,
       constraintOk: check.constraintOk,
     });
+    return null;
+  },
+});
+
+/**
+ * Attach (or detach, with null) a library asset to a draft. IG drafts need
+ * this before they can queue; the asset itself must exist. Verification
+ * freshness is checked at enqueue time, not here.
+ */
+export const attachMedia = mutation({
+  args: { id: v.id("drafts"), mediaAssetId: v.union(v.id("mediaAssets"), v.null()) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw new Error("Draft not found.");
+    if (args.mediaAssetId !== null) {
+      const asset = await ctx.db.get(args.mediaAssetId);
+      if (!asset) throw new Error("Media not found — it may have been deleted.");
+    }
+    await ctx.db.patch(args.id, { mediaAssetId: args.mediaAssetId ?? undefined });
     return null;
   },
 });
