@@ -68,6 +68,10 @@ body {
   flex-direction: column;
   gap: var(--space-32);
   padding: var(--space-32) var(--space-16) var(--space-28) var(--space-20);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sq-logo {
