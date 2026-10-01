@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   enqueuePayloadSchema,
   nextDailyOccurrence,
+  nextFreeSlot,
+  normalizeTimes,
   parseRefusal,
   refusal,
 } from "../../convex/lib/slots";
@@ -85,5 +87,47 @@ describe("nextDailyOccurrence", () => {
 
   it("rejects malformed times", () => {
     expect(() => nextDailyOccurrence("9am", morning)).toThrow();
+  });
+});
+
+describe("normalizeTimes", () => {
+  it("wraps a single string (today's settings shape)", () => {
+    expect(normalizeTimes("09:00", "18:00")).toEqual(["09:00"]);
+  });
+
+  it("passes ordered lists through (Phase 4 editor shape)", () => {
+    expect(normalizeTimes(["09:00", "18:00"], "09:00")).toEqual(["09:00", "18:00"]);
+  });
+
+  it("drops garbage and falls back when nothing valid remains", () => {
+    expect(normalizeTimes(["9am", 42, ""], "09:00")).toEqual(["09:00"]);
+    expect(normalizeTimes(undefined, "18:00")).toEqual(["18:00"]);
+  });
+});
+
+describe("nextFreeSlot", () => {
+  // 2026-09-30 08:00 UTC
+  const morning = Date.UTC(2026, 8, 30, 8, 0);
+
+  it("takes the earliest candidate when nothing is taken", () => {
+    expect(nextFreeSlot(["09:00", "18:00"], morning, [])).toBe(
+      Date.UTC(2026, 8, 30, 9, 0)
+    );
+  });
+
+  it("skips an occupied time for the next candidate", () => {
+    expect(
+      nextFreeSlot(["09:00", "18:00"], morning, [Date.UTC(2026, 8, 30, 9, 0)])
+    ).toBe(Date.UTC(2026, 8, 30, 18, 0));
+  });
+
+  it("rolls to the next day when the whole day is taken", () => {
+    expect(
+      nextFreeSlot(
+        ["09:00"],
+        morning,
+        [Date.UTC(2026, 8, 30, 9, 0)]
+      )
+    ).toBe(Date.UTC(2026, 9, 1, 9, 0));
   });
 });

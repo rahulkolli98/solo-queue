@@ -75,6 +75,7 @@ export default function Composer({ topicId }: { topicId: string }) {
   const generate = useAction(api.drafting.generate);
   const saveDraft = useMutation(api.drafts.update);
   const enqueue = useMutation(api.slots.enqueue);
+  const queueWeek = useMutation(api.slots.queueTopic);
   const attachMedia = useMutation(api.drafts.attachMedia);
   const assets = useQuery(api.media.list);
 
@@ -91,6 +92,12 @@ export default function Composer({ topicId }: { topicId: string }) {
   const [attachBusy, setAttachBusy] = useState(false);
   const [queueMsg, setQueueMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
+  const [weekBusy, setWeekBusy] = useState(false);
+  const [weekResult, setWeekResult] = useState<{
+    queued: { format: string; templateKey: string; scheduledAt: number }[];
+    skipped: { format: string; templateKey: string; code: string; message: string }[];
+    seconds: number;
+  } | null>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pending = useRef<Record<string, string>>({});
   const saveRef = useRef(saveDraft);
@@ -211,8 +218,7 @@ export default function Composer({ topicId }: { topicId: string }) {
     }
   }
 
-  async function onQueue() {
-    if (!latest || overBy > 0) return;
+  async function onQueue() {    if (!latest || overBy > 0) return;
     setQueueBusy(true);
     setQueueMsg(null);
     try {
@@ -237,6 +243,41 @@ export default function Composer({ topicId }: { topicId: string }) {
       });
     } finally {
       setQueueBusy(false);
+    }
+  }
+
+  /** One gesture: every queueable draft of this topic to its next free slot. */
+  async function onQueueWeek() {
+    setWeekBusy(true);
+    setWeekResult(null);
+    const started = Date.now();
+    try {
+      await flushAll();
+      const res = await queueWeek({ topicId: id });
+      // Mark freshly queued drafts so their tabs flip to Queued ✓.
+      if (drafts && res.queued.length > 0) {
+        const keys = new Set(res.queued.map((q) => q.templateKey));
+        const mark: Record<string, number> = {};
+        for (const d of drafts) {
+          const hit = res.queued.find((q) => q.templateKey === d.templateKey);
+          if (keys.has(d.templateKey) && hit) mark[d._id] = hit.scheduledAt;
+        }
+        if (Object.keys(mark).length > 0) setQueuedAt((q) => ({ ...q, ...mark }));
+      }
+      setWeekResult({ ...res, seconds: Math.round((Date.now() - started) / 100) / 10 });
+    } catch (err) {
+      const r = err instanceof Error ? parseRefusal(err) : null;
+      setWeekResult({
+        queued: [],
+        skipped: [],
+        seconds: Math.round((Date.now() - started) / 100) / 10,
+      });
+      setQueueMsg({
+        kind: "error",
+        text: r ? r.message : err instanceof Error ? err.message : "Couldn't queue the week.",
+      });
+    } finally {
+      setWeekBusy(false);
     }
   }
 
@@ -280,11 +321,21 @@ export default function Composer({ topicId }: { topicId: string }) {
         <div className="sq-row" style={{ marginTop: 8 }}>
           <button
             className="sq-btn sq-btn-primary"
-            disabled={busy}
+            disabled={busy || weekBusy}
             onClick={onGenerate}
           >
             {busy ? "Drafting…" : hasDrafts ? "Regenerate drafts" : "Generate drafts"}
           </button>
+          {hasDrafts && (
+            <button
+              className="sq-btn"
+              disabled={busy || weekBusy}
+              onClick={onQueueWeek}
+              title="Queue every ready draft to its next free slot in one tap"
+            >
+              {weekBusy ? "Queueing week…" : "Queue this week"}
+            </button>
+          )}
           {busy && (
             <span className="sq-muted" aria-live="polite">
               Asking the model — drafts land tab by tab.
@@ -294,6 +345,37 @@ export default function Composer({ topicId }: { topicId: string }) {
         {error && (
           <div className="sq-error-box" role="alert" style={{ marginTop: 8 }}>
             {error}
+          </div>
+        )}
+        {weekResult && (
+          <div className="sq-card" role="status" style={{ marginTop: 8 }} aria-label="Queue this week result">
+            <div className="sq-card-h">
+              <span className="t-body-strong">
+                Queued {weekResult.queued.length} of{" "}
+                {weekResult.queued.length + weekResult.skipped.length} drafts
+                {weekResult.seconds > 0 ? ` in ${weekResult.seconds}s` : ""}
+              </span>
+              <a href="/queue" style={{ marginLeft: "auto" }}>View queue</a>
+            </div>
+            {weekResult.queued.map((q) => (
+              <p className="sq-muted" key={q.templateKey} style={{ margin: "4px 0 0" }}>
+                {q.format} →{" "}
+                {new Date(q.scheduledAt)
+                  .toLocaleString("en-GB", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                  .toUpperCase()}
+              </p>
+            ))}
+            {weekResult.skipped.map((s) => (
+              <p className="sq-muted" key={s.templateKey} style={{ margin: "4px 0 0" }}>
+                {s.format} skipped: {s.message}
+              </p>
+            ))}
           </div>
         )}
       </section>

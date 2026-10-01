@@ -1,10 +1,15 @@
 import { mutation, internalMutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { checkEditedBody } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
   enqueuePayloadSchema,
   nextDailyOccurrence,
+  nextFreeSlot,
+  normalizeTimes,
+  parseRefusal,
   refusal,
 } from "./lib/slots";
 
@@ -174,13 +179,17 @@ export const cancel = mutation({
  * future slot time → zod payload shape. Then inserts the slot and marks the
  * topic queued.
  */
-export const enqueue = mutation({
-  args: {
-    draftId: v.id("drafts"),
-    scheduledAt: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const draft = await ctx.db.get(args.draftId);
+async function doEnqueue(
+  ctx: MutationCtx,
+  draftId: Id<"drafts">,
+  scheduledAt?: number
+): Promise<{
+  slotId: Id<"slots">;
+  scheduledAt: number;
+  platform: "threads" | "instagram";
+  templateKey: string;
+}> {
+    const draft = await ctx.db.get(draftId);
     if (!draft)
       throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been deleted.");
     const platform = draft.platform;
@@ -234,13 +243,13 @@ export const enqueue = mutation({
       .withIndex("by_platform_status_scheduled", (q) =>
         q.eq("platform", platform).eq("status", "scheduled")
       )
-      .filter((q) => q.eq(q.field("draftId"), args.draftId))
+      .filter((q) => q.eq(q.field("draftId"), draftId))
       .first();
     if (dupe)
       throw refusal("ALREADY_QUEUED", "This draft is already queued.");
 
     const now = Date.now();
-    let at = args.scheduledAt;
+    let at = scheduledAt;
     if (at !== undefined && at <= now)
       throw refusal("BAD_TIME", "Pick a future time for the slot.");
     if (at === undefined) {
@@ -276,13 +285,128 @@ export const enqueue = mutation({
 
     const slotId = await ctx.db.insert("slots", {
       platform,
-      draftId: args.draftId,
+      draftId,
       scheduledAt: at,
       status: "scheduled",
       attempts: 0,
       createdAt: now,
     });
     await ctx.db.patch(draft.topicId, { status: "queued" });
-    return { slotId, scheduledAt: at };
+    return { slotId, scheduledAt: at, platform, templateKey: draft.templateKey };
+}
+
+export const enqueue = mutation({
+  args: {
+    draftId: v.id("drafts"),
+    scheduledAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const res = await doEnqueue(ctx, args.draftId, args.scheduledAt);
+    return { slotId: res.slotId, scheduledAt: res.scheduledAt };
+  },
+});
+
+/** Queueable formats for the one-gesture flow, in lane order. */
+const WEEK_FORMATS = [
+  { templateKey: "threads-hook-story", label: "Threads", platform: "threads" },
+  { templateKey: "ig-caption-beats", label: "IG caption", platform: "instagram" },
+  { templateKey: "reel-script", label: "IG reel", platform: "instagram" },
+] as const;
+
+/**
+ * One-gesture "queue this week": assign every queueable draft of a topic to
+ * its next free slot. Best-effort per draft — refusals land in `skipped`
+ * with their VALIDATION code/message instead of failing the batch.
+ */
+export const queueTopic = mutation({
+  args: { topicId: v.id("topics") },
+  handler: async (ctx, args) => {
+    const topic = await ctx.db.get(args.topicId);
+    if (!topic)
+      throw refusal("TOPIC_NOT_FOUND", "Topic not found — it may have been deleted.");
+
+    const all = (
+      await Promise.all(
+        (["threads", "instagram", "blog"] as const).map((platform) =>
+          ctx.db
+            .query("drafts")
+            .withIndex("by_topic_platform", (q) =>
+              q.eq("topicId", args.topicId).eq("platform", platform)
+            )
+            .collect()
+        )
+      )
+    ).flat();
+    // Index scans come back oldest-first, so the last write per key wins.
+    const latestByKey = new Map<string, (typeof all)[number]>();
+    for (const d of all) latestByKey.set(d.templateKey, d);
+
+    const taken: Record<"threads" | "instagram", number[]> = {
+      threads: [],
+      instagram: [],
+    };
+    for (const platform of ["threads", "instagram"] as const) {
+      const rows = await ctx.db
+        .query("slots")
+        .withIndex("by_platform_status_scheduled", (q) =>
+          q.eq("platform", platform).eq("status", "scheduled")
+        )
+        .take(200);
+      taken[platform] = rows.map((r) => r.scheduledAt);
+    }
+
+    const row = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q) => q.eq("key", "slotDefaults"))
+      .unique();
+    let raw: Partial<Record<"threads" | "instagram", unknown>> = {};
+    try {
+      raw = JSON.parse(row?.value ?? "{}") as Partial<
+        Record<"threads" | "instagram", unknown>
+      >;
+    } catch {
+      // Corrupt settings row — per-platform fallbacks below.
+    }
+
+    const now = Date.now();
+    const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
+    const skipped: { format: string; templateKey: string; code: string; message: string }[] = [];
+    for (const f of WEEK_FORMATS) {
+      const draft = latestByKey.get(f.templateKey);
+      if (!draft) {
+        skipped.push({
+          format: f.label,
+          templateKey: f.templateKey,
+          code: "NO_DRAFT",
+          message: `No ${f.label.toLowerCase()} draft yet — generate one first.`,
+        });
+        continue;
+      }
+      try {
+        const times = normalizeTimes(
+          raw[f.platform],
+          f.platform === "threads" ? "09:00" : "18:00"
+        );
+        const at = nextFreeSlot(times, now, taken[f.platform]);
+        await doEnqueue(ctx, draft._id, at);
+        taken[f.platform].push(at);
+        queued.push({ format: f.label, templateKey: f.templateKey, scheduledAt: at });
+      } catch (err) {
+        const r = parseRefusal(err);
+        if (r) {
+          skipped.push({ format: f.label, templateKey: f.templateKey, code: r.code, message: r.message });
+        } else if (err instanceof Error && err.message.startsWith("No free slot")) {
+          skipped.push({
+            format: f.label,
+            templateKey: f.templateKey,
+            code: "NO_FREE_SLOT",
+            message: "No free slot in the next year — clear some queue first.",
+          });
+        } else {
+          throw err;
+        }
+      }
+    }
+    return { queued, skipped };
   },
 });
