@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   buildTopicVars,
   captionConstraint,
+  checkEditedBody,
   fillSlots,
   plainConstraint,
   threadsConstraint,
@@ -61,14 +62,18 @@ export const storeDraft = mutation({
     for (const row of existing) {
       if (row.templateKey === args.templateKey) await ctx.db.delete(row._id);
     }
+    // Normalize line endings (model output may carry CRLF) and recompute
+    // counts on the stored text, so display/counts/exports always agree.
+    const body = args.body.replace(/\r\n?/g, "\n");
+    const check = checkEditedBody(args.platform, args.templateKey, body);
     const id = await ctx.db.insert("drafts", {
       topicId: args.topicId,
       platform: args.platform,
-      body: args.body,
+      body,
       templateKey: args.templateKey,
       templateVersion: args.templateVersion,
-      charCount: args.charCount,
-      constraintOk: args.constraintOk,
+      charCount: check.charCount,
+      constraintOk: check.constraintOk,
       createdAt: Date.now(),
     });
     return id as string;

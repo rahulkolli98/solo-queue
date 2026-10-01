@@ -34,12 +34,15 @@ export const listByTopic = query({
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);
     if (!draft) throw new Error("Draft not found.");
-    if (!args.body.trim()) throw new Error("Draft can't be empty.");
-    if (args.body.length > 20000)
+    // Normalize line endings: the textarea reads back LF, so storing CRLF
+    // would make display, counts, and exports disagree by a char per line.
+    const body = args.body.replace(/\r\n?/g, "\n");
+    if (!body.trim()) throw new Error("Draft can't be empty.");
+    if (body.length > 20000)
       throw new Error("Draft is too long (20,000 character max).");
-    const check = checkEditedBody(draft.platform, draft.templateKey, args.body);
+    const check = checkEditedBody(draft.platform, draft.templateKey, body);
     await ctx.db.patch(args.id, {
-      body: args.body,
+      body,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
     });

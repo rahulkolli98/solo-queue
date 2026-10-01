@@ -92,6 +92,7 @@ export default function Composer({ topicId }: { topicId: string }) {
   const [attachBusy, setAttachBusy] = useState(false);
   const [queueMsg, setQueueMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
+  const [copied, setCopied] = useState(false);
   const [weekBusy, setWeekBusy] = useState(false);
   const [weekResult, setWeekResult] = useState<{
     queued: { format: string; templateKey: string; scheduledAt: number }[];
@@ -246,9 +247,43 @@ export default function Composer({ topicId }: { topicId: string }) {
     }
   }
 
+    function exportFilename(): string {
+    const slug =
+      topic && topic.title
+        ? topic.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 60)
+        : "draft";
+    return `${slug || "draft"}-${new Date().toISOString().slice(0, 10)}.md`;
+  }
+
+  async function onCopyBlog() {
+    try {
+      await navigator.clipboard.writeText(shownBody);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setQueueMsg({ kind: "error", text: "Copy failed — select the text manually." });
+    }
+  }
+
+  function onDownloadBlog() {
+    // Byte-identical export: no transformation, so headings/code blocks survive.
+    const blob = new Blob([shownBody], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = exportFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   /** One gesture: every queueable draft of this topic to its next free slot. */
-  async function onQueueWeek() {
-    setWeekBusy(true);
+  async function onQueueWeek() {    setWeekBusy(true);
     setWeekResult(null);
     const started = Date.now();
     try {
@@ -487,6 +522,25 @@ export default function Composer({ topicId }: { topicId: string }) {
               {tab.limit !== null ? ` / ${tab.limit}` : ""}
               {overBy > 0 ? ` · OVER BY ${overBy}` : ""}
             </span>
+          </div>
+        )}
+
+        {latest && active === "blog" && (
+          <div className="sq-row" style={{ marginTop: 8 }}>
+            <button
+              className="sq-btn"
+              style={{ height: 36, fontSize: 13 }}
+              onClick={onCopyBlog}
+            >
+              {copied ? "Copied ✓" : "Copy markdown"}
+            </button>
+            <button
+              className="sq-btn"
+              style={{ height: 36, fontSize: 13 }}
+              onClick={onDownloadBlog}
+            >
+              Download .md
+            </button>
           </div>
         )}
 
