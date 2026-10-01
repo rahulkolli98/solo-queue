@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { checkReachable } from "./lib/http";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
@@ -23,37 +24,6 @@ function requireHttpUrl(url: string): string {
     throw new Error("Only http:// and https:// URLs can be verified.");
   }
   return trimmed;
-}
-
-async function checkReachable(url: string): Promise<number> {
-  let status = 0;
-  try {
-    const head = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      signal: AbortSignal.timeout(15000),
-    });
-    status = head.status;
-    // Some hosts reject HEAD — fall back to a ranged GET.
-    if (!head.ok && head.status !== 404) {
-      const get = await fetch(url, {
-        headers: { Range: "bytes=0-0" },
-        redirect: "follow",
-        signal: AbortSignal.timeout(15000),
-      });
-      status = get.status;
-      // 206 (partial) or 200 both prove the bytes are there.
-      if (get.ok || get.status === 206) return get.status;
-      throw new Error(`URL not reachable (HTTP ${get.status}).`);
-    }
-    if (!head.ok) throw new Error(`URL not reachable (HTTP ${head.status}).`);
-    return head.status;
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("URL not reachable")) throw err;
-    throw new Error(
-      `URL not reachable (${err instanceof Error ? err.message : "network error"}).`
-    );
-  }
 }
 
 /** Newest assets first, bounded — the library never needs the full history. */
