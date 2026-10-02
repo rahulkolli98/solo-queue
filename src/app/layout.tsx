@@ -4,6 +4,9 @@ import Link from "next/link";
 import "./globals.css";
 import SiteNav, { PostingAs } from "@/components/SiteNav";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
+import MobileHeader from "@/components/MobileHeader";
+import MobileTabBar from "@/components/MobileTabBar";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const display = Bricolage_Grotesque({
   variable: "--font-display",
@@ -40,19 +43,26 @@ export default function RootLayout({
       className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body>
+        <a href="#main" className="sq-skip">
+          Skip to content
+        </a>
         <ConvexClientProvider>
-          <div className="sq-shell">
-            <aside className="sq-sidebar">
-              <Link href="/" className="sq-logo">
-                solo queue<span className="sq-logo-dot" aria-hidden="true" />
-              </Link>
-              <SiteNav />
-              <PostingAs />
-            </aside>
-            <main className="sq-main">
-              <div className="sq-panel">{children}</div>
-            </main>
-          </div>
+          <ToastProvider>
+            <div className="sq-shell">
+              <aside className="sq-sidebar">
+                <Link href="/" className="sq-logo">
+                  solo queue<span className="sq-logo-dot" aria-hidden="true" />
+                </Link>
+                <SiteNav />
+                <PostingAs />
+              </aside>
+              <MobileHeader />
+              <main className="sq-main" id="main">
+                <div className="sq-panel">{children}</div>
+              </main>
+              <MobileTabBar />
+            </div>
+          </ToastProvider>
         </ConvexClientProvider>
       </body>
     </html>
