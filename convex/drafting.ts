@@ -1,7 +1,6 @@
 import { action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import {
@@ -12,13 +11,18 @@ import {
   plainConstraint,
   threadsConstraint,
 } from "./lib/drafting";
+import { frameToPrompt, type FrameFit } from "./lib/framesModel";
+import { llmModel } from "./lib/llm";
 
 const FORMATS = {
-  threads: { templateKey: "threads-hook-story", platform: "threads" },
-  "instagram-caption": { templateKey: "ig-caption-beats", platform: "instagram" },
-  "instagram-reel": { templateKey: "reel-script", platform: "instagram" },
-  blog: { templateKey: "blog-draft", platform: "blog" },
-} as const;
+  threads: { templateKey: "threads-hook-story", platform: "threads", draftFormat: "thread", fit: "thread" },
+  "instagram-caption": { templateKey: "ig-caption-beats", platform: "instagram", draftFormat: "caption", fit: "single" },
+  "instagram-reel": { templateKey: "reel-script", platform: "instagram", draftFormat: "reel", fit: "reel" },
+  blog: { templateKey: "blog-draft", platform: "blog", draftFormat: "blog", fit: null },
+} as const satisfies Record<
+  string,
+  { templateKey: string; platform: string; draftFormat: string; fit: FrameFit | null }
+>;
 
 type Format = keyof typeof FORMATS;
 
@@ -36,12 +40,14 @@ const DEFAULT_FORMATS: Format[] = [
   "blog",
 ];
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1";
+const BASE_SYSTEM =
+  "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble.";
 
 /**
- * Store one generated draft, replacing any prior draft for the same
- * topic+template (regeneration replaces, never duplicates). Internal: it can
- * delete drafts, so only `generate` may call it.
+ * Store one generated draft. Regenerating replaces the previous draft for the
+ * same topic and template, EXCEPT a draft that already has a slot: that one is
+ * kept (a queued or published post must never disappear) and the new draft is
+ * added beside it. Internal: only `generate` may call it.
  */
 export const storeDraft = internalMutation({
   args: {
@@ -52,6 +58,8 @@ export const storeDraft = internalMutation({
     body: v.string(),
     charCount: v.number(),
     constraintOk: v.boolean(),
+    frameKey: v.optional(v.string()),
+    format: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -59,9 +67,14 @@ export const storeDraft = internalMutation({
       .withIndex("by_topic_platform", (q) =>
         q.eq("topicId", args.topicId).eq("platform", args.platform)
       )
-      .collect();
+      .take(200);
     for (const row of existing) {
-      if (row.templateKey === args.templateKey) await ctx.db.delete(row._id);
+      if (row.templateKey !== args.templateKey) continue;
+      const slot = await ctx.db
+        .query("slots")
+        .withIndex("by_draft", (q) => q.eq("draftId", row._id))
+        .first();
+      if (!slot) await ctx.db.delete(row._id);
     }
     // Normalize line endings (model output may carry CRLF) and recompute
     // counts on the stored text, so display/counts/exports always agree.
@@ -73,6 +86,8 @@ export const storeDraft = internalMutation({
       body,
       templateKey: args.templateKey,
       templateVersion: args.templateVersion,
+      frameKey: args.frameKey,
+      format: args.format,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -81,31 +96,23 @@ export const storeDraft = internalMutation({
   },
 });
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value)
-    throw new Error(
-      `Missing env: ${name}. Set it where the backend runs (.env.local for local dev, Convex dashboard for prod).`
-    );
-  return value;
-}
-
 /**
- * Generate platform drafts for a topic from versioned templates.
+ * Generate platform drafts for a topic from versioned templates, following a
+ * story frame (default: the voice's default frame) and the voice settings.
  * One LLM call per format (default: threads + IG caption + IG reel + blog).
- * Each draft records the template key+version used, a char count, and
- * whether it satisfies its platform constraint. Re-running replaces prior
- * drafts for the same topic+template (regeneration, not duplication).
- * Marks the topic ready on success.
+ * Each draft records the template key+version, the frame and format, a char
+ * count, and whether it satisfies its platform constraint. Thread posts are
+ * stored as plain text separated by `---` lines (no beat headers: the beat
+ * labels come from the frame at display time), so what is stored is what is
+ * published. Marks the topic ready on success.
  */
 export const generate = action({
   args: {
     topicId: v.id("topics"),
     formats: v.optional(v.array(formatArg)),
+    frameKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const apiKey = requireEnv("LLM_API_KEY");
-    const modelId = requireEnv("LLM_MODEL");
     const formats = (args.formats?.length ? args.formats : DEFAULT_FORMATS) as Format[];
 
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
@@ -117,26 +124,26 @@ export const generate = action({
         throw new Error(`No active template for ${FORMATS[f].templateKey}. Seed or save one first.`);
     }
 
-    const headers: Record<string, string> = {};
-    if (process.env.APP_BASE_URL) {
-      headers["HTTP-Referer"] = process.env.APP_BASE_URL;
-      headers["X-Title"] = "Solo Queue";
-    }
-    const provider = createOpenAICompatible({
-      name: "openrouter",
-      baseURL: process.env.LLM_BASE_URL ?? OPENROUTER_URL,
-      apiKey,
-      headers,
-    });
-    const model = provider(modelId);
+    const settings = await ctx.runQuery(api.settings.get, {});
+    const frameKey = args.frameKey ?? settings.voice.defaultFrameKey;
+    const frame = await ctx.runQuery(api.frames.getByKey, { key: frameKey });
+
+    const model = llmModel();
     const vars = buildTopicVars({
       title: topic.title,
       pillar: topic.pillar,
       notes: topic.notes,
       sourceUrl: topic.sourceUrl,
     });
-    const system =
-      "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble.";
+    const system = [
+      BASE_SYSTEM,
+      settings.voice.description ? `Voice: ${settings.voice.description}` : "",
+      settings.voice.bannedWords.length
+        ? `Never use these words or phrases: ${settings.voice.bannedWords.join(", ")}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const results: {
       id: string;
@@ -148,9 +155,12 @@ export const generate = action({
     }[] = [];
 
     for (const format of formats) {
-      const { templateKey, platform } = FORMATS[format];
+      const { templateKey, platform, draftFormat, fit } = FORMATS[format];
       const template = byKey.get(templateKey)!;
-      const prompt = fillSlots(template.body, vars);
+      // The frame steers every format except the blog draft, and only where it fits.
+      const useFrame = frame && frame.isActive && fit !== null && frame.fits.includes(fit);
+      const basePrompt = fillSlots(template.body, vars);
+      const prompt = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
 
       let body: string;
       if (format === "threads") {
@@ -169,43 +179,36 @@ export const generate = action({
                 .max(6),
             }),
           });
-          body = object.posts
-            .map((p) => `${p.beat.toUpperCase()} · ${p.text.length} / 500\n${p.text}`)
-            .join("\n---\n");
+          body = object.posts.map((p) => p.text.trim()).join("\n---\n");
         } catch {
-          console.warn(
-            `drafting: structured output failed for ${modelId}, falling back to text.`
-          );
+          console.warn("drafting: structured output failed, falling back to text.");
           const { text } = await generateText({ model, system, prompt });
           body = text.trim();
         }
-        const check = threadsConstraint(body);
-        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
-          topicId: args.topicId,
-          platform,
-          templateKey,
-          templateVersion: template.version,
-          body,
-          charCount: check.charCount,
-          constraintOk: check.constraintOk,
-        });
-        results.push({ id, format, templateKey, templateVersion: template.version, ...check });
       } else {
         const { text } = await generateText({ model, system, prompt });
         body = text.trim();
-        const check =
-          format === "instagram-caption" ? captionConstraint(body) : plainConstraint(body);
-        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
-          topicId: args.topicId,
-          platform,
-          templateKey,
-          templateVersion: template.version,
-          body,
-          charCount: check.charCount,
-          constraintOk: check.constraintOk,
-        });
-        results.push({ id, format, templateKey, templateVersion: template.version, ...check });
       }
+
+      const check =
+        format === "threads"
+          ? threadsConstraint(body)
+          : format === "instagram-caption"
+            ? captionConstraint(body)
+            : plainConstraint(body);
+      const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
+        topicId: args.topicId,
+        platform,
+        templateKey,
+        templateVersion: template.version,
+        body,
+        charCount: check.charCount,
+        constraintOk: check.constraintOk,
+        frameKey: useFrame ? frame.key : undefined,
+        format: draftFormat,
+      });
+      if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
+      results.push({ id, format, templateKey, templateVersion: template.version, ...check });
     }
 
     await ctx.runMutation(api.topics.update, {

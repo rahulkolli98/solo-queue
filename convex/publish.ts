@@ -7,7 +7,7 @@ import {
   query,
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { splitPosts } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
 import {
@@ -371,7 +371,7 @@ async function settleThreadsOutcome(
       outcome: "success",
       providerMessage: `Published threads post ${out.mediaId} (${out.via}).${note}`,
     });
-    await ctx.runMutation(api.topics.update, { id: draft.topicId, status: "done" });
+    await ctx.runMutation(internal.topics.markDoneIfComplete, { topicId: draft.topicId });
     return "published";
   }
   if (out.code === "AUTH") {
@@ -442,7 +442,7 @@ async function settleInstagramOutcome(
       outcome: "success",
       providerMessage: `Published instagram ${out.mediaId} (${out.via}).`,
     });
-    await ctx.runMutation(api.topics.update, { id: draft.topicId, status: "done" });
+    await ctx.runMutation(internal.topics.markDoneIfComplete, { topicId: draft.topicId });
     return "published";
   }
   if (out.code === "AUTH") {
