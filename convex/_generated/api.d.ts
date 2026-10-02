@@ -26,6 +26,7 @@ import type * as lib_slotPlanning from "../lib/slotPlanning.js";
 import type * as lib_slots from "../lib/slots.js";
 import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as lib_zoned from "../lib/zoned.js";
+import type * as library from "../library.js";
 import type * as media from "../media.js";
 import type * as providers_instagram from "../providers/instagram.js";
 import type * as providers_threads from "../providers/threads.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   "lib/slots": typeof lib_slots;
   "lib/topicOrder": typeof lib_topicOrder;
   "lib/zoned": typeof lib_zoned;
+  library: typeof library;
   media: typeof media;
   "providers/instagram": typeof providers_instagram;
   "providers/threads": typeof providers_threads;

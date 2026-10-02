@@ -181,6 +181,7 @@ export const setPublished = internalMutation({
     await ctx.db.patch(args.id, {
       status: "published",
       publishedPlatformId: args.platformId,
+      publishedAt: Date.now(),
       attempts: slot.attempts + 1,
     });
     return null;
