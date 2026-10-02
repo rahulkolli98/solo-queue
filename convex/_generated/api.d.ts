@@ -15,6 +15,8 @@ import type * as drafts from "../drafts.js";
 import type * as lib_drafting from "../lib/drafting.js";
 import type * as lib_http from "../lib/http.js";
 import type * as lib_safety from "../lib/safety.js";
+import type * as lib_settingsDb from "../lib/settingsDb.js";
+import type * as lib_settingsModel from "../lib/settingsModel.js";
 import type * as lib_slots from "../lib/slots.js";
 import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as media from "../media.js";
@@ -43,6 +45,8 @@ declare const fullApi: ApiFromModules<{
   "lib/drafting": typeof lib_drafting;
   "lib/http": typeof lib_http;
   "lib/safety": typeof lib_safety;
+  "lib/settingsDb": typeof lib_settingsDb;
+  "lib/settingsModel": typeof lib_settingsModel;
   "lib/slots": typeof lib_slots;
   "lib/topicOrder": typeof lib_topicOrder;
   media: typeof media;
