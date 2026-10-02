@@ -1,16 +1,17 @@
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import { V1_TEMPLATES } from "./templateCopy";
 
 const STUB_MARKER = "stub — real";
 
 /**
  * Dev-only seed: one demo topic + v1 template copy.
- * Run headlessly with: npx convex run seed:runOnce
+ * Run headlessly with: npx convex run seed:runOnce (internal, so it is not
+ * callable from the browser or by anyone with the deployment URL).
  * Idempotent: inserts missing template keys, repairs stub bodies in place,
  * never duplicates. (Production seeding is out of scope — single operator,
  * dev Ritual only.)
  */
-export const runOnce = mutation({
+export const runOnce = internalMutation({
   args: {},
   handler: async (ctx) => {
     const existingTopics = await ctx.db.query("topics").collect();

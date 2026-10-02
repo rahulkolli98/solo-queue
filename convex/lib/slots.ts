@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { z } from "zod";
 
 /**
@@ -9,16 +10,26 @@ import { z } from "zod";
  * Refusals carry machine-readable codes: `VALIDATION:<CODE>: <message>`.
  * The UI switches on CODE (queue CTA copy, inline hints) and shows message.
  */
-export function refusal(code: string, message: string): Error {
-  return new Error(`VALIDATION:${code}: ${message}`);
+export function refusal(code: string, message: string): ConvexError<string> {
+  // ConvexError (not Error) so the message survives to the client on a
+  // deployed backend, where plain errors are redacted to "Server Error".
+  return new ConvexError(`VALIDATION:${code}: ${message}`);
 }
 
 /** Extract {code, message} from a refusal, tolerating Convex's error wrapping. */
 export function parseRefusal(err: unknown): { code: string; message: string } | null {
-  if (!(err instanceof Error)) return null;
-  const at = err.message.indexOf("VALIDATION:");
+  let text: string;
+  if (err instanceof ConvexError) {
+    if (typeof err.data !== "string") return null;
+    text = err.data;
+  } else if (err instanceof Error) {
+    text = err.message;
+  } else {
+    return null;
+  }
+  const at = text.indexOf("VALIDATION:");
   if (at === -1) return null;
-  const rest = err.message.slice(at + "VALIDATION:".length);
+  const rest = text.slice(at + "VALIDATION:".length);
   const sep = rest.indexOf(":");
   if (sep === -1) return null;
   const code = rest.slice(0, sep).trim();

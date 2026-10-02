@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
@@ -11,7 +11,8 @@ crons.daily(
   internal.connections.checkExpiring
 );
 
-// Publisher tick: claim due slots and publish them (dry-run via PUBLISH_DRY_RUN=1).
-crons.interval("publisher-tick", { minutes: 1 }, api.publish.tick, {});
+// Publisher tick: claim due slots and publish them. DRY-RUN unless the Convex
+// env var PUBLISH_DRY_RUN is exactly "0" (see convex/lib/safety.ts).
+crons.interval("publisher-tick", { minutes: 1 }, internal.publish.tick, {});
 
 export default crons;

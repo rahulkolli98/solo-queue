@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 import {
   enqueuePayloadSchema,
@@ -15,6 +16,18 @@ describe("refusal / parseRefusal", () => {
       code: "OVER_LIMIT",
       message: "Threads draft is 67 chars over.",
     });
+  });
+
+  it("is a ConvexError so the message reaches the client on prod", () => {
+    const err = refusal("OVER_LIMIT", "x");
+    expect(err).toBeInstanceOf(ConvexError);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.data).toBe("VALIDATION:OVER_LIMIT: x");
+  });
+
+  it("returns null for a ConvexError that is not a refusal", () => {
+    expect(parseRefusal(new ConvexError({ other: true }))).toBeNull();
+    expect(parseRefusal(new ConvexError("something else"))).toBeNull();
   });
 
   it("tolerates Convex's action-error wrapping", () => {

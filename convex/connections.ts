@@ -6,7 +6,11 @@ import {
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import {
+  TEST_PUBLISH_DISABLED_MESSAGE,
+  isTestPublishAllowed,
+} from "./lib/safety";
 
 const platformArg = v.union(v.literal("threads"), v.literal("instagram"));
 
@@ -466,6 +470,17 @@ export const drillSetConnection = internalMutation({
 const TEST_POST_TEXT = "Solo Queue connection test — delete me.";
 
 /**
+ * These two actions are public (the browser calls them) and act on the real
+ * Threads account, so they are off unless ALLOW_TEST_PUBLISH is exactly "1".
+ * ConvexError (not Error) so the message survives to the client on prod.
+ */
+function assertTestPublishAllowed(): void {
+  if (!isTestPublishAllowed(process.env.ALLOW_TEST_PUBLISH)) {
+    throw new ConvexError(TEST_PUBLISH_DISABLED_MESSAGE);
+  }
+}
+
+/**
  * Threads proof: publish a labeled throwaway with the explicit two-step
  * flow (create container → poll status → publish), then delete it with
  * deleteThreadsTest. Returns the published media id (NOT the container id —
@@ -474,6 +489,7 @@ const TEST_POST_TEXT = "Solo Queue connection test — delete me.";
 export const publishThreadsTest = action({
   args: {},
   handler: async (ctx): Promise<{ id: string }> => {
+    assertTestPublishAllowed();
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: "threads",
     });
@@ -549,6 +565,7 @@ export const publishThreadsTest = action({
 export const deleteThreadsTest = action({
   args: { mediaId: v.string() },
   handler: async (ctx, args): Promise<{ deleted: boolean }> => {
+    assertTestPublishAllowed();
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: "threads",
     });

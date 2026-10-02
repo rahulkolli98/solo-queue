@@ -1,15 +1,15 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
-  action,
+  internalAction,
   internalMutation,
   internalQuery,
-  mutation,
   query,
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { splitPosts } from "./lib/drafting";
+import { isLivePublishing } from "./lib/safety";
 import {
   publishInstagramPost,
   type InstagramKind,
@@ -27,8 +27,9 @@ function backoffMs(attempts: number): number {
   return Math.min(5 * 60_000 * 2 ** Math.min(Math.max(attempts, 0), 4), 2 * 3600_000);
 }
 
+/** Dry-run unless PUBLISH_DRY_RUN is exactly "0" (safe default; see lib/safety). */
 function isDryRun(): boolean {
-  return process.env.PUBLISH_DRY_RUN === "1";
+  return !isLivePublishing(process.env.PUBLISH_DRY_RUN);
 }
 
 /** Pause flag lives in settings so the dashboard can read/flip it. */
@@ -49,17 +50,6 @@ export const getPauseState = internalQuery({
     } catch {
       return { paused: false, reason: null, at: null };
     }
-  },
-});
-
-export const setPublishPaused = mutation({
-  args: { paused: v.boolean(), reason: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await ctx.runMutation(internal.publish.setPublishPausedInternal, {
-      paused: args.paused,
-      reason: args.reason,
-    });
-    return { paused: args.paused };
   },
 });
 
@@ -198,10 +188,13 @@ interface TickResult {
  * write receipts, retry transient failures with backoff, fail permanently
  * past MAX_ATTEMPTS or on terminal outcomes. AUTH trips the pause guard.
  *
- * With PUBLISH_DRY_RUN=1: no claims, no provider calls — logs what would
- * happen and returns it.
+ * Dry-run (the default; live only when PUBLISH_DRY_RUN is exactly "0"): no
+ * claims, no provider calls — logs what would happen and returns it.
+ *
+ * Internal: only the cron may call it. A public tick would let anyone with
+ * the deployment URL trigger real publishing.
  */
-export const tick = action({
+export const tick = internalAction({
   args: {},
   handler: async (ctx): Promise<TickResult> => {
     const now = Date.now();
@@ -214,7 +207,7 @@ export const tick = action({
         failed: 0,
       });
       console.log(`publish.tick: paused (${pause.reason ?? "no reason"}) — skipping claims.`);
-      return { claimed: 0, published: 0, failed: 0, limited: 0, paused: true, dryRun: false };
+      return { claimed: 0, published: 0, failed: 0, limited: 0, paused: true, dryRun: isDryRun() };
     }
 
     if (isDryRun()) {
@@ -226,6 +219,13 @@ export const tick = action({
         );
       }
       console.log(`publish.tick DRY RUN: ${due.length} due, 0 claimed, 0 published.`);
+      // Heartbeat in dry-run too, so "the publisher is running" stays visible.
+      await ctx.runMutation(internal.publish.recordHeartbeat, {
+        at: now,
+        claimed: 0,
+        published: 0,
+        failed: 0,
+      });
       return {
         claimed: 0,
         published: 0,
@@ -236,7 +236,7 @@ export const tick = action({
       };
     }
 
-    const ids = await ctx.runMutation(api.slots.claimDue, { now, limit: 10 });
+    const ids = await ctx.runMutation(internal.slots.claimDue, { now, limit: 10 });
     let published = 0;
     let failed = 0;
     let limited = 0;
@@ -252,7 +252,7 @@ export const tick = action({
       const used =
         slot.platform === "threads" ? counts.threads : counts.instagram;
       if (used >= cap) {
-        await ctx.runMutation(api.slots.release, {
+        await ctx.runMutation(internal.slots.release, {
           id: slot._id,
           notBefore: now + 3600_000,
         });
@@ -379,7 +379,7 @@ async function settleThreadsOutcome(
       paused: true,
       reason: `auth-threads: ${out.message}`,
     });
-    await ctx.runMutation(api.slots.release, { id: slot._id });
+    await ctx.runMutation(internal.slots.release, { id: slot._id });
     await ctx.runMutation(internal.publish.addReceipt, {
       slotId: slot._id,
       attemptedAt: now,
@@ -411,7 +411,7 @@ async function settleThreadsOutcome(
     });
     return "failed";
   }
-  await ctx.runMutation(api.slots.release, {
+  await ctx.runMutation(internal.slots.release, {
     id: slot._id,
     notBefore: now + backoffMs(slot.attempts + 1),
   });
@@ -450,7 +450,7 @@ async function settleInstagramOutcome(
       paused: true,
       reason: `auth-instagram: ${out.message}`,
     });
-    await ctx.runMutation(api.slots.release, { id: slot._id });
+    await ctx.runMutation(internal.slots.release, { id: slot._id });
     await ctx.runMutation(internal.publish.addReceipt, {
       slotId: slot._id,
       attemptedAt: now,
@@ -482,7 +482,7 @@ async function settleInstagramOutcome(
     });
     return "failed";
   }
-  await ctx.runMutation(api.slots.release, {
+  await ctx.runMutation(internal.slots.release, {
     id: slot._id,
     notBefore: now + backoffMs(slot.attempts + 1),
   });

@@ -3,6 +3,7 @@
 import { useAction, useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { errorText } from "@/lib/errors";
 // NOTE: OAuth start links below are plain <a> on purpose. Next <Link>
 // navigates via fetch (RSC), and fetch cannot follow the cross-origin
 // 307 to Meta (CORS) — the flow dies before leaving the site.
@@ -25,7 +26,7 @@ function ThreadsTest({ onDone }: { onDone: (msg: string) => void }) {
       setMediaId(id);
       onDone(`Test post live as ${id} — delete it when ready.`);
     } catch (e) {
-      onDone(e instanceof Error ? e.message : "Test publish failed.");
+      onDone(errorText(e, "Test publish failed."));
     } finally {
       setPhase("idle");
     }
@@ -39,7 +40,7 @@ function ThreadsTest({ onDone }: { onDone: (msg: string) => void }) {
       setMediaId(null);
       onDone("Test post deleted. Connection proven end to end.");
     } catch (e) {
-      onDone(e instanceof Error ? e.message : "Test delete failed.");
+      onDone(errorText(e, "Test delete failed."));
     } finally {
       setPhase("idle");
     }

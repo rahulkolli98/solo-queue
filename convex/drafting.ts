@@ -1,5 +1,5 @@
-import { action, mutation } from "./_generated/server";
-import { api } from "./_generated/api";
+import { action, internalMutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateObject, generateText } from "ai";
@@ -40,9 +40,10 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1";
 
 /**
  * Store one generated draft, replacing any prior draft for the same
- * topic+template (regeneration replaces, never duplicates).
+ * topic+template (regeneration replaces, never duplicates). Internal: it can
+ * delete drafts, so only `generate` may call it.
  */
-export const storeDraft = mutation({
+export const storeDraft = internalMutation({
   args: {
     topicId: v.id("topics"),
     platform: v.union(v.literal("threads"), v.literal("instagram"), v.literal("blog")),
@@ -179,7 +180,7 @@ export const generate = action({
           body = text.trim();
         }
         const check = threadsConstraint(body);
-        const id: string = await ctx.runMutation(api.drafting.storeDraft, {
+        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
           topicId: args.topicId,
           platform,
           templateKey,
@@ -194,7 +195,7 @@ export const generate = action({
         body = text.trim();
         const check =
           format === "instagram-caption" ? captionConstraint(body) : plainConstraint(body);
-        const id: string = await ctx.runMutation(api.drafting.storeDraft, {
+        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
           topicId: args.topicId,
           platform,
           templateKey,

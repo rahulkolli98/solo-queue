@@ -41,13 +41,15 @@ for Bricolage Grotesque, DM Sans, and DM Mono per the design tokens.
 | `APP_BASE_URL` | Base URL of this app (OAuth callbacks, cron health) | Vercel: `https://<app>.vercel.app` |
 | `THREADS_APP_ID` / `THREADS_APP_SECRET` / `THREADS_REDIRECT_URI` | Threads API OAuth — from Use Cases → Threads → Customize Settings, NOT the general app credentials | **Both** Vercel and Convex prod (`npx convex env set … --prod`) |
 | `IG_APP_ID` / `IG_APP_SECRET` / `IG_REDIRECT_URI` | Instagram Platform API OAuth (Instagram Login path) | **Both** Vercel and Convex prod |
-| `LLM_API_KEY` / `LLM_MODEL` | Draft generation provider key + model (swappable) | Vercel (Phase 2); Convex prod when drafting actions need it |
+| `LLM_API_KEY` / `LLM_MODEL` | Draft generation provider key + model (swappable); read by `convex/drafting.ts` | **Convex only** (local backend and prod), not Vercel |
 | `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Dashboard login (REQUIRED in production; omit only for local dev) | Vercel only |
 | `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) | Vercel only |
+| `PUBLISH_DRY_RUN` | Publisher mode. Posts for real **only when exactly `0`**; unset or anything else is dry-run | Convex only (set `1` on local and prod until the publisher is verified) |
+| `ALLOW_TEST_PUBLISH` | Enables the Connections test publish/delete (posts to the real Threads account). Off unless exactly `1` | Convex only; leave unset on prod |
 
 Backend actions run on Convex Cloud and read **Convex** env vars — Vercel
 vars never reach them. If a Meta flow fails with a bare server error, check
-both sides (`npx convex env list --prod --names-only`).
+both sides. List names only, never values: `npx convex env list --prod | % { ($_ -split '=',2)[0] }` (PowerShell).
 
 ## Deploy
 

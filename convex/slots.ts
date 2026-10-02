@@ -378,12 +378,13 @@ export const enqueue = mutation({
 
 /**
  * Transactionally claim due slots (scheduledAt <= now), oldest first,
- * capped per call. Single-winner under racing ticks: the status flip and
- * the read happen in one transaction, so two concurrent callers racing over
- * the same rows resolve to disjoint winners (the loser retries against the
- * already-claimed rows and moves on).
+ * capped per call. Internal: the publisher tick is the only caller (a public
+ * claim would let anyone strand slots in "claimed"). Single-winner under
+ * racing ticks: the status flip and the read happen in one transaction, so
+ * two concurrent callers racing over the same rows resolve to disjoint
+ * winners (the loser retries against the already-claimed rows and moves on).
  */
-export const claimDue = mutation({
+export const claimDue = internalMutation({
   args: { now: v.number(), limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<Id<"slots">[]> => {
     const cap = Math.min(Math.max(args.limit ?? 10, 1), 25);
@@ -410,7 +411,7 @@ export const claimDue = mutation({
  * Return a claimed slot to scheduled (manual retry / drill restore).
  * Bumps attempts so the tick's backoff accounting stays truthful.
  */
-export const release = mutation({
+export const release = internalMutation({
   args: { id: v.id("slots"), notBefore: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
