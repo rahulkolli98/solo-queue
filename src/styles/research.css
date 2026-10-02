@@ -1,1 +1,865 @@
-/* research screen styles (board layouts). Shared pieces live in components.css and controls.css. */
+/*
+ * Research screen (boards 04, 07i, 07j): capture bar, 340px topic list and
+ * the yellow collage board (brief paper, source cards, angle cards).
+ * Shared pieces live in components.css and controls.css.
+ */
+
+/* ---------- header: crumb + capture bar ---------- */
+.rs-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+.rs-crumb {
+  color: var(--color-muted-on-surface);
+  letter-spacing: 0.1em;
+  padding-top: var(--space-12);
+}
+.rs-capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+}
+.rs-capture-row {
+  display: flex;
+  gap: var(--space-8);
+}
+.rs-capture-input {
+  box-sizing: border-box;
+  width: 400px;
+  max-width: 100%;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--rounded-control);
+  border: 1.5px solid var(--color-line);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  font: 400 14px var(--font-body), "DM Sans", sans-serif;
+}
+.rs-capture-input:focus-visible,
+.rs-capture-input[data-lit="true"] {
+  outline: 0;
+  border-color: var(--color-on-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+.rs-capture-error {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-primary-deep);
+  padding-left: var(--space-20);
+}
+/* On phones the headline is read by screen readers only (the phone header names the page). */
+.rs-head > .sq-pageheader {
+  margin: 0;
+}
+
+/* ---------- layout: chips + list on the left, the board on the right ---------- */
+.rs-grid {
+  flex-grow: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "chips board"
+    "list board";
+  gap: var(--space-10) var(--space-16);
+}
+.rs-chips {
+  grid-area: chips;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-content: flex-start;
+}
+.rs-list {
+  grid-area: list;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-height: 0;
+  min-width: 0;
+}
+.rs-boardwrap {
+  grid-area: board;
+  min-width: 0;
+  display: flex;
+}
+
+/* ---------- topic rows ---------- */
+.rs-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px var(--space-16);
+  border-radius: var(--rounded-xl);
+  background: var(--color-surface-raised);
+  border: 1.5px solid var(--color-line-soft);
+  color: var(--color-on-surface);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rs-item[aria-pressed="true"] {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.rs-item:focus-visible,
+.rs-add-btn:focus-visible,
+.rs-link a:focus-visible,
+.rs-src-x:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.rs-item-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.rs-item-title {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rs-ready {
+  margin-left: auto;
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.rs-ready-yes {
+  color: var(--color-primary-deep);
+}
+.rs-ready-no {
+  color: var(--color-muted-on-surface);
+}
+.rs-item[aria-pressed="true"] .rs-ready-yes {
+  color: var(--color-threads);
+}
+.rs-item[aria-pressed="true"] .rs-ready-no {
+  color: var(--color-muted-on-chrome);
+}
+.rs-item-meta {
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 11px;
+  color: var(--color-muted-on-surface);
+}
+.rs-item[aria-pressed="true"] .rs-item-meta {
+  color: var(--color-muted-on-chrome);
+}
+.rs-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-10);
+  box-sizing: border-box;
+  border-radius: var(--rounded-md);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.rs-newtopic {
+  height: 44px;
+  border: 1.5px dashed var(--color-line);
+  border-radius: var(--rounded-xl);
+  background: transparent;
+  color: var(--color-muted-on-surface);
+  font: 600 14px var(--font-body), "DM Sans", sans-serif;
+  cursor: pointer;
+}
+.rs-newtopic:hover {
+  border-color: var(--color-on-surface);
+  color: var(--color-on-surface);
+}
+.rs-newtopic:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.rs-none {
+  margin: 0;
+  padding: var(--space-12) var(--space-4);
+  font-size: 14px;
+  color: var(--color-muted-on-surface);
+}
+
+/* the dashed "sent to Studio" box */
+.rs-sent {
+  margin-top: auto;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--rounded-xl);
+  border: 1.5px dashed var(--color-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.rs-sent-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--color-muted-on-surface);
+  text-decoration: line-through;
+}
+.rs-sent-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.rs-sent-btn[aria-pressed="true"] {
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+
+/* empty list */
+.rs-emptylist {
+  flex-grow: 1;
+  border: 1.5px dashed var(--color-line);
+  border-radius: var(--rounded-xl);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  color: var(--color-muted-on-surface);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.rs-emptylist b {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 22px;
+  letter-spacing: -0.023em;
+  color: var(--color-on-surface);
+}
+
+/* ---------- the yellow board ---------- */
+.rs-board {
+  flex-grow: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 22px var(--space-24) var(--space-24);
+  border-radius: var(--rounded-card);
+  background: var(--color-threads);
+  color: var(--color-on-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.rs-board-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-20);
+  flex-wrap: wrap;
+}
+.rs-board-titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.rs-board-title {
+  margin: 0;
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.rs-board-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.rs-board-actions .sq-btn {
+  height: 40px;
+}
+.rs-board-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  flex-grow: 1;
+}
+
+/* ---------- brief paper ---------- */
+.rs-brief {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 22px var(--space-24) var(--space-20) 40px;
+  background: var(--color-surface-raised);
+  border-radius: var(--rounded-sharp);
+  box-shadow: var(--shadow-paper);
+  transform: rotate(-0.8deg);
+}
+.rs-hole {
+  position: absolute;
+  left: var(--space-14);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-dot-blue);
+}
+.rs-hole-1 {
+  top: 30px;
+}
+.rs-hole-2 {
+  top: 50%;
+}
+.rs-hole-3 {
+  bottom: 30px;
+}
+.rs-tape {
+  position: absolute;
+  top: -9px;
+  width: 58px;
+  height: 18px;
+}
+.rs-tape-coral {
+  right: 30px;
+  background: color-mix(in srgb, var(--color-tape-coral) 85%, transparent);
+  transform: rotate(4deg);
+}
+.rs-tape-cream {
+  left: 20px;
+  background: color-mix(in srgb, var(--color-tape-cream) 90%, transparent);
+  transform: rotate(-5deg);
+}
+.rs-brief-label {
+  letter-spacing: 0.08em;
+}
+.rs-brief-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.rs-brief-text p {
+  margin: 0;
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.38;
+}
+.rs-brief-text p:first-child::first-letter {
+  float: left;
+  padding: 4px 8px 0 0;
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 58px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 0.85;
+}
+.rs-brief-hint {
+  margin: 0;
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.38;
+  color: var(--color-muted-on-surface);
+}
+.rs-brief-edit {
+  min-height: 190px;
+  font-size: 15px;
+}
+.rs-brief-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.rs-brief-count {
+  flex: 1 0 100%;
+  color: var(--color-muted-on-surface);
+}
+.rs-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--rounded-md);
+  background: var(--color-error-tint);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rs-confirm-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.rs-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted-on-surface);
+}
+.rs-status[data-bad="true"] {
+  color: var(--color-primary-deep);
+  font-weight: 500;
+}
+
+/* ---------- source cards ---------- */
+.rs-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  padding-top: var(--space-4);
+  min-width: 0;
+}
+.rs-src {
+  position: relative;
+  min-width: 0;
+}
+.rs-link {
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+  border-radius: var(--rounded-slot);
+  transform: rotate(1deg);
+}
+.rs-link a {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 14px 44px 14px var(--space-16);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--rounded-slot);
+}
+.rs-link a b {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rs-link .t-meta {
+  color: var(--color-muted-on-chrome);
+}
+.rs-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 14px 44px 14px var(--space-16);
+  border-radius: var(--rounded-sharp);
+  box-shadow: var(--shadow-paper);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rs-note-quote {
+  background: var(--color-pillar-screen);
+  transform: rotate(-1.8deg);
+  margin-right: var(--space-16);
+}
+.rs-note-own {
+  background: var(--color-surface-raised);
+  transform: rotate(-0.6deg);
+}
+.rs-note-text {
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.rs-shot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  margin-left: var(--space-16);
+  border-radius: var(--rounded-sharp);
+  box-shadow: var(--shadow-paper);
+  transform: rotate(1.4deg);
+  background-color: var(--color-surface-raised);
+  /* the hatch texture of design.md (media placeholders): 135 degrees, espresso on cream */
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-chrome) 12%, transparent) 0 2px,
+    transparent 2px 9px
+  );
+  overflow: hidden;
+}
+.rs-shot img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+}
+.rs-shot-label {
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-surface-raised);
+}
+.rs-src-x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--rounded-pill);
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+}
+.rs-src-x svg {
+  width: 14px;
+  height: 14px;
+}
+.rs-src-x:hover,
+.rs-src-x[data-armed="true"] {
+  opacity: 1;
+}
+.rs-src-x[data-armed="true"] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.rs-add-btn {
+  align-self: flex-start;
+  height: 40px;
+  padding: 0 var(--space-16);
+  border-radius: var(--rounded-md);
+  border: 1.5px dashed color-mix(in srgb, var(--color-chrome) 55%, transparent);
+  background: transparent;
+  color: var(--color-on-surface);
+  font: 600 14px var(--font-body), "DM Sans", sans-serif;
+  cursor: pointer;
+}
+.rs-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--rounded-xl);
+  background: var(--color-surface-raised);
+  border: 1.5px solid var(--color-line-soft);
+}
+.rs-add-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* ---------- angles ---------- */
+.rs-angles-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+.rs-angles-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.rs-angles-head .sq-btn {
+  height: 34px;
+  padding: 0 var(--space-14);
+  font-size: 13px;
+}
+.rs-angles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+.rs-angle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: 14px var(--space-16);
+  box-sizing: border-box;
+  border-radius: var(--rounded-xl);
+}
+.rs-angle-0 {
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.rs-angle-0 .rs-angle-kind {
+  color: var(--color-muted-on-chrome);
+}
+.rs-angle-1 {
+  background: var(--color-surface-raised);
+}
+.rs-angle-1 .rs-angle-kind {
+  color: var(--color-muted-on-surface);
+}
+.rs-angle-2 {
+  background: var(--color-instagram);
+}
+.rs-angle-title {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.017em;
+}
+.rs-angles-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  padding: var(--space-16) 18px;
+  border: 1.5px dashed color-mix(in srgb, var(--color-chrome) 35%, transparent);
+  border-radius: var(--rounded-xl);
+  font-size: 14px;
+}
+
+/* ---------- empty board: three example notes ---------- */
+.rs-examples {
+  flex-grow: 1;
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+  padding-top: var(--space-10);
+}
+.rs-example {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-20);
+  border-radius: var(--rounded-sharp);
+  box-shadow: var(--shadow-paper);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.rs-example b {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+.rs-example-1 {
+  background: var(--color-surface-raised);
+  transform: rotate(-1.5deg);
+}
+.rs-example-2 {
+  background: var(--color-pillar-screen);
+  transform: rotate(1.2deg);
+  margin-top: 28px;
+}
+.rs-example-3 {
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+  transform: rotate(-0.6deg);
+}
+.rs-example-3 .t-meta,
+.rs-example-3 span:last-child {
+  color: var(--color-muted-on-chrome);
+}
+.rs-example .rs-tape-coral {
+  left: 36%;
+  right: auto;
+}
+
+/* ---------- edit drawer ---------- */
+.rs-form-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: var(--space-12);
+}
+.rs-pillar-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.rs-pillar-group > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.rs-pillar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+.rs-drawer-spacer {
+  flex-grow: 1;
+}
+.rs-danger {
+  border-color: var(--color-primary);
+  color: var(--color-primary-deep);
+}
+.rs-danger[data-armed="true"] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 767px) {
+  .rs-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-12);
+  }
+  .rs-crumb {
+    display: none;
+  }
+  .rs-capture-row {
+    gap: var(--space-6);
+    padding: 3px 3px 3px var(--space-16);
+    border-radius: 24px;
+    border: 1.5px solid var(--color-line);
+    background: var(--color-surface-raised);
+  }
+  .rs-capture-row:focus-within {
+    border-color: var(--color-on-surface);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+  .rs-capture-input {
+    flex-grow: 1;
+    min-width: 0;
+    width: auto;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 16px;
+  }
+  .rs-capture-input:focus-visible,
+  .rs-capture-input[data-lit="true"] {
+    box-shadow: none;
+    border: 0;
+  }
+  .rs-capture-row .sq-btn {
+    height: 40px;
+    padding: 0 var(--space-16);
+    font-size: 14px;
+  }
+  /* the statement stays for screen readers only; the phone header names the page */
+  .rs-head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .rs-grid {
+    flex-grow: 0;
+    align-content: start;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "chips"
+      "board"
+      "list";
+    gap: var(--space-12);
+  }
+  .rs-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-right: calc(-1 * var(--space-16));
+    padding-right: var(--space-16);
+    scrollbar-width: none;
+  }
+  .rs-chips .sq-fchip {
+    height: 36px;
+  }
+  /* the open topic is the board above, so its row is not repeated in the list */
+  .rs-item[aria-pressed="true"] {
+    display: none;
+  }
+  .rs-item {
+    border-radius: var(--rounded-lg);
+    padding: var(--space-12) var(--space-14);
+  }
+  .rs-board {
+    padding: var(--space-16);
+    border-radius: var(--rounded-control);
+    gap: var(--space-14);
+  }
+  .rs-board-title {
+    font-size: 23px;
+    letter-spacing: -0.026em;
+    line-height: 1.05;
+  }
+  .rs-board-actions {
+    width: 100%;
+  }
+  .rs-board-actions .sq-btn {
+    flex: 1 1 0;
+    height: 44px;
+  }
+  .rs-board-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-20);
+  }
+  .rs-brief {
+    padding: var(--space-20) var(--space-16) var(--space-16) 34px;
+  }
+  .rs-brief-text p,
+  .rs-brief-hint {
+    font-size: 16px;
+  }
+  .rs-angles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-examples {
+    flex-grow: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-14);
+  }
+  .rs-example-2 {
+    margin-top: 0;
+    margin-left: var(--space-16);
+  }
+  .rs-src-x {
+    min-width: 44px;
+    height: 44px;
+    top: 0;
+    right: 0;
+  }
+  .rs-form-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-newtopic,
+  .rs-add-btn,
+  .rs-sent-btn {
+    min-height: 44px;
+  }
+  .rs-sent-btn {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.rs-short {
+  display: none;
+}
+@media (max-width: 767px) {
+  .rs-long {
+    display: none;
+  }
+  .rs-short {
+    display: inline;
+  }
+}
+
+.rs-emptylist-hint {
+  margin-top: auto;
+}
+.rs-sent-label {
+  color: var(--color-muted-on-surface);
+}
+.rs-self-start {
+  align-self: flex-start;
+}
