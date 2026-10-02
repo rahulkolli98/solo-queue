@@ -12,10 +12,12 @@ import { splitPosts } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
 import {
   publishInstagramPost,
+  resumeInstagramContainer,
   type InstagramKind,
 } from "./providers/instagram";
 import {
   publishThreadsPost,
+  resumeThreadsContainer,
 } from "./providers/threads";
 
 const DAY_MS = 86400000;
@@ -236,6 +238,9 @@ export const tick = internalAction({
       };
     }
 
+    // A claim that never finished (crash, timeout) is failed loudly, never retried blind.
+    await ctx.runMutation(internal.slotRecovery.reapStaleClaims, { now });
+
     const ids = await ctx.runMutation(internal.slots.claimDue, { now, limit: 10 });
     let published = 0;
     let failed = 0;
@@ -255,6 +260,7 @@ export const tick = internalAction({
         await ctx.runMutation(internal.slots.release, {
           id: slot._id,
           notBefore: now + 3600_000,
+          countAttempt: false, // a deferral is not a failed attempt
         });
         console.log(
           `publish.tick: rolling limit hit for ${slot.platform} (${used}/${cap}) — deferred ${slot._id}.`
@@ -263,7 +269,7 @@ export const tick = internalAction({
         continue;
       }
 
-      const outcome = await publishOne(ctx, slot, draft, asset, topicTitle);
+      const outcome = await publishGuarded(ctx, slot, draft, asset, topicTitle);
       if (outcome === "published") published += 1;
       else if (outcome === "failed") failed += 1;
       else limited += 1; // deferred (limit tripped mid-batch)
@@ -285,6 +291,7 @@ type PublishItem = {
     platform: "threads" | "instagram";
     attempts: number;
     scheduledAt: number;
+    containerId?: string;
   };
   draft: {
     _id: Id<"drafts">;
@@ -311,16 +318,34 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   if (slot.platform === "threads") {
     const conn = await ctx.runQuery(internal.connections.getOne, { platform: "threads" });
     if (!conn) return markPermanent(ctx, slot._id, now, "No Threads connection — reconnect in Settings.");
-    // v1: one post per call — publish the first post of a multi-post draft.
-    // Thread chaining needs a reply param the APIs don't document here yet.
+    // The first post publishes as the slot; the rest follow as replies to it.
     const posts = splitPosts(draft.body);
     const text = (posts.length > 0 ? posts[0] : draft.body).trim();
     if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts.");
-    const note = posts.length > 1 ? ` [post 1 of ${posts.length} — thread chaining not yet supported]` : "";
-    const out = await publishThreadsPost(
-      { userId: conn.platformUserId, accessToken: conn.accessToken, text, mediaType: "TEXT" },
-    );
-    return await settleThreadsOutcome(ctx, slot, draft, out, now, topicTitle, note);
+    if (text.length > THREADS_POST_LIMIT) {
+      return markPermanent(ctx, slot._id, now, `Post 1 is ${text.length - THREADS_POST_LIMIT} characters over the ${THREADS_POST_LIMIT} limit — shorten it, then retry.`);
+    }
+    const out = slot.containerId
+      ? await resumeThreadsContainer({
+          userId: conn.platformUserId,
+          accessToken: conn.accessToken,
+          containerId: slot.containerId,
+          mediaType: "TEXT",
+        })
+      : await publishThreadsPost({
+          userId: conn.platformUserId,
+          accessToken: conn.accessToken,
+          text,
+          mediaType: "TEXT",
+        });
+    if (!out.ok && out.containerId) {
+      await ctx.runMutation(internal.slotRecovery.setContainer, { id: slot._id, containerId: out.containerId });
+    }
+    const result = await settleThreadsOutcome(ctx, slot, draft, out, now, topicTitle, "");
+    if (result === "published" && out.ok && posts.length > 1) {
+      await publishThreadReplies(ctx, slot._id, conn, posts.slice(1), out.mediaId);
+    }
+    return result;
   }
 
   // instagram
@@ -328,15 +353,106 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   if (!conn) return markPermanent(ctx, slot._id, now, "No Instagram connection — reconnect in Settings.");
   if (!asset) return markPermanent(ctx, slot._id, now, "Attached media is gone — pick another in the Library.");
   const kind: InstagramKind = draft.templateKey === "reel-script" ? "reel" : "photo";
-  const out = await publishInstagramPost({
-    igUserId: conn.platformUserId,
-    accessToken: conn.accessToken,
-    caption: draft.body,
-    mediaUrl: asset.publicUrl,
-    mimeType: asset.mimeType,
-    kind,
-  });
+  const out = slot.containerId
+    ? await resumeInstagramContainer({
+        igUserId: conn.platformUserId,
+        accessToken: conn.accessToken,
+        containerId: slot.containerId,
+      })
+    : await publishInstagramPost({
+        igUserId: conn.platformUserId,
+        accessToken: conn.accessToken,
+        caption: draft.body,
+        mediaUrl: asset.publicUrl,
+        mimeType: asset.mimeType,
+        kind,
+      });
+  if (!out.ok && out.containerId) {
+    await ctx.runMutation(internal.slotRecovery.setContainer, { id: slot._id, containerId: out.containerId });
+  }
   return await settleInstagramOutcome(ctx, slot, draft, out, now);
+}
+
+const THREADS_POST_LIMIT = 500;
+
+/**
+ * Publish posts 2..N of a thread as replies, each to the one before. The
+ * first post is already live, so a failure here never retries the slot (that
+ * would post the thread twice): it records which post stopped the chain, as a
+ * note on the slot and a receipt, and the founder finishes it by hand.
+ */
+async function publishThreadReplies(
+  ctx: ActionCtx,
+  slotId: Id<"slots">,
+  conn: { platformUserId: string; accessToken: string },
+  rest: string[],
+  firstMediaId: string
+): Promise<void> {
+  let previous = firstMediaId;
+  for (let i = 0; i < rest.length; i++) {
+    const text = rest[i].trim();
+    const number = i + 2;
+    const out = await publishThreadsPost({
+      userId: conn.platformUserId,
+      accessToken: conn.accessToken,
+      text,
+      mediaType: "TEXT",
+      replyToId: previous,
+    });
+    if (!out.ok) {
+      const note = `Post ${number} of ${rest.length + 1} did not publish: ${out.message} Posts 1 to ${number - 1} are live.`;
+      await ctx.runMutation(internal.slotRecovery.setNote, { id: slotId, note });
+      await ctx.runMutation(internal.publish.addReceipt, {
+        slotId,
+        attemptedAt: Date.now(),
+        outcome: "permanent",
+        providerMessage: note,
+      });
+      return;
+    }
+    previous = out.mediaId;
+  }
+  await ctx.runMutation(internal.publish.addReceipt, {
+    slotId,
+    attemptedAt: Date.now(),
+    outcome: "success",
+    providerMessage: `Published ${rest.length + 1} posts as a thread.`,
+  });
+}
+
+/**
+ * publishOne with a net under it: anything it throws (a network drop, a bug)
+ * becomes a retryable failure with a receipt instead of leaving the slot
+ * claimed forever.
+ */
+async function publishGuarded(
+  ctx: ActionCtx,
+  slot: PublishItem["slot"],
+  draft: PublishItem["draft"],
+  asset: PublishItem["asset"],
+  topicTitle: string
+): Promise<"published" | "failed" | "deferred"> {
+  try {
+    return await publishOne(ctx, slot, draft, asset, topicTitle);
+  } catch (err) {
+    const message = `Publisher error: ${err instanceof Error ? err.message : "unknown"}.`.slice(0, 300);
+    console.error(`publish.tick: ${slot._id} threw — ${message}`);
+    const now = Date.now();
+    if (slot.attempts + 1 >= MAX_ATTEMPTS) {
+      return markPermanent(ctx, slot._id, now, `Gave up after ${MAX_ATTEMPTS} attempts: ${message}`);
+    }
+    await ctx.runMutation(internal.slots.release, {
+      id: slot._id,
+      notBefore: now + backoffMs(slot.attempts + 1),
+    });
+    await ctx.runMutation(internal.publish.addReceipt, {
+      slotId: slot._id,
+      attemptedAt: now,
+      outcome: "retryable",
+      providerMessage: message,
+    });
+    return "deferred";
+  }
 }
 
 async function markPermanent(ctx: ActionCtx, slotId: Id<"slots">, now: number, message: string): Promise<"failed"> {

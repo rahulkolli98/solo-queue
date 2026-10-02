@@ -92,6 +92,7 @@ export default defineSchema({
     evergreen: v.optional(v.boolean()), // eligible for Requeue after rules.evergreenRestDays
     claimedAt: v.optional(v.number()), // set when claimed; lets a reaper recover stuck claims
     containerId: v.optional(v.string()), // provider container id, kept so a retry resumes instead of re-posting
+    originalScheduledAt: v.optional(v.number()), // the founder's chosen time, kept when a retry pushes scheduledAt later
     createdAt: v.number(),
   })
     .index("by_platform_status_scheduled", ["platform", "status", "scheduledAt"])

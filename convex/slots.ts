@@ -151,6 +151,7 @@ export const getForPublish = internalQuery({
         platform: slot.platform,
         attempts: slot.attempts,
         scheduledAt: slot.scheduledAt,
+        containerId: slot.containerId,
       },
       draft: {
         _id: draft._id,
@@ -395,7 +396,7 @@ export const claimDue = internalMutation({
     due.sort((a, b) => a.scheduledAt - b.scheduledAt);
     const winners = due.slice(0, cap);
     for (const w of winners) {
-      await ctx.db.patch(w._id, { status: "claimed" });
+      await ctx.db.patch(w._id, { status: "claimed", claimedAt: args.now });
     }
     return winners.map((w) => w._id);
   },
@@ -406,19 +407,29 @@ export const claimDue = internalMutation({
  * Bumps attempts so the tick's backoff accounting stays truthful.
  */
 export const release = internalMutation({
-  args: { id: v.id("slots"), notBefore: v.optional(v.number()) },
+  args: {
+    id: v.id("slots"),
+    notBefore: v.optional(v.number()),
+    /** false for a deferral that is not a failed attempt (rate-limit guard). Default true. */
+    countAttempt: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
     if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
     if (slot.status !== "claimed")
       throw refusal("BAD_STATE", "Only claimed slots can be released.");
     const at = Math.max(slot.scheduledAt, args.notBefore ?? slot.scheduledAt);
+    const attempts = slot.attempts + (args.countAttempt === false ? 0 : 1);
     await ctx.db.patch(args.id, {
       status: "scheduled",
       scheduledAt: at,
-      attempts: slot.attempts + 1,
+      attempts,
+      claimedAt: undefined,
+      // Keep the time the founder chose; scheduledAt now means "next attempt".
+      originalScheduledAt:
+        at !== slot.scheduledAt ? (slot.originalScheduledAt ?? slot.scheduledAt) : slot.originalScheduledAt,
     });
-    return { slotId: args.id, scheduledAt: at, attempts: slot.attempts + 1 };
+    return { slotId: args.id, scheduledAt: at, attempts };
   },
 });
 
