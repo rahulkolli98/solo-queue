@@ -1,0 +1,66 @@
+"use client";
+
+import { useMutation } from "convex/react";
+import { useState } from "react";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { useToast } from "@/components/ui/Toast";
+import { studioErrorText } from "@/lib/studioErrors";
+import { KIND_META, QUEUE_KINDS, weekToast, type Draft, type DraftKind } from "@/lib/studioModel";
+
+/**
+ * The one-gesture "queue this week": `slots.queueTopic` assigns each ready
+ * draft to its next free slot; the result becomes the board's toast with
+ * View queue / Attach media.
+ */
+export function useQueueWeek({
+  topicId,
+  tz,
+  prepare,
+  onAttachMedia,
+}: {
+  topicId: string;
+  tz: string;
+  /** Runs first: save pending edits so the server queues what is on screen. */
+  prepare: () => Promise<void>;
+  onAttachMedia: (kind: DraftKind | undefined) => void;
+}) {
+  const queueTopic = useMutation(api.slots.queueTopic);
+  const { toast } = useToast();
+  const [queuing, setQueuing] = useState(false);
+  /** Draft id -> the time it was queued for, for this page session. */
+  const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
+
+  async function queue(latest: Partial<Record<DraftKind, Draft>>): Promise<void> {
+    setQueuing(true);
+    try {
+      await prepare();
+      const result = await queueTopic({ topicId: topicId as Id<"topics">, tz });
+      const marks: Record<string, number> = {};
+      for (const q of result.queued) {
+        const kind = QUEUE_KINDS.find((k) => KIND_META[k].templateKey === q.templateKey);
+        const draft = kind ? latest[kind] : undefined;
+        if (draft) marks[draft._id] = q.scheduledAt;
+      }
+      setQueuedAt((prev) => ({ ...prev, ...marks }));
+      const t = weekToast(result);
+      toast({
+        title: t.title,
+        detail: t.detail,
+        tone: t.tone,
+        actions: [
+          { label: "View queue", href: "/queue", variant: "primary" },
+          ...(t.needsMedia
+            ? [{ label: "Attach media", onClick: () => onAttachMedia(t.mediaKind) }]
+            : []),
+        ],
+      });
+    } catch (e) {
+      toast({ title: "Couldn't queue the week", detail: studioErrorText(e, "Try again."), tone: "bad" });
+    } finally {
+      setQueuing(false);
+    }
+  }
+
+  return { queue, queuing, queuedAt };
+}
