@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as drafting from "../drafting.js";
 import type * as drafts from "../drafts.js";
 import type * as frames from "../frames.js";
+import type * as lib_coverage from "../lib/coverage.js";
 import type * as lib_drafting from "../lib/drafting.js";
 import type * as lib_framesModel from "../lib/framesModel.js";
 import type * as lib_http from "../lib/http.js";
@@ -37,6 +38,7 @@ import type * as slots from "../slots.js";
 import type * as sources from "../sources.js";
 import type * as templateCopy from "../templateCopy.js";
 import type * as templates from "../templates.js";
+import type * as today from "../today.js";
 import type * as topics from "../topics.js";
 import type * as waitlist from "../waitlist.js";
 
@@ -52,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   drafting: typeof drafting;
   drafts: typeof drafts;
   frames: typeof frames;
+  "lib/coverage": typeof lib_coverage;
   "lib/drafting": typeof lib_drafting;
   "lib/framesModel": typeof lib_framesModel;
   "lib/http": typeof lib_http;
@@ -76,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   sources: typeof sources;
   templateCopy: typeof templateCopy;
   templates: typeof templates;
+  today: typeof today;
   topics: typeof topics;
   waitlist: typeof waitlist;
 }>;
