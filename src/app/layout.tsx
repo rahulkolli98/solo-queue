@@ -6,6 +6,7 @@ import SiteNav, { PostingAs } from "@/components/SiteNav";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import MobileHeader from "@/components/MobileHeader";
 import MobileTabBar from "@/components/MobileTabBar";
+import TimezoneSync from "@/components/TimezoneSync";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const display = Bricolage_Grotesque({
@@ -48,6 +49,7 @@ export default function RootLayout({
         </a>
         <ConvexClientProvider>
           <ToastProvider>
+            <TimezoneSync />
             <div className="sq-shell">
               <aside className="sq-sidebar">
                 <Link href="/" className="sq-logo">
