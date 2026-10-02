@@ -45,6 +45,7 @@ for Bricolage Grotesque, DM Sans, and DM Mono per the design tokens.
 | `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Dashboard login (REQUIRED in production; omit only for local dev) | Vercel only |
 | `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) | Vercel only |
 | `PUBLISH_DRY_RUN` | Publisher mode. Posts for real **only when exactly `0`**; unset or anything else is dry-run | Convex only (set `1` on local and prod until the publisher is verified) |
+| `CONVEX_DEPLOY_KEY` | Production deploy key used by `npx convex deploy` in the Vercel build command (TASK-087). Production environment only | Vercel build only |
 | `ALLOW_TEST_PUBLISH` | Enables the Connections test publish/delete (posts to the real Threads account). Off unless exactly `1` | Convex only; leave unset on prod |
 
 Backend actions run on Convex Cloud and read **Convex** env vars — Vercel

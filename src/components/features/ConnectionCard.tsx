@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { connectionHint } from "@/lib/connectionErrors";
 
 export interface ConnectionInfo {
   platform: "threads" | "instagram";
@@ -73,6 +74,11 @@ export default function ConnectionCard({
               </span>
             ))}
           </div>
+          {connectionHint(platform, connection.status) && (
+            <p className="sq-muted">
+              {connectionHint(platform, connection.status)}
+            </p>
+          )}
           {connection.lastError && (
             <div className="sq-error-box" role="alert">
               {connection.lastError}
