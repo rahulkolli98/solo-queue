@@ -114,7 +114,7 @@ async function pollContainer(
         `${THREADS_API}/${containerId}?fields=status,error_message&access_token=${encodeURIComponent(accessToken)}`
       );
       data = await readJson(res);
-    } catch (err) {
+    } catch {
       // A single failed status read shouldn't kill the publish — if we're
       // out of budget the timeout path below handles it.
       if (dep.now() > deadline) return { settled: false, waited, timedOut: true };

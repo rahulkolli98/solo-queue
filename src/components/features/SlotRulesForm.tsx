@@ -1,71 +1,93 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { parseTimeList } from "@/lib/timeList";
+import { refusalText } from "@/lib/refusalText";
 
+/**
+ * Default posting times per platform, saved to the typed settings
+ * (`slotDefaults`). Times are 24-hour HH:MM separated by commas; the queue
+ * uses them in the saved time zone. (The full Settings sections arrive with
+ * the Settings rebuild.)
+ */
 export default function SlotRulesForm() {
-  const defaults = useQuery(api.settings.getSlotDefaults);
-  const save = useMutation(api.settings.setSlotDefaults);
-  const [threads, setThreads] = useState("");
-  const [instagram, setInstagram] = useState("");
+  const settings = useQuery(api.settings.get);
+  const update = useMutation(api.settings.update);
+  // null = untouched: show what is saved. Editing replaces it.
+  const [threadsDraft, setThreadsDraft] = useState<string | null>(null);
+  const [instagramDraft, setInstagramDraft] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (defaults && threads === "" && instagram === "") {
-      setThreads(defaults.threads);
-      setInstagram(defaults.instagram);
-    }
-  }, [defaults, threads, instagram]);
+  if (settings === undefined) {
+    return <p className="sq-muted">Loading slot rules…</p>;
+  }
+
+  const threads = threadsDraft ?? settings.slotDefaults.threads.join(", ");
+  const instagram = instagramDraft ?? settings.slotDefaults.instagram.join(", ");
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
+    const t = parseTimeList(threads);
+    const i = parseTimeList(instagram);
+    if (!t.ok) {
+      setMsg(t.message);
+      return;
+    }
+    if (!i.ok) {
+      setMsg(i.message);
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
-      await save({ threads, instagram });
-      setMsg("Slot defaults saved.");
+      await update({ patch: { slotDefaults: { threads: t.times, instagram: i.times } } });
+      setThreadsDraft(null);
+      setInstagramDraft(null);
+      setMsg("Slot times saved.");
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Save failed.");
+      setMsg(refusalText(err, "Save failed."));
     } finally {
       setBusy(false);
     }
   }
 
-  if (defaults === undefined) {
-    return <p className="sq-muted">Loading slot rules…</p>;
-  }
-
   return (
-    <form onSubmit={run} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <form onSubmit={run} className="sq-slot-form">
       <div className="sq-form-row">
-        <label htmlFor="slot-threads">Threads default time</label>
+        <label htmlFor="slot-threads">Threads times</label>
         <input
           id="slot-threads"
-          type="time"
-          className="sq-field"
+          className="sq-field sq-slot-input"
           value={threads}
-          onChange={(e) => setThreads(e.target.value)}
-          required
+          placeholder="09:30, 13:00, 19:00"
+          onChange={(e) => setThreadsDraft(e.target.value)}
+          inputMode="numeric"
+          autoComplete="off"
         />
       </div>
       <div className="sq-form-row">
-        <label htmlFor="slot-instagram">Instagram default time</label>
+        <label htmlFor="slot-instagram">Instagram times</label>
         <input
           id="slot-instagram"
-          type="time"
-          className="sq-field"
+          className="sq-field sq-slot-input"
           value={instagram}
-          onChange={(e) => setInstagram(e.target.value)}
-          required
+          placeholder="12:00, 18:30"
+          onChange={(e) => setInstagramDraft(e.target.value)}
+          inputMode="numeric"
+          autoComplete="off"
         />
       </div>
+      <p className="sq-muted">24-hour times, separated by commas, in your saved time zone ({settings.timezone}).</p>
       <div className="sq-row">
         <button type="submit" className="sq-btn sq-btn-primary" disabled={busy}>
-          {busy ? "Saving…" : "Save slot rules"}
+          {busy ? "Saving…" : "Save slot times"}
         </button>
-        {msg && <span className="sq-muted">{msg}</span>}
+        <span className="sq-muted" role="status">
+          {msg}
+        </span>
       </div>
     </form>
   );
