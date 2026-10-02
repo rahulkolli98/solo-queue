@@ -234,6 +234,8 @@ textarea.sq-input {
   }
   .sq-drawer-body {
     padding: 12px 18px 24px;
+    /* The sheet has auto height: cap the body so the content scrolls above the footer. */
+    max-height: 88dvh;
   }
   .sq-drawer-handle {
     display: block;
