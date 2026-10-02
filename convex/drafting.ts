@@ -1,5 +1,5 @@
-import { action, mutation } from "./_generated/server";
-import { api } from "./_generated/api";
+import { action, internalMutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateObject, generateText } from "ai";
@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   buildTopicVars,
   captionConstraint,
+  checkEditedBody,
   fillSlots,
   plainConstraint,
   threadsConstraint,
@@ -35,13 +36,14 @@ const DEFAULT_FORMATS: Format[] = [
   "blog",
 ];
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1";
 
 /**
  * Store one generated draft, replacing any prior draft for the same
- * topic+template (regeneration replaces, never duplicates).
+ * topic+template (regeneration replaces, never duplicates). Internal: it can
+ * delete drafts, so only `generate` may call it.
  */
-export const storeDraft = mutation({
+export const storeDraft = internalMutation({
   args: {
     topicId: v.id("topics"),
     platform: v.union(v.literal("threads"), v.literal("instagram"), v.literal("blog")),
@@ -61,14 +63,18 @@ export const storeDraft = mutation({
     for (const row of existing) {
       if (row.templateKey === args.templateKey) await ctx.db.delete(row._id);
     }
+    // Normalize line endings (model output may carry CRLF) and recompute
+    // counts on the stored text, so display/counts/exports always agree.
+    const body = args.body.replace(/\r\n?/g, "\n");
+    const check = checkEditedBody(args.platform, args.templateKey, body);
     const id = await ctx.db.insert("drafts", {
       topicId: args.topicId,
       platform: args.platform,
-      body: args.body,
+      body,
       templateKey: args.templateKey,
       templateVersion: args.templateVersion,
-      charCount: args.charCount,
-      constraintOk: args.constraintOk,
+      charCount: check.charCount,
+      constraintOk: check.constraintOk,
       createdAt: Date.now(),
     });
     return id as string;
@@ -148,22 +154,33 @@ export const generate = action({
 
       let body: string;
       if (format === "threads") {
-        const { object } = await generateObject({
-          model,
-          system,
-          prompt,
-          schema: z.object({
-            posts: z
-              .array(z.object({ beat: z.string(), text: z.string() }))
-              .min(1)
-              .max(6),
-          }),
-        });
-        body = object.posts
-          .map((p) => `${p.beat.toUpperCase()} · ${p.text.length} / 500\n${p.text}`)
-          .join("\n---\n");
+        // Prefer structured output (exact beats); fall back to plain text
+        // for models without JSON-mode support (common on free tiers) —
+        // the template already asks for --- separators, so parsing holds.
+        try {
+          const { object } = await generateObject({
+            model,
+            system,
+            prompt,
+            schema: z.object({
+              posts: z
+                .array(z.object({ beat: z.string(), text: z.string() }))
+                .min(1)
+                .max(6),
+            }),
+          });
+          body = object.posts
+            .map((p) => `${p.beat.toUpperCase()} · ${p.text.length} / 500\n${p.text}`)
+            .join("\n---\n");
+        } catch {
+          console.warn(
+            `drafting: structured output failed for ${modelId}, falling back to text.`
+          );
+          const { text } = await generateText({ model, system, prompt });
+          body = text.trim();
+        }
         const check = threadsConstraint(body);
-        const id: string = await ctx.runMutation(api.drafting.storeDraft, {
+        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
           topicId: args.topicId,
           platform,
           templateKey,
@@ -178,7 +195,7 @@ export const generate = action({
         body = text.trim();
         const check =
           format === "instagram-caption" ? captionConstraint(body) : plainConstraint(body);
-        const id: string = await ctx.runMutation(api.drafting.storeDraft, {
+        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
           topicId: args.topicId,
           platform,
           templateKey,

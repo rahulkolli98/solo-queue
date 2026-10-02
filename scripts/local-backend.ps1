@@ -34,6 +34,24 @@ $dbDir = Join-Path $root ".convex\local\default"
 $db = Join-Path $dbDir "convex_local_backend.sqlite3"
 $storage = Join-Path $dbDir "convex_local_storage"
 $port = $config.ports.cloud
+# Backend actions read process env, so load .env.local into this process
+# first (mirrors what `npx convex dev` provides). Values never printed.
+$envFile = Join-Path $root ".env.local"
+if (Test-Path -LiteralPath $envFile) {
+  foreach ($line in Get-Content -LiteralPath $envFile) {
+    if ($line -match "^\s*#" -or $line -match "^\s*$") { continue }
+    $idx = $line.IndexOf("=")
+    if ($idx -gt 0) {
+      $k = $line.Substring(0, $idx).Trim()
+      $val = $line.Substring($idx + 1).Trim()
+      if ($val.Length -ge 2 -and $val.StartsWith('"') -and $val.EndsWith('"')) {
+        $val = $val.Substring(1, $val.Length - 2)
+      }
+      if ($k -ne "") { Set-Item -Path ("Env:" + $k) -Value $val }
+    }
+  }
+  Write-Output "Loaded env from .env.local (values hidden)."
+}
 Write-Output "Backend: $exe"
 Write-Output "Port $port (site $($config.ports.site)), deployment $($config.deploymentName)"
 Start-Process -FilePath $exe -ArgumentList "`"$db`"", "--port", "$port",

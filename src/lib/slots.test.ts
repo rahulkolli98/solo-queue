@@ -57,4 +57,9 @@ describe("forwardCoverage", () => {
     const slots = [{ scheduledAt: at(-2) }, { scheduledAt: at(-1) }];
     expect(forwardCoverage(slots, now)).toBe(0);
   });
+
+  it("reads a full 7-day lane (TASK-023 week-view drill)", () => {
+    const slots = Array.from({ length: 7 }, (_, i) => ({ scheduledAt: at(i) }));
+    expect(forwardCoverage(slots, now)).toBe(7);
+  });
 });

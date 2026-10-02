@@ -11,4 +11,8 @@ crons.daily(
   internal.connections.checkExpiring
 );
 
+// Publisher tick: claim due slots and publish them. DRY-RUN unless the Convex
+// env var PUBLISH_DRY_RUN is exactly "0" (see convex/lib/safety.ts).
+crons.interval("publisher-tick", { minutes: 1 }, internal.publish.tick, {});
+
 export default crons;

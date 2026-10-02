@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTopicVars,
   captionConstraint,
+  checkEditedBody,
   fillSlots,
   plainConstraint,
   splitPosts,
@@ -73,5 +74,24 @@ describe("captionConstraint", () => {
 describe("plainConstraint", () => {
   it("always passes and counts trimmed length", () => {
     expect(plainConstraint("  abc  ")).toEqual({ charCount: 3, constraintOk: true });
+  });
+});
+
+describe("checkEditedBody", () => {
+  it("uses the threads mapping for threads drafts", () => {
+    expect(checkEditedBody("threads", "threads-hook-story", "a".repeat(501)).constraintOk).toBe(false);
+    expect(checkEditedBody("threads", "threads-hook-story", "short").constraintOk).toBe(true);
+  });
+
+  it("uses the 2200 cap only for IG captions", () => {
+    expect(checkEditedBody("instagram", "ig-caption-beats", "x".repeat(2201)).constraintOk).toBe(false);
+    expect(checkEditedBody("instagram", "reel-script", "x".repeat(5000)).constraintOk).toBe(true);
+  });
+
+  it("leaves blog drafts unconstrained", () => {
+    expect(checkEditedBody("blog", "blog-draft", "x".repeat(9000))).toEqual({
+      charCount: 9000,
+      constraintOk: true,
+    });
   });
 });
