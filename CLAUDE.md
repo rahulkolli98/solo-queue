@@ -35,7 +35,7 @@ This repo is the Solo Queue app (Next.js + Convex + Vercel). `docs/` and `design
 - "Dev" is a **local Convex backend** on this machine (`http://127.0.0.1:3210`, state in `.convex/local/default/`, gitignored), not a cloud deployment. Prod is the hosted Convex deployment that Vercel uses. If port 3210 is not listening, start the backend with `.\scripts\local-backend.ps1` (it loads `.env.local` without printing values), wait a few seconds, then run `npx convex dev --once` (or leave `npx convex dev` running). `npx convex ...` commands without `--prod` hit the local backend; Meta OAuth and real publishing cannot be tested there (HTTPS redirect URIs), only on prod.
 - Never run `convex deploy`, `--prod` writes, or change Vercel settings unless the user asks. Prod holds real data: schema changes must be additive (`v.optional`, new tables), never narrowing.
 - The new typed settings singleton is the table `appSettings`. The old key/value `settings` table is legacy and stays until a migration removes it.
-- Publishing safety: the publisher must stay dry-run unless `PUBLISH_DRY_RUN=0` is set explicitly. Public Convex functions are callable by anyone with the URL: anything that writes, publishes or deletes should be `internal*`.
+- Publishing safety: the publisher must stay dry-run unless `PUBLISH_DRY_RUN=0` is set explicitly. Never set it to `0` on any deployment holding real Meta tokens until TASK-089 (gate the public Convex writes) is done. Public Convex functions are callable by anyone with the URL: anything that writes, publishes or deletes should be `internal*`.
 - Landing site is a separate repo (`solo-queue-landing`); never run `npx convex dev` there.
 
 **Roadmap**
