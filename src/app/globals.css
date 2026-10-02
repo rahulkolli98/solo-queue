@@ -10,6 +10,7 @@
 @import "../styles/queue.css";
 @import "../styles/research.css";
 @import "../styles/library.css";
+@import "../styles/log.css";
 
 body {
   background: var(--color-chrome);
