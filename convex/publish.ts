@@ -8,7 +8,7 @@ import {
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { splitPosts } from "./lib/drafting";
+import { instagramCaption, splitPosts } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
 import {
   publishInstagramPost,
@@ -367,7 +367,7 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
     : await publishInstagramPost({
         igUserId: conn.platformUserId,
         accessToken: conn.accessToken,
-        caption: draft.body,
+        caption: instagramCaption(draft.templateKey, draft.body),
         mediaUrl: asset.publicUrl,
         mimeType: asset.mimeType,
         kind,

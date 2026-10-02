@@ -39,6 +39,22 @@ export function splitPosts(body: string): string[] {
     .filter((p) => p.length > 0);
 }
 
+/**
+ * The text Instagram should post for a draft. A reel draft is the timed script,
+ * a `---` line, then the one-line caption: only the caption is posted. A
+ * caption draft may end with a `---` line and a "CAPTION · n / 2,200" counter
+ * footer from the template: that footer is not part of the post.
+ */
+export function instagramCaption(templateKey: string, body: string): string {
+  const parts = body.split(/^[ \t]*---[ \t]*$/m).map((p) => p.trim());
+  if (parts.length < 2) return body.trim();
+  if (templateKey === "reel-script") {
+    return parts.slice(1).join("\n").trim() || body.trim();
+  }
+  const last = parts[parts.length - 1];
+  return /^CAPTION\s*·/i.test(last) ? parts.slice(0, -1).join("\n---\n").trim() : body.trim();
+}
+
 export function threadsConstraint(body: string): {
   charCount: number;
   constraintOk: boolean;

@@ -3,6 +3,7 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { takenTimes } from "./lib/slotPlanning";
+import { instagramCaption } from "./lib/drafting";
 import { insertDraft, insertSlot, insertTopic, newTest } from "../src/test-utils/convex";
 
 const DAY = 86400000;
@@ -147,5 +148,20 @@ describe("small contracts", () => {
     await insertSlot(t, draft, Date.now() - 90 * DAY, { status: "published" });
     const out = await t.query(api.today.summary, { now: Date.now(), tz: "UTC" });
     expect(out.firstRun).toBe(false);
+  });
+});
+
+describe("instagramCaption", () => {
+  it("posts only the caption of a reel draft", () => {
+    const body = "1. 0:00–0:02 — On screen: Hi.\n---\nDay 4. Follow the build.";
+    expect(instagramCaption("reel-script", body)).toBe("Day 4. Follow the build.");
+  });
+  it("drops the template's counter footer from a caption draft", () => {
+    const body = "Opener.\n\nStory.\n\n#build\n---\nCAPTION · 24 / 2,200 · 1 HASHTAGS";
+    expect(instagramCaption("ig-caption-beats", body)).toBe("Opener.\n\nStory.\n\n#build");
+  });
+  it("leaves a plain caption untouched", () => {
+    expect(instagramCaption("ig-caption-beats", " Just a caption. ")).toBe("Just a caption.");
+    expect(instagramCaption("ig-caption-beats", "One\n---\nTwo")).toBe("One\n---\nTwo");
   });
 });
