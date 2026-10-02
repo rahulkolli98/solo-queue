@@ -148,18 +148,37 @@ export function buildBriefPrompt(args: {
   return lines.join("\n");
 }
 
-export const anglesSchema = z.object({
-  angles: z
-    .array(
-      z.object({
-        platform: z.enum(["threads", "instagram"]),
-        format: z.enum(["thread", "single", "caption", "reel", "carousel"]),
-        frameKey: z.string(),
-        title: z.string().min(1).max(120),
-      })
-    )
-    .length(3),
+const angleSchema = z.object({
+  platform: z.enum(["threads", "instagram"]),
+  format: z.enum(["thread", "single", "caption", "reel", "carousel"]),
+  frameKey: z.string(),
+  title: z.string().min(1).max(120),
 });
+
+export const anglesSchema = z.object({ angles: z.array(angleSchema).length(3) });
+
+/**
+ * Fallback for models that cannot do structured output: pull the JSON object
+ * out of a plain-text reply (it may be wrapped in prose or a code fence) and
+ * keep the angles that validate. Returns [] when nothing usable is found.
+ */
+export function parseAnglesText(text: string): z.infer<typeof angleSchema>[] {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return [];
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return [];
+  }
+  const list = (raw as { angles?: unknown })?.angles;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((item) => {
+    const parsed = angleSchema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
 
 export type Angle = z.infer<typeof anglesSchema>["angles"][number];
 

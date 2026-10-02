@@ -8,6 +8,7 @@ import {
   titleFromCapture,
   usableAngles,
   anglesSchema,
+  parseAnglesText,
 } from "../../convex/lib/research";
 
 describe("readiness", () => {
@@ -98,5 +99,26 @@ describe("prompts and parsers", () => {
     expect(buildAnglesPrompt({ title: "T", frames: [{ key: "confession", name: "Confession", fits: ["thread"] }] })).toContain(
       "- confession (Confession), fits: thread"
     );
+  });
+});
+
+describe("parseAnglesText", () => {
+  const good = { platform: "threads", format: "thread", frameKey: "confession", title: "Fees tax consistency" };
+
+  it("reads a bare JSON reply", () => {
+    expect(parseAnglesText(JSON.stringify({ angles: [good] }))).toEqual([good]);
+  });
+
+  it("finds the JSON inside prose and a code fence", () => {
+    const reply = "Here you go:\n```json\n" + JSON.stringify({ angles: [good, good] }) + "\n```\nHope it helps.";
+    expect(parseAnglesText(reply)).toHaveLength(2);
+  });
+
+  it("keeps only valid angles and returns [] for junk", () => {
+    const bad = { platform: "x", format: "thread", frameKey: "a", title: "t" };
+    expect(parseAnglesText(JSON.stringify({ angles: [good, bad] }))).toEqual([good]);
+    expect(parseAnglesText("no json here")).toEqual([]);
+    expect(parseAnglesText("{ not json }")).toEqual([]);
+    expect(parseAnglesText(JSON.stringify({ other: 1 }))).toEqual([]);
   });
 });

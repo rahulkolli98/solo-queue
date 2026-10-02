@@ -8,7 +8,9 @@ import {
   anglesSchema,
   buildAnglesPrompt,
   buildBriefPrompt,
+  parseAnglesText,
   usableAngles,
+  type Angle,
 } from "./lib/research";
 
 const SYSTEM =
@@ -55,17 +57,28 @@ export const angles = action({
     if (frames.length === 0) {
       throw new ConvexError("VALIDATION:NO_FRAMES: Add a story frame in the Library first.");
     }
-    const { object } = await generateObject({
-      model: llmModel(),
-      system: SYSTEM,
-      schema: anglesSchema,
-      prompt: buildAnglesPrompt({
-        title: topic.title,
-        brief: topic.brief,
-        frames: frames.map((f) => ({ key: f.key, name: f.name, fits: f.fits })),
-      }),
+    const prompt = buildAnglesPrompt({
+      title: topic.title,
+      brief: topic.brief,
+      frames: frames.map((f) => ({ key: f.key, name: f.name, fits: f.fits })),
     });
-    const usable = usableAngles(object.angles, frames);
+    const model = llmModel();
+    let angles: Angle[];
+    try {
+      angles = (await generateObject({ model, system: SYSTEM, schema: anglesSchema, prompt })).object.angles;
+    } catch {
+      // Some models (common on free tiers) reject structured output: ask for plain JSON instead.
+      console.warn("research.angles: structured output failed, falling back to text.");
+      const { text } = await generateText({
+        model,
+        system: SYSTEM,
+        prompt: `${prompt}
+
+Reply with only a JSON object: {"angles":[{"platform":"threads","format":"thread","frameKey":"<key>","title":"<title>"}, ...]}`,
+      });
+      angles = parseAnglesText(text);
+    }
+    const usable = usableAngles(angles, frames);
     if (usable.length === 0) {
       throw new ConvexError("VALIDATION:NO_ANGLES: The model suggested nothing usable. Try again.");
     }
