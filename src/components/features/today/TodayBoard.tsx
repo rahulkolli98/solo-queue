@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useStableQuery } from "@/lib/useStableQuery";
 import Link from "next/link";
 import TodaySkeleton from "@/components/skeletons/TodaySkeleton";
 import PageHeader from "@/components/ui/PageHeader";
@@ -94,7 +94,7 @@ function Populated({ summary, now }: { summary: TodaySummary; now: number }) {
 export default function TodayBoard() {
   const now = useNow();
   const tz = useBrowserTz();
-  const summary = useQuery(api.today.summary, { now, tz });
+  const summary = useStableQuery(api.today.summary, { now, tz });
 
   if (summary === undefined) return <TodaySkeleton />;
   if (summary.firstRun) {

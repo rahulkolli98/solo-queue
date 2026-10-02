@@ -309,15 +309,22 @@ async function doEnqueue(
       mediaUrl = asset.publicUrl;
     }
 
-    const dupe = await ctx.db
+    const existing = await ctx.db
       .query("slots")
-      .withIndex("by_platform_status_scheduled", (q) =>
-        q.eq("platform", platform).eq("status", "scheduled")
-      )
-      .filter((q) => q.eq(q.field("draftId"), draftId))
-      .first();
-    if (dupe)
+      .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+      .take(100);
+    if (existing.some((s) => s.status === "scheduled" || s.status === "claimed"))
       throw refusal("ALREADY_QUEUED", "This draft is already queued.");
+    if (existing.some((s) => s.status === "published"))
+      throw refusal(
+        "ALREADY_PUBLISHED",
+        "This draft already went out — repost it from the Library, or write a new draft."
+      );
+    if (existing.some((s) => s.status === "failed"))
+      throw refusal(
+        "ALREADY_FAILED",
+        "This draft has a failed post — retry or cancel it from the Queue first."
+      );
 
     const now = Date.now();
     let at = scheduledAt;

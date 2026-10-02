@@ -68,13 +68,19 @@ export const storeDraft = internalMutation({
         q.eq("topicId", args.topicId).eq("platform", args.platform)
       )
       .take(200);
+    // Regenerating replaces the unqueued draft; the media the founder attached
+    // to it stays attached to its replacement.
+    let carriedMedia: (typeof existing)[number]["mediaAssetId"];
     for (const row of existing) {
       if (row.templateKey !== args.templateKey) continue;
       const slot = await ctx.db
         .query("slots")
         .withIndex("by_draft", (q) => q.eq("draftId", row._id))
         .first();
-      if (!slot) await ctx.db.delete(row._id);
+      if (!slot) {
+        carriedMedia = row.mediaAssetId ?? carriedMedia;
+        await ctx.db.delete(row._id);
+      }
     }
     // Normalize line endings (model output may carry CRLF) and recompute
     // counts on the stored text, so display/counts/exports always agree.
@@ -88,6 +94,7 @@ export const storeDraft = internalMutation({
       templateVersion: args.templateVersion,
       frameKey: args.frameKey,
       format: args.format,
+      mediaAssetId: args.platform === "instagram" ? carriedMedia : undefined,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useStableQuery } from "@/lib/useStableQuery";
 import { api } from "../../../../convex/_generated/api";
 import { useBrowserTz } from "@/lib/useBrowserTz";
 import { useNow } from "@/lib/useNow";
@@ -12,7 +12,7 @@ const DAYS_AHEAD = 14;
 export function useOpenSlots() {
   const now = useNow();
   const browserTz = useBrowserTz();
-  const board = useQuery(api.queueBoard.dayColumns, { from: now, days: DAYS_AHEAD, tz: browserTz });
+  const board = useStableQuery(api.queueBoard.dayColumns, { from: now, days: DAYS_AHEAD, tz: browserTz });
   const chips: OpenSlot[] = board ? openSlotChips(board.days, 7) : [];
   return { board, chips, tz: board?.tz ?? browserTz, browserTz, now };
 }

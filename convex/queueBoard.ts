@@ -2,8 +2,9 @@ import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { refusal } from "./lib/slots";
+import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { readSettings } from "./lib/settingsDb";
-import { planNextSlot, takenTimes } from "./lib/slotPlanning";
+import { hasOpenSlot, planNextSlot, takenTimes } from "./lib/slotPlanning";
 import { dayKey, resolveTz, zonedParts, zonedWallToUtc } from "./lib/zoned";
 
 /**
@@ -54,12 +55,24 @@ export const dayColumns = query({
     const byDay = new Map<string, { threads: Card[]; instagram: Card[] }>();
 
     for (const platform of ["threads", "instagram"] as const) {
-      const rows = await ctx.db
-        .query("slots")
-        .withIndex("by_platform_status_scheduled", (q) => q.eq("platform", platform))
-        .take(1000);
+      // The index is ordered by status first, so read each status over the
+      // visible time range; one unbounded read would cut off the newest rows.
+      const rows = [];
+      for (const status of ["scheduled", "claimed", "published", "failed"] as const) {
+        rows.push(
+          ...(await ctx.db
+            .query("slots")
+            .withIndex("by_platform_status_scheduled", (q) =>
+              q
+                .eq("platform", platform)
+                .eq("status", status)
+                .gte("scheduledAt", args.from - DAY_MS)
+                .lt("scheduledAt", end)
+            )
+            .take(300))
+        );
+      }
       for (const slot of rows) {
-        if (slot.scheduledAt < args.from - DAY_MS || slot.scheduledAt >= end) continue;
         const draft = await ctx.db.get(slot.draftId);
         const topic = draft ? await ctx.db.get(draft.topicId) : null;
         const card: Card = {
@@ -194,6 +207,10 @@ export const retry = mutation({
       attempts: 0,
       lastError: undefined,
       claimedAt: undefined,
+      // A failed publish leaves its provider container behind. Resuming it would
+      // re-send the old text and media, so drop it; the one exception is a claim
+      // the publisher abandoned, where resuming is exactly what is wanted.
+      containerId: slot.lastError === STALE_CLAIM_MESSAGE ? slot.containerId : undefined,
     });
     return { slotId: args.id, scheduledAt: at };
   },
@@ -234,8 +251,15 @@ export const requeue = mutation({
         `Too soon to repost this: ${left} more day${left === 1 ? "" : "s"} of rest.`
       );
     }
-    if (!(await ctx.db.get(slot.draftId))) {
+    const draft = await ctx.db.get(slot.draftId);
+    if (!draft) {
       throw refusal("DRAFT_NOT_FOUND", "The draft behind this post is gone.");
+    }
+    if (await hasOpenSlot(ctx, slot.draftId)) {
+      throw refusal("ALREADY_QUEUED", "This post is already queued again.");
+    }
+    if (slot.platform === "instagram" && !(draft.mediaAssetId && (await ctx.db.get(draft.mediaAssetId)))) {
+      throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
     }
     let at: number;
     try {

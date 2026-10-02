@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useStableQuery } from "@/lib/useStableQuery";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -61,7 +62,7 @@ export default function QueueBoard() {
   const from = useMemo(() => startOfToday(now, tz), [now, tz]);
   const data = useQuery(api.queueBoard.dayColumns, { from, days: QUERY_DAYS, tz });
   const settings = useQuery(api.settings.get, {});
-  const summary = useQuery(api.today.summary, { now, tz });
+  const summary = useStableQuery(api.today.summary, { now, tz });
 
   const slotParam = params.get("slot");
   const slotId = slotParam && SLOT_PARAM.test(slotParam) ? slotParam : null;

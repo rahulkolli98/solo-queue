@@ -1,19 +1,48 @@
 import type { MutationCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { readSettings } from "./settingsDb";
 import { nextFreeSlot, resolveTz } from "./zoned";
 
-/** Scheduled slot times for a platform (the founder's queue), bounded. */
+/**
+ * Slot times that already use up room on a platform, bounded: the scheduled
+ * queue, plus posts from the last two days that were claimed or published, so
+ * a day's cap counts what already went out today.
+ */
 export async function takenTimes(
   ctx: MutationCtx,
   platform: "threads" | "instagram"
 ): Promise<number[]> {
-  const rows = await ctx.db
+  const recent = Date.now() - 2 * 86400000;
+  const times: number[] = [];
+  const scheduled = await ctx.db
     .query("slots")
     .withIndex("by_platform_status_scheduled", (q) =>
       q.eq("platform", platform).eq("status", "scheduled")
     )
     .take(500);
-  return rows.map((r) => r.scheduledAt);
+  times.push(...scheduled.map((r) => r.scheduledAt));
+  for (const status of ["claimed", "published"] as const) {
+    const rows = await ctx.db
+      .query("slots")
+      .withIndex("by_platform_status_scheduled", (q) =>
+        q.eq("platform", platform).eq("status", status).gte("scheduledAt", recent)
+      )
+      .take(50);
+    times.push(...rows.map((r) => r.scheduledAt));
+  }
+  return times;
+}
+
+/** True when the draft already has a post waiting or in flight (scheduled or claimed). */
+export async function hasOpenSlot(
+  ctx: MutationCtx,
+  draftId: Id<"drafts">
+): Promise<boolean> {
+  const slots = await ctx.db
+    .query("slots")
+    .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+    .take(100);
+  return slots.some((s) => s.status === "scheduled" || s.status === "claimed");
 }
 
 /**

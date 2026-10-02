@@ -1,4 +1,4 @@
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -12,6 +12,12 @@ export const STALE_CLAIM_MS = 15 * 60_000;
 
 export const STALE_CLAIM_MESSAGE =
   "The publisher stopped while posting this. Check the account before retrying, so it is not posted twice.";
+
+/** A slot's current status, so a failed tick can tell "never posted" from "posted, then errored". */
+export const statusOf = internalQuery({
+  args: { id: v.id("slots") },
+  handler: async (ctx, args) => (await ctx.db.get(args.id))?.status ?? null,
+});
 
 /** Remember the provider container of an unfinished publish so the next attempt resumes it. */
 export const setContainer = internalMutation({

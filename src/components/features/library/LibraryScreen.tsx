@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useStableQuery } from "@/lib/useStableQuery";
 import { useDeferredValue, useState } from "react";
 import LibrarySkeleton from "@/components/skeletons/LibrarySkeleton";
 import PageHeader from "@/components/ui/PageHeader";
@@ -26,7 +27,7 @@ export default function LibraryScreen({ tab }: { tab: LibraryTab }) {
   const now = useNow();
   const browserTz = useBrowserTz();
   const settings = useQuery(api.settings.get);
-  const published = useQuery(api.library.published, { now });
+  const published = useStableQuery(api.library.published, { now });
   const drafts = useQuery(api.library.drafts);
   const media = useQuery(api.media.list);
   const frames = useFrames();

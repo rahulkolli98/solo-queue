@@ -11,6 +11,8 @@ export interface DraftEditor {
   change: (id: string, body: string) => void;
   flush: (id: string) => Promise<void>;
   flushAll: () => Promise<void>;
+  /** True while any edit is unsaved (including one whose save just failed). */
+  hasUnsaved: () => boolean;
   /** Drop local edits (after regenerate the server text wins). */
   discard: (id?: string) => void;
   statusFor: (id: string) => DraftStatus;
@@ -22,8 +24,11 @@ export interface DraftEditor {
  * a flush when the page is hidden or closed, and a flush on unmount, so edits
  * survive navigation. `save` is the `drafts.update` mutation.
  */
-export function useDraftEditor(save: (id: string, body: string) => Promise<unknown>): DraftEditor {
-  const [saver] = useState(() => new DraftSaver({ save }));
+export function useDraftEditor(
+  save: (id: string, body: string) => Promise<unknown>,
+  describeError?: (e: unknown) => string
+): DraftEditor {
+  const [saver] = useState(() => new DraftSaver(describeError ? { save, describeError } : { save }));
   useEffect(() => {
     saver.setSave(save);
   }, [saver, save]);
@@ -55,6 +60,7 @@ export function useDraftEditor(save: (id: string, body: string) => Promise<unkno
     change: (id, body) => saver.change(id, body),
     flush: (id) => saver.flush(id),
     flushAll: () => saver.flushAll(),
+    hasUnsaved: () => saver.hasPending(),
     discard: (id) => saver.discard(id),
     statusFor,
     summary,

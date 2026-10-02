@@ -22,6 +22,7 @@ import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
 import { parseThread } from "@/lib/draftText";
+import { studioErrorText } from "@/lib/studioErrors";
 import { useDraftEditor } from "@/lib/useDraftEditor";
 import {
   KIND_META,
@@ -57,7 +58,10 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const ensureDefaults = useMutation(api.frames.ensureDefaults);
   const saveDraft = useMutation(api.drafts.update);
 
-  const editor = useDraftEditor((draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }));
+  const editor = useDraftEditor(
+    (draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }),
+    (e) => studioErrorText(e, "Couldn't save edits.")
+  );
   const media = useMediaActions();
 
   const [pane, setPane] = useState<Pane>("threads");
@@ -69,12 +73,27 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const latest = useMemo(() => (drafts ? latestByKind(drafts) : {}), [drafts]);
+  // `media.list` is only the newest assets; look the attached ones up by id.
+  const attachedIds = useMemo(
+    () =>
+      Object.values(latest)
+        .map((d) => d.mediaAssetId)
+        .filter((x): x is Id<"mediaAssets"> => Boolean(x)),
+    [latest]
+  );
+  const attached = useQuery(api.media.byIds, { ids: attachedIds });
   const existingIds = useMemo(() => (drafts ?? []).map((d) => d._id as string), [drafts]);
   const generation = useGeneration({ topicId, latest, onDone: () => editor.discard() });
   const queueWeek = useQueueWeek({
     topicId,
     tz: browserTz,
-    prepare: () => editor.flushAll(),
+    prepare: async () => {
+      await editor.flushAll();
+      // flushAll settles even when a save fails; never queue the old server text.
+      if (editor.hasUnsaved()) {
+        throw new Error("Some edits didn't save, so nothing was queued. Fix the save error and try again.");
+      }
+    },
     onAttachMedia: (kind) => openAttach(kind === "caption" ? "caption" : "reel"),
   });
 
@@ -133,7 +152,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   }
 
   // ----- derived state -----
-  const assetById = new Map<string, Asset & { createdAt: number }>((assets ?? []).map((a) => [a._id, a]));
+  const assetById = new Map<string, Asset & { createdAt: number }>(
+    [...(assets ?? []), ...(attached ?? [])].map((a) => [a._id, a])
+  );
   const bodyOf = (kind: DraftKind) => {
     const d = latest[kind];
     return d ? editor.valueFor(d._id, d.body) : undefined;

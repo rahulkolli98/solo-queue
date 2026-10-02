@@ -26,7 +26,7 @@ export default function AlertStack({ alerts }: { alerts: TodaySummary["alerts"] 
     try {
       const current = await convex.query(api.settings.get, {});
       if (!current.dismissedNudges.includes(key)) {
-        await updateSettings({ patch: { dismissedNudges: [...current.dismissedNudges, key] } });
+        await updateSettings({ patch: { dismissedNudges: [...current.dismissedNudges, key].slice(-100) } });
       }
       toast({ title: "Dismissed for this week", detail: "It comes back next week if the queue is still thin." });
     } catch (e) {

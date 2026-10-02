@@ -1,6 +1,7 @@
 "use client";
 
 import { useAction, useQuery } from "convex/react";
+import { useStableQuery } from "@/lib/useStableQuery";
 import { useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import Banner from "@/components/ui/Banner";
@@ -23,7 +24,7 @@ export default function PublishingLog() {
   const [filter, setFilter] = useState<OutcomeFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
 
-  const status = useQuery(api.publishLog.status, { now });
+  const status = useStableQuery(api.publishLog.status, { now });
   const attempts = useQuery(
     api.publishLog.attempts,
     filter === "all" ? { limit: 100 } : { outcome: filter, limit: 100 }

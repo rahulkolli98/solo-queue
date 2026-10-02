@@ -76,11 +76,22 @@ export const summary = query({
     const scheduled: Doc<"slots">[] = [];
     let everQueued = false;
     for (const platform of PLATFORMS) {
-      const rows = await ctx.db
-        .query("slots")
-        .withIndex("by_platform_status_scheduled", (q) => q.eq("platform", platform))
-        .take(1000);
-      if (rows.length > 0) everQueued = true;
+      // The index is ordered by status first, so read each status over the
+      // range it needs; one unbounded read would cut off the scheduled rows.
+      const byStatus = (status: Doc<"slots">["status"], from: number, to: number, cap: number) =>
+        ctx.db
+          .query("slots")
+          .withIndex("by_platform_status_scheduled", (q) =>
+            q.eq("platform", platform).eq("status", status).gte("scheduledAt", from).lt("scheduledAt", to)
+          )
+          .take(cap);
+      const rows = [
+        ...(await byStatus("scheduled", 0, Number.MAX_SAFE_INTEGER, 500)),
+        ...(await byStatus("failed", now - 14 * DAY_MS, Number.MAX_SAFE_INTEGER, 100)),
+        ...(await byStatus("claimed", now - DAY_MS, horizonEnd, 100)),
+        ...(await byStatus("published", now - DAY_MS, horizonEnd, 500)),
+      ];
+      if (rows.length > 0 || (await ctx.db.query("slots").first())) everQueued = true;
       for (const slot of rows) {
         const key = dayKey(slot.scheduledAt, tz);
         if (slot.status === "failed") {

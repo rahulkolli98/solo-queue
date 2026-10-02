@@ -343,7 +343,12 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
     }
     const result = await settleThreadsOutcome(ctx, slot, draft, out, now, topicTitle, "");
     if (result === "published" && out.ok && posts.length > 1) {
-      await publishThreadReplies(ctx, slot._id, conn, posts.slice(1), out.mediaId);
+      try {
+        await publishThreadReplies(ctx, slot._id, conn, posts.slice(1), out.mediaId);
+      } catch (err) {
+        // The first post is live; never let a reply error turn into a retry of the slot.
+        console.error(`publish.tick: ${slot._id} replies threw — ${err instanceof Error ? err.message : "unknown"}`);
+      }
     }
     return result;
   }
@@ -438,6 +443,12 @@ async function publishGuarded(
     const message = `Publisher error: ${err instanceof Error ? err.message : "unknown"}.`.slice(0, 300);
     console.error(`publish.tick: ${slot._id} threw — ${message}`);
     const now = Date.now();
+    // If the post already went out and a later step threw, the slot is no longer
+    // claimed: releasing it would throw and strand the rest of the tick.
+    const status = await ctx.runQuery(internal.slotRecovery.statusOf, { id: slot._id });
+    if (status === "published") return "published";
+    if (status === "failed") return "failed";
+    if (status !== "claimed") return "deferred";
     if (slot.attempts + 1 >= MAX_ATTEMPTS) {
       return markPermanent(ctx, slot._id, now, `Gave up after ${MAX_ATTEMPTS} attempts: ${message}`);
     }

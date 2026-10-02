@@ -28,7 +28,7 @@ export default function FirstTopicForm() {
     setError(null);
     try {
       const id = await create(topic);
-      router.push(`/studio/${id}`);
+      router.push(`/studio/${id}?draft=1`);
     } catch (err) {
       setError(errorText(err, "Could not save the topic. Try again."));
       setBusy(false);

@@ -59,6 +59,22 @@ export const list = query({
   },
 });
 
+/**
+ * Specific assets by id (a draft's attached media), so a draft whose asset is
+ * older than the newest 50 in `list` still resolves. Missing ids are left out.
+ */
+export const byIds = query({
+  args: { ids: v.array(v.id("mediaAssets")) },
+  handler: async (ctx, args) => {
+    const out: Doc<"mediaAssets">[] = [];
+    for (const id of args.ids.slice(0, 10)) {
+      const asset = await ctx.db.get(id);
+      if (asset) out.push(asset);
+    }
+    return out;
+  },
+});
+
 /** Short-lived URL the browser POSTs a file to (Convex storage upload). */
 export const generateUploadUrl = mutation({
   args: {},
