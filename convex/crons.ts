@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const crons = cronJobs();
 
@@ -10,5 +10,8 @@ crons.daily(
   { hourUTC: 6, minuteUTC: 0 },
   internal.connections.checkExpiring
 );
+
+// Publisher tick: claim due slots and publish them (dry-run via PUBLISH_DRY_RUN=1).
+crons.interval("publisher-tick", { minutes: 1 }, api.publish.tick, {});
 
 export default crons;

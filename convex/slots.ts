@@ -1,4 +1,4 @@
-import { mutation, internalMutation, query } from "./_generated/server";
+import { mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -130,6 +130,76 @@ export const cancel = mutation({
       }
       if (!stillQueued) await ctx.db.patch(draft.topicId, { status: "ready" });
     }
+    return null;
+  },
+});
+
+/**
+ * Hydrate claimed slots for the publisher tick (actions can't touch ctx.db).
+ * Returns null for slots that vanished mid-tick — the tick skips those.
+ */
+export const getForPublish = internalQuery({
+  args: { id: v.id("slots") },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot || slot.status !== "claimed") return null;
+    const draft = await ctx.db.get(slot.draftId);
+    if (!draft) return null;
+    const topic = await ctx.db.get(draft.topicId);
+    const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    return {
+      slot: {
+        _id: slot._id,
+        platform: slot.platform,
+        attempts: slot.attempts,
+        scheduledAt: slot.scheduledAt,
+      },
+      draft: {
+        _id: draft._id,
+        topicId: draft.topicId,
+        platform: draft.platform,
+        body: draft.body,
+        templateKey: draft.templateKey,
+        mediaAssetId: draft.mediaAssetId ?? undefined,
+      },
+      asset: asset
+        ? {
+            publicUrl: asset.publicUrl,
+            mimeType: asset.mimeType,
+            verifiedAt: asset.verifiedAt ?? undefined,
+          }
+        : null,
+      topicTitle: topic?.title ?? "(deleted topic)",
+    };
+  },
+});
+
+/** Mark a claimed slot published (tick success path). */
+export const setPublished = internalMutation({
+  args: { id: v.id("slots"), platformId: v.string() },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot) throw new Error("Slot not found.");
+    await ctx.db.patch(args.id, {
+      status: "published",
+      publishedPlatformId: args.platformId,
+      attempts: slot.attempts + 1,
+    });
+    return null;
+  },
+});
+
+/** Mark a claimed slot failed with the terminal reason (tick failure path). */
+export const setFailed = internalMutation({
+  args: { id: v.id("slots"), error: v.string() },
+  handler: async (ctx, args) => {
+    const slot = await ctx.db.get(args.id);
+    if (!slot) throw new Error("Slot not found.");
+    await ctx.db.patch(args.id, {
+      status: "failed",
+      lastError: args.error.slice(0, 500),
+      attempts: slot.attempts + 1,
+    });
     return null;
   },
 });

@@ -19,6 +19,7 @@ import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as media from "../media.js";
 import type * as providers_instagram from "../providers/instagram.js";
 import type * as providers_threads from "../providers/threads.js";
+import type * as publish from "../publish.js";
 import type * as seed from "../seed.js";
 import type * as settings from "../settings.js";
 import type * as slots from "../slots.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   media: typeof media;
   "providers/instagram": typeof providers_instagram;
   "providers/threads": typeof providers_threads;
+  publish: typeof publish;
   seed: typeof seed;
   settings: typeof settings;
   slots: typeof slots;
