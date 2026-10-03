@@ -3,7 +3,7 @@ import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { checkEditedBody } from "./lib/drafting";
+import { checkEditedBody, hasPlaceholder } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
   enqueuePayloadSchema,
@@ -283,6 +283,12 @@ async function doEnqueue(
         `IG caption is ${check.charCount - 2200} chars over the 2,200 limit — shorten it to queue.`
       );
     }
+
+    if (hasPlaceholder(draft.body))
+      throw refusal(
+        "PLACEHOLDER",
+        "This draft still has a [[placeholder]] to fill in. Replace or delete it before queueing."
+      );
 
     let mediaUrl: string | undefined;
     if (platform === "instagram") {

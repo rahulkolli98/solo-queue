@@ -4,7 +4,8 @@ import { ConvexError } from "convex/values";
 import { llmFailure } from "./lib/llm";
 import { judgeMedia } from "./lib/http";
 import { V1_TEMPLATES } from "./templateCopy";
-import { insertTopic, newTest } from "../src/test-utils/convex";
+import { hasPlaceholder } from "./lib/drafting";
+import { insertDraft, insertTopic, newTest } from "../src/test-utils/convex";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -108,6 +109,23 @@ describe("media verification needs a real image or video file", () => {
     });
     expect(judgeMedia("https://cdn.example.com/download", { status: 200, contentType: "application/octet-stream" }).ok).toBe(false);
     expect(judgeMedia("https://cdn.example.com/a.jpg", { status: 200, contentType: "text/html" }).ok).toBe(false);
+  });
+});
+
+describe("placeholders must be filled in before anything is queued or posted", () => {
+  it("refuses to queue a draft that still has a [[placeholder]]", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    const draft = await insertDraft(t, topic, "threads", "It cost me [[your number]] last month.");
+    const err = await t.mutation(api.slots.enqueue, { draftId: draft }).catch((e: unknown) => e);
+    expect(data(err)).toMatch(/^VALIDATION:PLACEHOLDER/);
+    await t.mutation(api.drafts.update, { id: draft, body: "It cost me plenty last month." });
+    await expect(t.mutation(api.slots.enqueue, { draftId: draft })).resolves.toBeTruthy();
+  });
+
+  it("hasPlaceholder only matches the double-bracket marker", () => {
+    expect(hasPlaceholder("Costs [[your number]] a month")).toBe(true);
+    expect(hasPlaceholder("See [1] and [link] below")).toBe(false);
   });
 });
 
