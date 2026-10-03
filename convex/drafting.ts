@@ -10,6 +10,7 @@ import {
   checkEditedBody,
   fillSlots,
   plainConstraint,
+  stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
@@ -191,7 +192,7 @@ export const generate = operatorAction({
         } catch {
           console.warn("drafting: structured output failed, falling back to text.");
           const { text } = await generateText({ model, system, prompt });
-          body = text.trim();
+          body = stripBeatHeaders(text.trim());
         }
       } else {
         const { text } = await generateText({ model, system, prompt });

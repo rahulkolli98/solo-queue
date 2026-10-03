@@ -39,6 +39,25 @@ export function splitPosts(body: string): string[] {
     .filter((p) => p.length > 0);
 }
 
+/** A beat label with its counter, as the Threads template asks for: "HOOK · 117 / 500". */
+const BEAT_HEADER = /^\s*\**\s*[A-Z][A-Z0-9 '&-]{1,30}\s*[·•|]\s*\d+\s*\/\s*\d+\s*\**\s*$/;
+
+/**
+ * Drop the beat-label line a model puts above each post when it answers in
+ * plain text. What is stored is what is published, so a "HOOK · 117 / 500"
+ * line must never reach the post. Posts without such a line are untouched.
+ */
+export function stripBeatHeaders(body: string): string {
+  const posts = body.split(/^[ \t]*---[ \t]*$/m).map((p) => p.trim());
+  return posts
+    .map((post) => {
+      const lines = post.split("\n");
+      return (BEAT_HEADER.test(lines[0]) ? lines.slice(1) : lines).join("\n").trim();
+    })
+    .filter((p) => p.length > 0)
+    .join("\n---\n");
+}
+
 /**
  * The text Instagram should post for a draft. A reel draft is the timed script,
  * a `---` line, then the one-line caption: only the caption is posted. A
