@@ -1,6 +1,7 @@
 "use client";
 
 import SegmentedControl from "@/components/ui/SegmentedControl";
+import { CheckIcon } from "@/components/ui/icons";
 
 export type Pane = "threads" | "instagram" | "blog";
 
@@ -48,6 +49,7 @@ export function StudioToolbar({
   pane,
   onPane,
   counts,
+  saved = false,
 }: {
   saveText: string;
   saveFailed: boolean;
@@ -55,6 +57,8 @@ export function StudioToolbar({
   pane: Pane;
   onPane: (pane: Pane) => void;
   counts: { threads: number; instagram: number };
+  /** Edits are saved: show a tick beside the "Saved 14:32" text. */
+  saved?: boolean;
 }) {
   return (
     <div className="studio-toolbar">
@@ -81,7 +85,14 @@ export function StudioToolbar({
           ]}
         />
       </div>
-      <span className="t-meta studio-save" role="status" aria-live="polite" data-bad={saveFailed || undefined}>
+      <span
+        className="t-meta studio-save"
+        role="status"
+        aria-live="polite"
+        data-bad={saveFailed || undefined}
+        data-saved={(saved && !saveFailed) || undefined}
+      >
+        {saved && !saveFailed && <CheckIcon />}
         {saveText.toUpperCase()}
         {saveFailed && (
           <button type="button" className="studio-linkbtn" onClick={onRetrySave}>

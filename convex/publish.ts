@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { instagramCaption, splitPosts } from "./lib/drafting";
+import { hasPlaceholder, instagramCaption, splitPosts, stripBeatHeaders } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
 import {
   publishInstagramPost,
@@ -310,12 +310,15 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   if (slot.attempts >= MAX_ATTEMPTS) {
     return markPermanent(ctx, slot._id, now, `Gave up after ${slot.attempts} attempts — last error preserved below.`);
   }
+  if (hasPlaceholder(draft.body)) {
+    return markPermanent(ctx, slot._id, now, "The draft still has a [[placeholder]]. Fill it in, then retry.");
+  }
 
   if (slot.platform === "threads") {
     const conn = await ctx.runQuery(internal.connections.getOne, { platform: "threads" });
     if (!conn) return markPermanent(ctx, slot._id, now, "No Threads connection — reconnect in Settings.");
     // The first post publishes as the slot; the rest follow as replies to it.
-    const posts = splitPosts(draft.body);
+    const posts = splitPosts(stripBeatHeaders(draft.body));
     const text = (posts.length > 0 ? posts[0] : draft.body).trim();
     if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts.");
     if (text.length > THREADS_POST_LIMIT) {

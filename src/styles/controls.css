@@ -246,3 +246,17 @@ textarea.sq-input {
     background: var(--color-line);
   }
 }
+
+/* Every state of an editable control keeps readable text (see formControls.test.ts). */
+.sq-input::placeholder {
+  color: var(--color-muted-on-surface);
+  opacity: 1;
+}
+.sq-input:disabled {
+  background: var(--color-surface);
+  color: var(--color-muted-on-surface);
+  cursor: not-allowed;
+}
+.lb-editor .sq-input::placeholder {
+  color: var(--color-muted-on-chrome);
+}

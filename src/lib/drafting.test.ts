@@ -115,6 +115,17 @@ describe("stripBeatHeaders", () => {
     expect(stripBeatHeaders(body)).toBe(body);
   });
 
+  it("also strips labels the model capitalises normally (seen on production)", () => {
+    const body =
+      "Admit · 65 / 500\nI paid per post.\n---\nCost · 75 / 500\nIt cost me.\n---\nFix · 68 / 500\nSwitched.\n---\nInvite · 80 / 500\nFollow along.";
+    expect(stripBeatHeaders(body)).toBe("I paid per post.\n---\nIt cost me.\n---\nSwitched.\n---\nFollow along.");
+  });
+
+  it("only treats a Threads counter (/ 500) as a label, so ordinary lines survive", () => {
+    const body = "Day · 3 / 7\nStill going.";
+    expect(stripBeatHeaders(body)).toBe(body);
+  });
+
   it("drops a post that was only a label", () => {
     expect(stripBeatHeaders("HOOK · 5 / 500\n---\nReal post.")).toBe("Real post.");
   });

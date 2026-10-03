@@ -106,6 +106,15 @@
   gap: var(--space-14);
   align-content: start;
 }
+/* media cards carry a preview, a state and a reason: they need a readable width, not a fixed count */
+.lb-cards.lb-cards-media {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  align-items: start;
+}
+.lb-cards-media .lb-thumb {
+  flex-grow: 0;
+  height: 150px;
+}
 .lb-chiprow {
   display: flex;
   flex-wrap: wrap;
@@ -512,6 +521,125 @@
 }
 .lb-tile .lb-actions .lb-act {
   height: 30px;
+}
+.lb-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+}
+.lb-tile-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.lb-reason {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-on-surface);
+  overflow-wrap: anywhere;
+}
+.lb-reason b {
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--color-primary-deep);
+}
+.lb-reason-plain {
+  color: var(--color-primary-deep);
+  font-weight: 500;
+}
+.lb-open {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lb-open:focus-visible {
+  outline: 2px solid var(--color-on-surface);
+  outline-offset: 2px;
+}
+.lb-url-help {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted-on-surface);
+}
+
+/* media preview: image, first video frame with a play badge, or the failure state */
+.mthumb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: var(--color-paper-dim);
+}
+.lb-thumb .mthumb {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.mthumb[data-size="small"] {
+  width: 72px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-xs);
+}
+.mthumb img,
+.mthumb video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mthumb-play {
+  position: absolute;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.mthumb-play svg {
+  width: 14px;
+  height: 14px;
+}
+.mthumb[data-size="small"] .mthumb-play {
+  width: 22px;
+  height: 22px;
+}
+.mthumb-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  box-sizing: border-box;
+  text-align: center;
+  font: 500 10.5px var(--font-mono), "DM Mono", monospace;
+  letter-spacing: 0.04em;
+  color: var(--color-on-surface);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 30%, transparent) 0 3px,
+    transparent 3px 9px
+  );
+}
+.lb-thumb .mthumb-failed {
+  position: absolute;
 }
 
 /* ---------- story frames ---------- */

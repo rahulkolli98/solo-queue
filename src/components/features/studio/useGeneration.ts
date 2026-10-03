@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { GenState } from "@/components/features/studio/types";
+import { refusalCode } from "@/lib/refusalText";
 import { studioErrorText } from "@/lib/studioErrors";
 import {
   formatElapsed,
@@ -45,6 +46,7 @@ export function useGeneration({
   const [run, setRun] = useState<Run | null>(null);
   const [running, setRunning] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [failureCode, setFailureCode] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const runningRef = useRef(false);
 
@@ -62,6 +64,7 @@ export function useGeneration({
     setRun(next);
     setElapsedMs(0);
     setFailure(null);
+    setFailureCode(null);
     setRunning(true);
     try {
       await generate({
@@ -72,6 +75,7 @@ export function useGeneration({
       onDone();
     } catch (e) {
       setFailure(studioErrorText(e, "Generation failed."));
+      setFailureCode(refusalCode(e));
     } finally {
       runningRef.current = false;
       setRunning(false);
@@ -86,6 +90,7 @@ export function useGeneration({
     return {
       writing: running && requested && !fresh,
       error: !running && failure && requested && !fresh ? failure : null,
+      errorCode: !running && failure && requested && !fresh ? failureCode : null,
       elapsed: formatElapsed(elapsedMs),
       retrying: running && requested && !fresh,
       onRetry: () => void start([kind], run?.frameKey, existingIds),

@@ -22,14 +22,18 @@
   flex-direction: column;
   gap: var(--space-6);
   margin: 0;
+  min-width: 0;
 }
 .rs-capture-row {
   display: flex;
   gap: var(--space-8);
+  max-width: 100%;
 }
 .rs-capture-input {
   box-sizing: border-box;
   width: 400px;
+  min-width: 0;
+  flex: 0 1 400px;
   max-width: 100%;
   height: 44px;
   padding: 0 20px;
@@ -862,4 +866,55 @@
 }
 .rs-self-start {
   align-self: flex-start;
+}
+
+/* laptops and tablets: a slimmer rail and a one-column board, so nothing spills out of the yellow */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .rs-grid {
+    grid-template-columns: 290px minmax(0, 1fr);
+  }
+  .rs-board {
+    padding: var(--space-20) var(--space-16);
+  }
+  .rs-board-actions {
+    flex-shrink: 1;
+  }
+  .rs-board-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-angles,
+  .rs-examples {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-angles-empty {
+    flex-wrap: wrap;
+  }
+}
+@media (min-width: 768px) and (max-width: 899px) {
+  .rs-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "chips"
+      "board"
+      "list";
+  }
+}
+
+/* what "Send to Studio" does, in one line */
+.rs-sendnote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-muted-on-surface);
+}
+.rs-status-failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.rs-status-next {
+  font-weight: 400;
+  color: var(--color-on-surface);
 }

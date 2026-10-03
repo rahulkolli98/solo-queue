@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { readinessLabel } from "../../../../convex/lib/research";
 import { refusalText } from "@/lib/refusalText";
 import { sourceSummary } from "@/lib/researchBoard";
+import { studioTopicHref } from "@/lib/studioHandoff";
 import { api } from "../../../../convex/_generated/api";
 import AddSource from "./AddSource";
 import AnglesRow from "./AnglesRow";
@@ -80,12 +81,17 @@ export default function TopicBoard({
           <button type="button" className="sq-btn" onClick={() => void onArchive()}>
             Archive
           </button>
-          <Link href={`/studio/${topic._id}`} className="sq-btn sq-btn-primary">
+          <Link href={studioTopicHref(topic._id, "research")} className="sq-btn sq-btn-primary" aria-describedby="rs-send-note">
             Send to Studio
             <ArrowRightIcon />
           </Link>
         </div>
       </div>
+
+      <p className="rs-sendnote" id="rs-send-note">
+        Send to Studio opens this topic there. You press Generate drafts and the thread, reel script and caption are written
+        from it.
+      </p>
 
       <div className="rs-board-body">
         <BriefPaper topicId={topic._id} brief={topic.brief} editedAt={topic.briefEditedAt} />

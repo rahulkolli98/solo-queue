@@ -11,6 +11,7 @@ import {
   type Platform,
   type PlatformFilter,
 } from "@/lib/queueBoard";
+import { studioFillHref } from "@/lib/studioHandoff";
 import AtRiskMark from "./AtRiskMark";
 import IgTile from "./IgTile";
 import PlatformGlyph from "./PlatformGlyph";
@@ -118,7 +119,7 @@ export default function Agenda({
             <span className={`t-mono sq-q-atime${e.kind === "open" ? " sq-q-atime-open" : ""}`}>{e.time}</span>
             {e.kind === "open" ? (
               <Link
-                href="/studio"
+                href={studioFillHref({ dayKey: day.key, time: e.time, platform: e.platform })}
                 className="sq-q-open sq-q-open-row"
                 aria-label={`Open ${PLATFORM_NAME[e.platform]} slot at ${e.time}. Fill it from the research inbox.`}
               >

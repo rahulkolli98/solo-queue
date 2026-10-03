@@ -25,6 +25,10 @@ export interface IgPanelProps {
   /** "SAT 10 OCT · 18:30" and whether it fills a gap. */
   target?: { when: string; gap: boolean };
   queuedWhen?: string | null;
+  /** The "Write it myself" box has (true) or lost (false) text that is not saved to the topic. */
+  onManualText?: (hasText: boolean) => void;
+  /** Store the "Write it myself" text as this kind's draft. */
+  onSaveManual?: (text: string) => Promise<void>;
 }
 
 function SceneSkeleton() {
@@ -147,6 +151,8 @@ export default function IgPanel({
   gen,
   target,
   queuedWhen,
+  onManualText,
+  onSaveManual,
 }: IgPanelProps) {
   const [manual, setManual] = useState(false);
   const label = kind === "reel" ? "reel script" : "caption";
@@ -169,13 +175,21 @@ export default function IgPanel({
     );
   }
   if (!view) {
-    if (gen.error) {
+    if (gen.error || manual) {
       return manual ? (
-        <ManualDraft label={kind === "reel" ? "Reel script" : "Caption"} limit={kind === "caption" ? CAPTION_LIMIT : undefined} />
+        <ManualDraft
+          label={kind === "reel" ? "Reel script" : "Caption"}
+          limit={kind === "caption" ? CAPTION_LIMIT : undefined}
+          onText={(t) => onManualText?.(t.trim().length > 0)}
+          onSave={onSaveManual}
+          onRetry={gen.onRetry}
+          retrying={gen.retrying}
+        />
       ) : (
         <GenerationErrorCard
           title={`Couldn't write the ${label}`}
-          message={gen.error}
+          message={gen.error ?? ""}
+          code={gen.errorCode}
           onRetry={gen.onRetry}
           busy={gen.retrying}
           onWriteMyself={() => setManual(true)}
@@ -183,10 +197,15 @@ export default function IgPanel({
       );
     }
     return (
-      <Ghosts
-        labels={kind === "reel" ? REEL_GHOSTS : CAPTION_GHOSTS}
-        copy={`Generate and the ${label} lands here.`}
-      />
+      <>
+        <Ghosts
+          labels={kind === "reel" ? REEL_GHOSTS : CAPTION_GHOSTS}
+          copy={`Generate and the ${label} lands here.`}
+        />
+        <button type="button" className="sq-btn sq-btn-sm studio-write-myself" onClick={() => setManual(true)}>
+          Write it myself
+        </button>
+      </>
     );
   }
 
