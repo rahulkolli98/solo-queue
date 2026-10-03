@@ -47,6 +47,24 @@ const TEXT: ThreadsPostInput = {
   mediaType: "TEXT",
 };
 
+describe("publishThreadsPost replies", () => {
+  it("sends reply_to_id on the container request when replying", async () => {
+    const m = mockFetch([json({ id: "c2" }), json({ status: "FINISHED" }), json({ id: "m2" })]);
+    const out = await publishThreadsPost(
+      { ...TEXT, replyToId: "m1" },
+      { fetchImpl: m.fn, ...clock() }
+    );
+    expect(out).toMatchObject({ ok: true, mediaId: "m2" });
+    expect(JSON.parse(m.calls[0].body)).toMatchObject({ text: "hello", reply_to_id: "m1" });
+  });
+
+  it("omits reply_to_id for a normal post", async () => {
+    const m = mockFetch([json({ id: "c1" }), json({ status: "FINISHED" }), json({ id: "m1" })]);
+    await publishThreadsPost(TEXT, { fetchImpl: m.fn, ...clock() });
+    expect(JSON.parse(m.calls[0].body)).not.toHaveProperty("reply_to_id");
+  });
+});
+
 describe("publishThreadsPost", () => {
   it("publishes text via the fast path when the container is instantly ready", async () => {
     const { fn, calls } = mockFetch([

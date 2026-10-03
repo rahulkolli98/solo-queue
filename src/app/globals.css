@@ -4,6 +4,13 @@
 @import "../styles/shell.css";
 @import "../styles/components.css";
 @import "../styles/skeletons.css";
+@import "../styles/controls.css";
+@import "../styles/today.css";
+@import "../styles/studio.css";
+@import "../styles/queue.css";
+@import "../styles/research.css";
+@import "../styles/library.css";
+@import "../styles/log.css";
 
 body {
   background: var(--color-chrome);

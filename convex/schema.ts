@@ -35,7 +35,21 @@ export default defineSchema({
     title: v.string(),
     notes: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
-    pillar: v.optional(v.string()), // content pillar; drafting defaults when unset
+    pillar: v.optional(v.string()), // pillar key from appSettings.pillars; drafting defaults when unset
+    // Research board (all optional: prod already holds topic rows).
+    brief: v.optional(v.string()), // ~140-word summary of the sources (generated, editable)
+    briefEditedAt: v.optional(v.number()), // set when the founder edits; regenerating must confirm first
+    angles: v.optional(
+      v.array(
+        v.object({
+          platform: v.string(),
+          format: v.string(),
+          frameKey: v.string(),
+          title: v.string(),
+        })
+      )
+    ),
+    archivedAt: v.optional(v.number()),
     status: v.union(
       v.literal("drafting"),
       v.literal("ready"),
@@ -53,6 +67,8 @@ export default defineSchema({
     mediaAssetId: v.optional(v.id("mediaAssets")),
     templateKey: v.string(),
     templateVersion: v.number(),
+    frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference
+    format: v.optional(v.string()), // "thread" | "single" | "caption" | "reel" | "carousel" | "blog"
     charCount: v.number(), // live constraint feedback
     constraintOk: v.boolean(),
     createdAt: v.number(),
@@ -72,12 +88,16 @@ export default defineSchema({
     attempts: v.number(), // retry counter
     lastError: v.optional(v.string()),
     publishedPlatformId: v.optional(v.string()), // returned media/post id
+    publishedAt: v.optional(v.number()),
+    evergreen: v.optional(v.boolean()), // eligible for Requeue after rules.evergreenRestDays
+    claimedAt: v.optional(v.number()), // set when claimed; lets a reaper recover stuck claims
+    containerId: v.optional(v.string()), // provider container id, kept so a retry resumes instead of re-posting
+    originalScheduledAt: v.optional(v.number()), // the founder's chosen time, kept when a retry pushes scheduledAt later
     createdAt: v.number(),
-  }).index("by_platform_status_scheduled", [
-    "platform",
-    "status",
-    "scheduledAt",
-  ]),
+  })
+    .index("by_platform_status_scheduled", ["platform", "status", "scheduledAt"])
+    .index("by_draft", ["draftId"])
+    .index("by_status_and_publishedAt", ["status", "publishedAt"]),
 
   // Convex file storage refs with public URLs (required at publish time).
   mediaAssets: defineTable({
@@ -85,6 +105,9 @@ export default defineSchema({
     publicUrl: v.string(), // must be reachable at queue time AND publish time
     mimeType: v.string(),
     verifiedAt: v.optional(v.number()), // last successful reachability check
+    filename: v.optional(v.string()),
+    source: v.optional(v.union(v.literal("upload"), v.literal("external"))),
+    lastVerifyError: v.optional(v.string()), // shown as "not reachable" in Library > Media
     createdAt: v.number(),
   }),
 
@@ -98,6 +121,98 @@ export default defineSchema({
       v.literal("permanent")
     ),
     providerMessage: v.optional(v.string()),
+  }).index("by_slot", ["slotId"]),
+
+  // The clippings behind a topic (Research board).
+  sources: defineTable({
+    topicId: v.id("topics"),
+    kind: v.union(
+      v.literal("link"),
+      v.literal("quote"),
+      v.literal("screenshot"),
+      v.literal("note")
+    ),
+    url: v.optional(v.string()),
+    text: v.optional(v.string()), // quote text, note text, or fetched title
+    label: v.string(), // e.g. "developers.facebook.com", "Your build log, 21 Sep"
+    mediaAssetId: v.optional(v.id("mediaAssets")), // screenshots
+    createdAt: v.number(),
+  }).index("by_topic_and_createdAt", ["topicId", "createdAt"]),
+
+  // Story frames: beat structures the drafting prompt follows (Library > Story frames).
+  frames: defineTable({
+    key: v.string(), // "confession", "hook-tension-turn-payoff", ...
+    name: v.string(),
+    beats: v.array(v.object({ label: v.string(), hint: v.string() })), // 3-5 beats
+    fits: v.array(
+      v.union(
+        v.literal("thread"),
+        v.literal("single"),
+        v.literal("reel"),
+        v.literal("carousel")
+      )
+    ),
+    color: v.string(), // design token name, e.g. "pillar-build"
+    usedCount: v.number(),
+    version: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  // The typed settings singleton (Settings sections). One row, created on first read.
+  // Named appSettings because prod already has a legacy key/value table called `settings`.
+  appSettings: defineTable({
+    slotDefaults: v.object({
+      threads: v.array(v.string()), // HH:MM, 24h
+      instagram: v.array(v.string()),
+    }),
+    slotDays: v.object({
+      threads: v.array(v.number()), // 0-6, Mon = 0
+      instagram: v.array(v.number()),
+    }),
+    timezone: v.string(), // IANA; "auto" until first resolved client-side
+    naturalTiming: v.boolean(),
+    vacation: v.optional(v.object({ from: v.number(), to: v.number() })),
+    rules: v.object({
+      mixPillars: v.boolean(),
+      evergreenRestDays: v.number(),
+      fillGaps: v.union(v.literal("ask"), v.literal("auto"), v.literal("off")),
+      oneReelPerDay: v.boolean(),
+      pauseOnFailure: v.boolean(),
+      dailyCap: v.object({ threads: v.number(), instagram: v.number() }),
+    }),
+    voice: v.object({
+      description: v.string(),
+      learnedFromCount: v.number(),
+      defaultFrameKey: v.string(),
+      threadsTopicTag: v.union(v.literal("auto"), v.literal("off")),
+      igHashtagMax: v.number(),
+      signOff: v.optional(v.string()),
+      bannedWords: v.array(v.string()),
+    }),
+    pillars: v.array(
+      v.object({
+        key: v.string(),
+        name: v.string(),
+        color: v.string(),
+        description: v.string(),
+        targetShare: v.number(),
+        links: v.array(v.string()),
+      })
+    ),
+    notifications: v.object({
+      tokenExpiring: v.boolean(),
+      postFailed: v.boolean(),
+      queueLow: v.boolean(),
+      postPublished: v.boolean(),
+      sundayDigest: v.boolean(),
+      quietHours: v.optional(v.string()),
+    }),
+    media: v.object({
+      cleanupAfterDays: v.optional(v.number()),
+      igCrop: v.union(v.literal("4:5"), v.literal("1:1")),
+    }),
+    dismissedNudges: v.array(v.string()), // e.g. "coverage:2026-W40"
   }),
 
   // Public waitlist (landing site). No auth by design — validation + dedupe
@@ -108,7 +223,8 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 
-  // Single-operator key/value settings (slot defaults, future preferences).
+  // LEGACY single-operator key/value settings (old slot defaults, publisher pause + heartbeat).
+  // New code reads and writes `appSettings`; this table stays until a migration removes it.
   settings: defineTable({
     key: v.string(),
     value: v.string(), // JSON

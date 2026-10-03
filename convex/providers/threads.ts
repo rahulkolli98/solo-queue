@@ -22,6 +22,8 @@ export interface ThreadsPostInput {
   mediaType: ThreadsMediaType;
   /** Publicly reachable URL for IMAGE/VIDEO posts. */
   mediaUrl?: string;
+  /** Media id of the post this one replies to (thread chaining). */
+  replyToId?: string;
 }
 
 export type ThreadsOutcome =
@@ -112,7 +114,7 @@ async function pollContainer(
         `${THREADS_API}/${containerId}?fields=status,error_message&access_token=${encodeURIComponent(accessToken)}`
       );
       data = await readJson(res);
-    } catch (err) {
+    } catch {
       // A single failed status read shouldn't kill the publish — if we're
       // out of budget the timeout path below handles it.
       if (dep.now() > deadline) return { settled: false, waited, timedOut: true };
@@ -200,6 +202,7 @@ export async function publishThreadsPost(
     text: input.text,
     access_token: input.accessToken,
   };
+  if (input.replyToId) createBody["reply_to_id"] = input.replyToId;
   if (input.mediaType === "IMAGE" && input.mediaUrl) createBody["image_url"] = input.mediaUrl;
   if (input.mediaType === "VIDEO" && input.mediaUrl) createBody["video_url"] = input.mediaUrl;
 
