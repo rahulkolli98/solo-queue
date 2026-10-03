@@ -14,7 +14,8 @@ import {
   threadsConstraint,
 } from "./lib/drafting";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
-import { llmModel } from "./lib/llm";
+import { llmModel, withLlmErrors } from "./lib/llm";
+import { refusal } from "./lib/slots";
 
 const FORMATS = {
   threads: { templateKey: "threads-hook-story", platform: "threads", draftFormat: "thread", fit: "thread" },
@@ -126,18 +127,19 @@ export const generate = operatorAction({
 
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
     if (!topic) throw new Error("Topic not found.");
+    await ctx.runMutation(internal.templates.ensureDefaults, {});
     const actives = await ctx.runQuery(api.templates.list, {});
     const byKey = new Map(actives.map((t) => [t.key, t]));
     for (const f of formats) {
       if (!byKey.has(FORMATS[f].templateKey))
-        throw new Error(`No active template for ${FORMATS[f].templateKey}. Seed or save one first.`);
+        throw refusal("NO_TEMPLATE", `No active template for ${FORMATS[f].templateKey}. Save one in the Library first.`);
     }
 
     const settings = await ctx.runQuery(api.settings.get, {});
     const frameKey = args.frameKey ?? settings.voice.defaultFrameKey;
     const frame = await ctx.runQuery(api.frames.getByKey, { key: frameKey });
 
-    const model = llmModel();
+    const model = await withLlmErrors(async () => llmModel());
     const vars = buildTopicVars({
       title: topic.title,
       pillar: topic.pillar,
@@ -171,6 +173,7 @@ export const generate = operatorAction({
       const basePrompt = fillSlots(template.body, vars);
       const prompt = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
 
+      const body: string = await withLlmErrors(async () => {
       let body: string;
       if (format === "threads") {
         // Prefer structured output (exact beats); fall back to plain text
@@ -198,6 +201,8 @@ export const generate = operatorAction({
         const { text } = await generateText({ model, system, prompt });
         body = text.trim();
       }
+      return body;
+      });
 
       const check =
         format === "threads"

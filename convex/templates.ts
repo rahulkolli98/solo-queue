@@ -1,5 +1,32 @@
 import { v } from "convex/values";
+import { internalMutation } from "./_generated/server";
 import { operatorMutation, operatorQuery } from "./lib/operator";
+import { V1_TEMPLATES } from "./templateCopy";
+
+/**
+ * Make sure every built-in template key has an active version. Idempotent and
+ * never touches a key that already has one (the founder's saved versions win).
+ * Drafting calls this first, so a fresh deployment works without a seed step.
+ */
+export const ensureDefaults = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{ inserted: number }> => {
+    let inserted = 0;
+    for (const { key, body } of V1_TEMPLATES) {
+      const rows = await ctx.db.query("templates").withIndex("by_key", (q) => q.eq("key", key)).collect();
+      if (rows.some((r) => r.isActive)) continue;
+      await ctx.db.insert("templates", {
+        key,
+        version: rows.reduce((max, r) => Math.max(max, r.version), 0) + 1,
+        body,
+        isActive: true,
+        createdAt: Date.now(),
+      });
+      inserted += 1;
+    }
+    return { inserted };
+  },
+});
 
 /** Active templates for the composer (exactly one active version per key). */
 export const list = operatorQuery({
