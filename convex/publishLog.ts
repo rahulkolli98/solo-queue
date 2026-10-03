@@ -110,3 +110,19 @@ export const attempts = operatorQuery({
     return out;
   },
 });
+
+/**
+ * Just the publisher mode, for the always-visible status in the app shell:
+ * dry run (nothing is posted), live, or paused. Cheap on purpose; the full
+ * picture is `status`.
+ */
+export const mode = operatorQuery({
+  args: {},
+  handler: async (ctx) => {
+    const pause = parseJson<{ paused?: boolean }>(await kv(ctx, "publishPaused"), {});
+    return {
+      mode: isLivePublishing(process.env.PUBLISH_DRY_RUN) ? ("live" as const) : ("dry-run" as const),
+      paused: pause.paused === true,
+    };
+  },
+});

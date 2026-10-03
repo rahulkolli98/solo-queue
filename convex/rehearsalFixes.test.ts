@@ -110,3 +110,14 @@ describe("media verification needs a real image or video file", () => {
     expect(judgeMedia("https://cdn.example.com/a.jpg", { status: 200, contentType: "text/html" }).ok).toBe(false);
   });
 });
+
+describe("publishLog.mode", () => {
+  it("reports dry run unless PUBLISH_DRY_RUN is exactly 0", async () => {
+    const t = newTest();
+    expect(await t.query(api.publishLog.mode, {})).toEqual({ mode: "dry-run", paused: false });
+    vi.stubEnv("PUBLISH_DRY_RUN", "true");
+    expect((await t.query(api.publishLog.mode, {})).mode).toBe("dry-run");
+    vi.stubEnv("PUBLISH_DRY_RUN", "0");
+    expect((await t.query(api.publishLog.mode, {})).mode).toBe("live");
+  });
+});
