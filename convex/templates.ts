@@ -1,8 +1,8 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 
 /** Active templates for the composer (exactly one active version per key). */
-export const list = query({
+export const list = operatorQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db
@@ -13,7 +13,7 @@ export const list = query({
 });
 
 /** Full version history for one key, newest first. Old versions are retained. */
-export const history = query({
+export const history = operatorQuery({
   args: { key: v.string() },
   handler: async (ctx, args) => {
     const rows = await ctx.db
@@ -29,7 +29,7 @@ export const history = query({
  * new body as the next version number. Old versions are never deleted —
  * rewrite the template before blaming the model (Vision § Risks).
  */
-export const saveVersion = mutation({
+export const saveVersion = operatorMutation({
   args: { key: v.string(), body: v.string() },
   handler: async (ctx, args) => {
     const key = args.key.trim();

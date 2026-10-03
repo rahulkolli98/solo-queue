@@ -6,6 +6,7 @@ import {
   fillSlots,
   plainConstraint,
   splitPosts,
+  stripBeatHeaders,
   threadsConstraint,
 } from "../../convex/lib/drafting";
 
@@ -93,5 +94,28 @@ describe("checkEditedBody", () => {
       charCount: 9000,
       constraintOk: true,
     });
+  });
+});
+
+describe("stripBeatHeaders", () => {
+  it("drops the beat label line above each post and keeps the posts", () => {
+    const body =
+      "ADMIT · 76 / 500\nI hid how much I paid.\n---\nTURN · 120 / 500\nThen I switched.\n---\nCLOSE · 40 / 500\nDay 4.";
+    expect(stripBeatHeaders(body)).toBe("I hid how much I paid.\n---\nThen I switched.\n---\nDay 4.");
+  });
+
+  it("copes with bold labels and other separators", () => {
+    expect(stripBeatHeaders("**HOOK · 117 / 500**\nFirst.\n---\nPAYOFF | 33 / 500\nSecond.")).toBe(
+      "First.\n---\nSecond."
+    );
+  });
+
+  it("leaves posts without a label untouched, including prose that mentions a count", () => {
+    const body = "I posted 3 / 7 days.\nStill going.\n---\nSecond post.";
+    expect(stripBeatHeaders(body)).toBe(body);
+  });
+
+  it("drops a post that was only a label", () => {
+    expect(stripBeatHeaders("HOOK · 5 / 500\n---\nReal post.")).toBe("Real post.");
   });
 });

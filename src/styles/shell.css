@@ -1,0 +1,354 @@
+/*
+ * App shell: espresso chrome (sidebar on desktop, bottom tab bar on phones)
+ * around the cream panel. Breakpoint: 768px (design.md § Layout).
+ */
+.sq-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sq-skip {
+  position: absolute;
+  left: var(--space-16);
+  top: -80px;
+  z-index: 100;
+  padding: var(--space-10) var(--space-16);
+  border-radius: var(--rounded-control);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+.sq-skip:focus {
+  top: var(--space-12);
+}
+
+.sq-sidebar {
+  width: 224px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+  padding: var(--space-32) var(--space-16) var(--space-28) var(--space-20);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sq-logo {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: var(--color-on-chrome-strong);
+  padding-left: var(--space-14);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sq-logo-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-instagram);
+  display: inline-block;
+  margin-top: 7px;
+}
+
+.sq-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sq-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: 44px;
+  padding: 0 var(--space-14);
+  border-radius: var(--rounded-control);
+  font-size: 15px;
+  color: var(--color-on-chrome);
+  text-decoration: none;
+}
+
+.sq-nav-item:hover {
+  background: var(--color-chrome-hover);
+  color: var(--color-on-chrome-strong);
+}
+
+.sq-nav-item[data-active="true"] {
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+
+.sq-nav-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sq-nav-badge {
+  margin-left: auto;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--color-threads);
+  color: var(--color-on-surface);
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sq-accounts {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.sq-posting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(244, 235, 217, 0.07);
+  color: var(--color-on-chrome-strong);
+  font-size: 14px;
+}
+
+.sq-main {
+  flex-grow: 1;
+  padding: var(--space-16) var(--space-16) var(--space-16) 0;
+  display: flex;
+  min-width: 0;
+}
+
+.sq-panel {
+  flex-grow: 1;
+  background: var(--color-surface);
+  border-radius: var(--rounded-panel);
+  padding: var(--space-32) var(--space-40);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-width: 0;
+}
+
+/* Phone-only chrome is hidden on desktop. */
+.sq-mobile-header,
+.sq-tabbar {
+  display: none;
+}
+
+/* ---------- phone: bottom tab bar, compact header ---------- */
+@media (max-width: 767px) {
+  body {
+    background: var(--color-surface);
+  }
+
+  .sq-shell {
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  .sq-sidebar {
+    display: none;
+  }
+
+  .sq-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    height: var(--mobile-header-height);
+    box-sizing: border-box;
+    padding: var(--space-8) var(--space-16) 0;
+    background: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .sq-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    color: var(--color-on-surface);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .sq-mobile-brand i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    display: inline-block;
+    margin-top: 6px;
+  }
+
+  .sq-mobile-title {
+    flex-grow: 1;
+    min-width: 0;
+    text-align: right;
+    font-family: var(--font-mono), "DM Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sq-mobile-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .sq-main {
+    padding: 0;
+    padding-bottom: var(--tabbar-height);
+  }
+
+  .sq-panel {
+    border-radius: 0;
+    padding: var(--space-6) var(--space-16) var(--space-24);
+    gap: var(--space-16);
+  }
+
+  .sq-tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    height: var(--tabbar-height);
+    box-sizing: border-box;
+    padding: var(--space-8) var(--space-8) 20px;
+    background: var(--color-chrome);
+    border-radius: var(--rounded-card) var(--rounded-card) 0 0;
+  }
+
+  .sq-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    min-height: 44px;
+    color: var(--color-muted-on-chrome);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .sq-tab i {
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sq-tab svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sq-tab[data-active="true"] {
+    color: var(--color-on-chrome-strong);
+  }
+
+  .sq-tab[data-active="true"] i {
+    background: var(--color-threads);
+    color: var(--color-on-surface);
+  }
+
+  .sq-tab b {
+    position: absolute;
+    top: 0;
+    right: 12px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-radius: 9px;
+    background: var(--color-instagram);
+    color: var(--color-on-surface);
+    font: 500 10px var(--font-mono), "DM Mono", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Toasts sit above the tab bar on phones. */
+  .sq-toast-viewport {
+    right: var(--space-16);
+    bottom: calc(var(--tabbar-height) + var(--space-12));
+  }
+}
+
+/* sign-in gate: shown while the operator token is fetched, and when the session ends */
+.sq-gate {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  padding: var(--space-32) var(--space-16);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  text-align: center;
+}
+.sq-gate-logo {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sq-gate-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-instagram);
+  display: inline-block;
+  margin-top: 8px;
+}
+.sq-gate-title {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin: 0;
+}
+.sq-gate-note {
+  max-width: 420px;
+  margin: 0;
+  color: var(--color-muted-on-surface);
+}

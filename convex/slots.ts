@@ -1,4 +1,5 @@
-import { mutation, internalMutation, internalQuery, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -6,15 +7,13 @@ import { checkEditedBody } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
   enqueuePayloadSchema,
-  nextDailyOccurrence,
-  nextFreeSlot,
-  normalizeTimes,
   parseRefusal,
   refusal,
 } from "./lib/slots";
+import { planNextSlot, takenTimes } from "./lib/slotPlanning";
 
 /** Scheduled (not yet claimed) slots per platform — powers at-risk warnings. */
-export const countScheduledByPlatform = query({
+export const countScheduledByPlatform = operatorQuery({
   args: { platform: v.union(v.literal("threads"), v.literal("instagram")) },
   handler: async (ctx, args) => {
     const rows = await ctx.db
@@ -32,7 +31,7 @@ export const countScheduledByPlatform = query({
  * snippet + topic title each card needs. Bounded — the week view never
  * needs more than a screenful.
  */
-export const week = query({
+export const week = operatorQuery({
   args: { from: v.number(), days: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const span = Math.min(Math.max(args.days ?? 7, 1), 31) * 86400000;
@@ -74,7 +73,7 @@ export const week = query({
 });
 
 /** Move a scheduled slot to a new future time. */
-export const reschedule = mutation({
+export const reschedule = operatorMutation({
   args: { id: v.id("slots"), scheduledAt: v.number() },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -92,7 +91,7 @@ export const reschedule = mutation({
  * Cancel a scheduled slot. The draft is preserved; the topic drops back to
  * ready unless its other drafts are still queued.
  */
-export const cancel = mutation({
+export const cancel = operatorMutation({
   args: { id: v.id("slots") },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -153,6 +152,7 @@ export const getForPublish = internalQuery({
         platform: slot.platform,
         attempts: slot.attempts,
         scheduledAt: slot.scheduledAt,
+        containerId: slot.containerId,
       },
       draft: {
         _id: draft._id,
@@ -183,6 +183,7 @@ export const setPublished = internalMutation({
     await ctx.db.patch(args.id, {
       status: "published",
       publishedPlatformId: args.platformId,
+      publishedAt: Date.now(),
       attempts: slot.attempts + 1,
     });
     return null;
@@ -252,7 +253,8 @@ export const setFailed = internalMutation({
 async function doEnqueue(
   ctx: MutationCtx,
   draftId: Id<"drafts">,
-  scheduledAt?: number
+  scheduledAt?: number,
+  tz?: string
 ): Promise<{
   slotId: Id<"slots">;
   scheduledAt: number;
@@ -308,37 +310,36 @@ async function doEnqueue(
       mediaUrl = asset.publicUrl;
     }
 
-    const dupe = await ctx.db
+    const existing = await ctx.db
       .query("slots")
-      .withIndex("by_platform_status_scheduled", (q) =>
-        q.eq("platform", platform).eq("status", "scheduled")
-      )
-      .filter((q) => q.eq(q.field("draftId"), draftId))
-      .first();
-    if (dupe)
+      .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+      .take(100);
+    if (existing.some((s) => s.status === "scheduled" || s.status === "claimed"))
       throw refusal("ALREADY_QUEUED", "This draft is already queued.");
+    if (existing.some((s) => s.status === "published"))
+      throw refusal(
+        "ALREADY_PUBLISHED",
+        "This draft already went out — repost it from the Library, or write a new draft."
+      );
+    if (existing.some((s) => s.status === "failed"))
+      throw refusal(
+        "ALREADY_FAILED",
+        "This draft has a failed post — retry or cancel it from the Queue first."
+      );
 
     const now = Date.now();
     let at = scheduledAt;
     if (at !== undefined && at <= now)
       throw refusal("BAD_TIME", "Pick a future time for the slot.");
     if (at === undefined) {
-      const row = await ctx.db
-        .query("settings")
-        .withIndex("by_key", (q) => q.eq("key", "slotDefaults"))
-        .unique();
-      let hhmm = platform === "threads" ? "09:00" : "18:00";
       try {
-        const parsed = JSON.parse(row?.value ?? "") as Partial<
-          Record<"threads" | "instagram", unknown>
-        >;
-        const cand = parsed[platform];
-        if (typeof cand === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(cand))
-          hhmm = cand;
-      } catch {
-        // Corrupt settings row — fall back to the platform default.
+        at = await planNextSlot(ctx, platform, await takenTimes(ctx, platform), tz, now);
+      } catch (err) {
+        throw refusal(
+          "NO_FREE_SLOT",
+          err instanceof Error ? err.message : "No free slot in the next year."
+        );
       }
-      at = nextDailyOccurrence(hhmm, now);
     }
 
     const payload = enqueuePayloadSchema.safeParse({
@@ -365,13 +366,15 @@ async function doEnqueue(
     return { slotId, scheduledAt: at, platform, templateKey: draft.templateKey };
 }
 
-export const enqueue = mutation({
+export const enqueue = operatorMutation({
   args: {
     draftId: v.id("drafts"),
     scheduledAt: v.optional(v.number()),
+    /** IANA zone from the browser; used when the saved time zone is still "auto". */
+    tz: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const res = await doEnqueue(ctx, args.draftId, args.scheduledAt);
+    const res = await doEnqueue(ctx, args.draftId, args.scheduledAt, args.tz);
     return { slotId: res.slotId, scheduledAt: res.scheduledAt };
   },
 });
@@ -401,7 +404,7 @@ export const claimDue = internalMutation({
     due.sort((a, b) => a.scheduledAt - b.scheduledAt);
     const winners = due.slice(0, cap);
     for (const w of winners) {
-      await ctx.db.patch(w._id, { status: "claimed" });
+      await ctx.db.patch(w._id, { status: "claimed", claimedAt: args.now });
     }
     return winners.map((w) => w._id);
   },
@@ -412,19 +415,29 @@ export const claimDue = internalMutation({
  * Bumps attempts so the tick's backoff accounting stays truthful.
  */
 export const release = internalMutation({
-  args: { id: v.id("slots"), notBefore: v.optional(v.number()) },
+  args: {
+    id: v.id("slots"),
+    notBefore: v.optional(v.number()),
+    /** false for a deferral that is not a failed attempt (rate-limit guard). Default true. */
+    countAttempt: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
     if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
     if (slot.status !== "claimed")
       throw refusal("BAD_STATE", "Only claimed slots can be released.");
     const at = Math.max(slot.scheduledAt, args.notBefore ?? slot.scheduledAt);
+    const attempts = slot.attempts + (args.countAttempt === false ? 0 : 1);
     await ctx.db.patch(args.id, {
       status: "scheduled",
       scheduledAt: at,
-      attempts: slot.attempts + 1,
+      attempts,
+      claimedAt: undefined,
+      // Keep the time the founder chose; scheduledAt now means "next attempt".
+      originalScheduledAt:
+        at !== slot.scheduledAt ? (slot.originalScheduledAt ?? slot.scheduledAt) : slot.originalScheduledAt,
     });
-    return { slotId: args.id, scheduledAt: at, attempts: slot.attempts + 1 };
+    return { slotId: args.id, scheduledAt: at, attempts };
   },
 });
 
@@ -440,8 +453,8 @@ const WEEK_FORMATS = [
  * its next free slot. Best-effort per draft — refusals land in `skipped`
  * with their VALIDATION code/message instead of failing the batch.
  */
-export const queueTopic = mutation({
-  args: { topicId: v.id("topics") },
+export const queueTopic = operatorMutation({
+  args: { topicId: v.id("topics"), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
     if (!topic)
@@ -464,31 +477,9 @@ export const queueTopic = mutation({
     for (const d of all) latestByKey.set(d.templateKey, d);
 
     const taken: Record<"threads" | "instagram", number[]> = {
-      threads: [],
-      instagram: [],
+      threads: await takenTimes(ctx, "threads"),
+      instagram: await takenTimes(ctx, "instagram"),
     };
-    for (const platform of ["threads", "instagram"] as const) {
-      const rows = await ctx.db
-        .query("slots")
-        .withIndex("by_platform_status_scheduled", (q) =>
-          q.eq("platform", platform).eq("status", "scheduled")
-        )
-        .take(200);
-      taken[platform] = rows.map((r) => r.scheduledAt);
-    }
-
-    const row = await ctx.db
-      .query("settings")
-      .withIndex("by_key", (q) => q.eq("key", "slotDefaults"))
-      .unique();
-    let raw: Partial<Record<"threads" | "instagram", unknown>> = {};
-    try {
-      raw = JSON.parse(row?.value ?? "{}") as Partial<
-        Record<"threads" | "instagram", unknown>
-      >;
-    } catch {
-      // Corrupt settings row — per-platform fallbacks below.
-    }
 
     const now = Date.now();
     const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
@@ -505,12 +496,8 @@ export const queueTopic = mutation({
         continue;
       }
       try {
-        const times = normalizeTimes(
-          raw[f.platform],
-          f.platform === "threads" ? "09:00" : "18:00"
-        );
-        const at = nextFreeSlot(times, now, taken[f.platform]);
-        await doEnqueue(ctx, draft._id, at);
+        const at = await planNextSlot(ctx, f.platform, taken[f.platform], args.tz, now);
+        await doEnqueue(ctx, draft._id, at, args.tz);
         taken[f.platform].push(at);
         queued.push({ format: f.label, templateKey: f.templateKey, scheduledAt: at });
       } catch (err) {

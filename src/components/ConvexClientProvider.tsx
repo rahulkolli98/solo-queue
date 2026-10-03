@@ -1,7 +1,9 @@
 "use client";
 
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { useMemo } from "react";
+import SessionGate from "@/components/SessionGate";
+import { useOperatorAuth } from "@/lib/useOperatorAuth";
 
 export default function ConvexClientProvider({
   children,
@@ -13,5 +15,9 @@ export default function ConvexClientProvider({
     if (!url) throw new Error("NEXT_PUBLIC_CONVEX_URL is not set.");
     return new ConvexReactClient(url);
   }, []);
-  return <ConvexProvider client={client}>{children}</ConvexProvider>;
+  return (
+    <ConvexProviderWithAuth client={client} useAuth={useOperatorAuth}>
+      <SessionGate>{children}</SessionGate>
+    </ConvexProviderWithAuth>
+  );
 }

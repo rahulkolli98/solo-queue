@@ -11,7 +11,19 @@ import type { NextRequest } from "next/server";
  *   accidentally public dashboard). Set the vars in Vercel instead.
  * - Creds unset + dev → open (local development convenience).
  */
+/** Development-only routes (the component gallery) do not exist in production. */
+function isDevOnlyPath(pathname: string): boolean {
+  return pathname === "/dev" || pathname.startsWith("/dev/");
+}
+
 export function proxy(request: NextRequest) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    isDevOnlyPath(request.nextUrl.pathname)
+  ) {
+    return new NextResponse("Not found.", { status: 404 });
+  }
+
   const user = process.env.BASIC_AUTH_USER;
   const pass = process.env.BASIC_AUTH_PASS;
 
@@ -36,7 +48,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // OAuth callbacks MUST stay public: Meta's servers redirect here without
-  // credentials, so gating them would break every Connect flow (401).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/oauth/).*)"],
+  // Only the OAuth callbacks stay public: Meta's servers redirect there without
+  // credentials, so gating them would break every Connect flow (401). The
+  // /start routes issue the signed state the callbacks trust, so they stay
+  // behind Basic Auth.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/oauth/(?:threads|instagram)/callback).*)"],
 };

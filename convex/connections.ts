@@ -1,10 +1,5 @@
-import {
-  action,
-  internalAction,
-  internalMutation,
-  internalQuery,
-  query,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { operatorAction, operatorQuery } from "./lib/operator";
 import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import {
@@ -216,7 +211,7 @@ async function exchangeInstagram(code: string): Promise<{
  * Exchange an OAuth code for a stored long-lived connection.
  * Throws on provider errors; the callback route maps these to UI states.
  */
-export const exchangeCode = action({
+export const exchangeCode = operatorAction({
   args: { platform: platformArg, code: v.string() },
   handler: async (ctx, args): Promise<{ handle: string }> => {
     try {
@@ -249,7 +244,7 @@ export const exchangeCode = action({
 });
 
 /** Connections for the dashboard (tokens never leave the backend). */
-export const listPublic = query({
+export const listPublic = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("connections").collect();
@@ -358,7 +353,7 @@ async function refreshWithProvider(
 }
 
 /** Manual refresh (dashboard "Refresh tokens" button). Never throws. */
-export const refresh = action({
+export const refresh = operatorAction({
   args: { platform: platformArg },
   handler: async (
     ctx,
@@ -486,7 +481,7 @@ function assertTestPublishAllowed(): void {
  * deleteThreadsTest. Returns the published media id (NOT the container id —
  * DELETE only accepts media object ids).
  */
-export const publishThreadsTest = action({
+export const publishThreadsTest = operatorAction({
   args: {},
   handler: async (ctx): Promise<{ id: string }> => {
     assertTestPublishAllowed();
@@ -562,7 +557,7 @@ export const publishThreadsTest = action({
   },
 });
 
-export const deleteThreadsTest = action({
+export const deleteThreadsTest = operatorAction({
   args: { mediaId: v.string() },
   handler: async (ctx, args): Promise<{ deleted: boolean }> => {
     assertTestPublishAllowed();
@@ -593,7 +588,7 @@ export const deleteThreadsTest = action({
  * path, so publishing a throwaway is unsafe. Instead, verify the token
  * with a side-effect-free profile fetch.
  */
-export const verifyInstagram = action({
+export const verifyInstagram = operatorAction({
   args: {},
   handler: async (ctx): Promise<{ username: string; userId: string }> => {
     const row = await ctx.runQuery(internal.connections.getOne, {

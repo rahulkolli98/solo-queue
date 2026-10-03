@@ -1,0 +1,400 @@
+/*
+ * Shared component styles for the app-wide primitives (design.md § Components):
+ * buttons, pills, banners, toast, skeleton, the 404 composition and the
+ * mobile tab bar. Screen-specific layout lives with each screen.
+ */
+
+/* ---------- buttons ---------- */
+.sq-btn-sm {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.sq-btn-dark {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+
+.sq-btn-light {
+  border-color: var(--color-on-chrome-strong);
+  color: var(--color-on-chrome-strong);
+}
+
+.sq-btn:focus-visible,
+.sq-nav-item:focus-visible,
+.sq-tab:focus-visible,
+.sq-icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.sq-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--rounded-control);
+  border: 1.5px solid var(--color-on-surface);
+  background: transparent;
+  color: var(--color-on-surface);
+}
+
+.sq-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* The primary icon button (e.g. "New from topic" in the phone header). */
+.sq-icon-btn.sq-btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* ---------- status pills (ok / mid / bad) ---------- */
+.sq-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: var(--rounded-md);
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.sq-pill-ok {
+  background: var(--color-warning);
+  color: var(--color-on-surface);
+}
+.sq-pill-mid {
+  background: var(--color-paper-dim);
+  color: var(--color-on-surface);
+}
+.sq-pill-bad {
+  background: var(--color-error);
+  color: var(--color-on-primary);
+}
+
+/* ---------- banner: coral (failure), yellow (expiring), blue (coverage) ---------- */
+.sq-banner-tone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  border-radius: var(--rounded-xl);
+  padding: var(--space-12) var(--space-16);
+  box-sizing: border-box;
+}
+.sq-banner-tone > svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.sq-banner-body {
+  flex-grow: 1;
+  min-width: 0;
+}
+.sq-banner-body b {
+  font-size: 14.5px;
+}
+.sq-banner-body small {
+  font-size: 13px;
+  line-height: 1.4;
+  margin-left: 4px;
+}
+.sq-banner-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.sq-banner-coral {
+  background: var(--color-error);
+  color: var(--color-on-primary);
+}
+.sq-banner-yellow {
+  background: var(--color-warning);
+  color: var(--color-on-surface);
+}
+.sq-banner-blue {
+  background: var(--color-info);
+  color: var(--color-on-surface);
+}
+/* action buttons adapt to the tone they sit on */
+.sq-banner-coral .sq-btn {
+  border-color: #fff;
+  color: #fff;
+}
+.sq-banner-coral .sq-btn-primary {
+  background: #fff;
+  color: var(--color-on-surface);
+}
+.sq-banner-yellow .sq-btn-primary,
+.sq-banner-blue .sq-btn-primary {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.sq-banner-coral .sq-btn:focus-visible {
+  outline-color: #fff;
+}
+
+/* Phones: the banner's actions drop below the text instead of squeezing it. */
+@media (max-width: 767px) {
+  .sq-banner-tone {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .sq-banner-body {
+    flex-basis: calc(100% - 40px);
+  }
+  .sq-banner-actions {
+    width: 100%;
+  }
+}
+
+/* ---------- toast ---------- */
+.sq-toast-viewport {
+  position: fixed;
+  right: var(--space-24);
+  bottom: var(--toast-bottom, var(--space-24));
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  width: min(410px, calc(100vw - 2 * var(--space-16)));
+  pointer-events: none;
+}
+.sq-toast {
+  pointer-events: auto;
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+  border: 1.5px solid rgba(244, 235, 217, 0.2);
+  border-radius: 20px;
+  padding: var(--space-16) 18px;
+  box-shadow: 0 18px 40px rgba(43, 26, 20, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+.sq-toast-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+}
+.sq-toast-title {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.017em;
+  flex-grow: 1;
+}
+.sq-toast-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font: 700 14px var(--font-mono), "DM Mono", monospace;
+  background: var(--color-warning);
+  color: var(--color-on-surface);
+}
+.sq-toast-mark svg {
+  width: 16px;
+  height: 16px;
+}
+.sq-toast-bad .sq-toast-mark {
+  background: var(--color-error);
+  color: var(--color-on-primary);
+}
+.sq-toast-detail {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-muted-on-chrome);
+}
+.sq-toast-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.sq-toast-actions .sq-btn-primary {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+  color: var(--color-on-surface);
+}
+.sq-toast-actions .sq-btn:not(.sq-btn-primary) {
+  border-color: var(--color-on-chrome-strong);
+  color: var(--color-on-chrome-strong);
+}
+.sq-toast-close {
+  all: unset;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted-on-chrome);
+  flex-shrink: 0;
+}
+.sq-toast-close:hover {
+  color: var(--color-on-chrome-strong);
+}
+.sq-toast-close:focus-visible {
+  outline: 2px solid var(--color-warning);
+}
+
+/* ---------- skeleton: a layout drawn as blank shapes, pulsing ---------- */
+@keyframes sq-skp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.sq-sk {
+  display: block;
+  border-radius: var(--rounded-sm);
+  background: var(--color-line-soft);
+  animation: sq-skp 1.4s ease-in-out infinite;
+}
+.sq-sk-dk {
+  background: rgba(244, 235, 217, 0.16);
+}
+.sq-sk-y {
+  background: rgba(43, 26, 20, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sq-sk {
+    animation: none;
+  }
+}
+
+/* ---------- paper note + tape (used by the 404 and, later, the screens) ---------- */
+.sq-paper {
+  position: relative;
+  background: var(--color-surface-raised);
+  border-radius: var(--rounded-sharp);
+  box-shadow: var(--shadow-paper);
+}
+.sq-tape {
+  position: absolute;
+  top: -10px;
+  left: 40%;
+  width: 64px;
+  height: 20px;
+  background: rgba(240, 119, 92, 0.8);
+  transform: rotate(4deg);
+}
+
+/* ---------- 404 ---------- */
+.sq-404 {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vw, 70px);
+  flex-wrap: wrap;
+}
+.sq-404-num {
+  margin: 0;
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: clamp(120px, 21vw, 300px);
+  line-height: 0.85;
+  font-weight: 700;
+  letter-spacing: -0.047em;
+}
+.sq-404-dot {
+  display: inline-block;
+  width: 0.52em;
+  height: 0.52em;
+  box-sizing: border-box;
+  border: 0.1em solid var(--color-on-surface);
+  border-radius: 50%;
+  background: var(--color-threads);
+  margin: 0 0.03em;
+}
+.sq-404-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18, 18px);
+  max-width: 420px;
+}
+.sq-404-label {
+  align-self: flex-start;
+  padding: var(--space-12) var(--space-16);
+  transform: rotate(-2deg);
+}
+.sq-404-title {
+  margin: 0;
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: clamp(38px, 5vw, 54px);
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.037em;
+}
+.sq-404-title em {
+  font-style: normal;
+  color: var(--color-primary);
+}
+.sq-404-text {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--color-muted-on-surface);
+}
+
+/* ---------- error state ---------- */
+.sq-error-screen {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--space-16);
+  max-width: 560px;
+}
+.sq-error-screen h1 {
+  margin: 0;
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: clamp(36px, 5vw, 54px);
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.037em;
+}
+.sq-error-screen h1 em {
+  font-style: normal;
+  color: var(--color-primary);
+}
+.sq-error-screen p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-muted-on-surface);
+}
+
+/* ---------- dev gallery spacing ---------- */
+.sq-col-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* ---------- settings: slot times form ---------- */
+.sq-slot-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.sq-slot-input {
+  width: min(320px, 100%);
+}
