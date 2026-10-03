@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { api } from "../../convex/_generated/api";
 import { NAV_ITEMS, badgeLabel, isActivePath } from "@/lib/nav";
 import { NavIcon, SettingsIcon } from "@/components/ui/icons";
+import PublisherStatus from "@/components/PublisherStatus";
 import { useNavCounts } from "@/components/useNavCounts";
 
 export default function SiteNav() {
@@ -85,6 +86,7 @@ export function PostingAs() {
           </>
         )}
       </div>
+      <PublisherStatus />
       <SettingsNavItem />
     </div>
   );

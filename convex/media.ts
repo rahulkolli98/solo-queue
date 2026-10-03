@@ -4,7 +4,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { checkReachable } from "./lib/http";
+import { judgeMedia, probeUrl } from "./lib/http";
 import { refusal } from "./lib/slots";
 
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -124,9 +124,14 @@ export const registerExternal = operatorMutation({
 });
 
 export const markVerified = internalMutation({
-  args: { id: v.id("mediaAssets") },
+  args: { id: v.id("mediaAssets"), mimeType: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { verifiedAt: Date.now(), lastVerifyError: undefined });
+    await ctx.db.patch(args.id, {
+      verifiedAt: Date.now(),
+      lastVerifyError: undefined,
+      // Keep the type the server reports, so Instagram gets the right kind (photo or reel).
+      ...(args.mimeType ? { mimeType: args.mimeType } : {}),
+    });
     return null;
   },
 });
@@ -141,8 +146,9 @@ export const markVerifyFailed = internalMutation({
 });
 
 /**
- * Probe an asset's public URL. On success stamps verifiedAt and clears any
- * earlier error. On failure the reason is stored on the asset (shown as "not
+ * Probe an asset's public URL. It must serve an image or video file (a web
+ * page such as a YouTube link is refused). On success stamps verifiedAt and
+ * clears any earlier error. On failure the reason is stored on the asset (shown as "not
  * reachable" in Library > Media) and a readable error is thrown.
  */
 export const verify = operatorAction({
@@ -153,9 +159,11 @@ export const verify = operatorAction({
     } | null = await ctx.runQuery(internal.media.getForVerify, { id: args.id });
     if (!asset) throw refusal("MEDIA_NOT_FOUND", "Media not found — it may have been deleted.");
     try {
-      const status = await checkReachable(asset.publicUrl);
-      await ctx.runMutation(internal.media.markVerified, { id: args.id });
-      return { status };
+      const probe = await probeUrl(asset.publicUrl);
+      const verdict = judgeMedia(asset.publicUrl, probe);
+      if (!verdict.ok) throw new Error(verdict.reason);
+      await ctx.runMutation(internal.media.markVerified, { id: args.id, mimeType: verdict.mimeType });
+      return { status: probe.status };
     } catch (err) {
       const message = err instanceof Error ? err.message : "URL not reachable.";
       await ctx.runMutation(internal.media.markVerifyFailed, { id: args.id, error: message });
