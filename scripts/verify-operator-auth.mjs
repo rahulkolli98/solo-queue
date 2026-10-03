@@ -20,8 +20,9 @@ if (!url || !env.OPERATOR_JWT_PRIVATE_KEY) {
   console.error("Need NEXT_PUBLIC_CONVEX_URL and OPERATOR_JWT_PRIVATE_KEY in .env.local (run scripts/operator-keys.mjs --local).");
   process.exit(1);
 }
-if (!/127\.0\.0\.1|localhost/.test(url) && !process.argv.includes("--allow-remote")) {
-  console.error(`Refusing to run against ${new URL(url).host}. Pass --allow-remote if you really mean it.`);
+const host = new URL(url).hostname;
+if (!["127.0.0.1", "localhost", "[::1]"].includes(host) && !process.argv.includes("--allow-remote")) {
+  console.error(`Refusing to run against ${host}. Pass --allow-remote if you really mean it.`);
   process.exit(1);
 }
 

@@ -27,13 +27,23 @@ export async function GET(request: NextRequest) {
   if (!code || !verifyState(state, cookieState)) {
     fail("bad-state");
   }
+  // Single use: a state that has been spent cannot be replayed.
+  jar.set(INSTAGRAM_STATE_COOKIE, "", { path: "/api/oauth", maxAge: 0 });
 
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) fail("misconfigured");
 
+  // The callback is public for Meta. The signed state proves the operator started this flow:
+  // only /api/oauth/instagram/start issues one, and that route is behind Basic Auth.
+  let token: string;
   try {
-    // The callback is public for Meta, but the state check above proves the operator started this flow.
-    const { token } = await mintOperatorToken(OPERATOR_CALLBACK_TOKEN_TTL_SECONDS);
+    ({ token } = await mintOperatorToken(OPERATOR_CALLBACK_TOKEN_TTL_SECONDS));
+  } catch (e) {
+    console.error(`oauth instagram callback: could not mint a token: ${e instanceof Error ? e.message : "unknown"}`);
+    fail("misconfigured");
+  }
+
+  try {
     const client = new ConvexHttpClient(convexUrl as string);
     client.setAuth(token);
     await client.action(api.connections.exchangeCode, {

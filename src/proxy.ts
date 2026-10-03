@@ -48,7 +48,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // OAuth callbacks MUST stay public: Meta's servers redirect here without
-  // credentials, so gating them would break every Connect flow (401).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/oauth/).*)"],
+  // Only the OAuth callbacks stay public: Meta's servers redirect there without
+  // credentials, so gating them would break every Connect flow (401). The
+  // /start routes issue the signed state the callbacks trust, so they stay
+  // behind Basic Auth.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/oauth/(?:threads|instagram)/callback).*)"],
 };

@@ -24,6 +24,27 @@ if (!mode) {
   process.exit(1);
 }
 
+if (mode === "print" && !process.stdout.isTTY) {
+  console.error("Refusing to print production keys: stdout is not a terminal (an agent, a pipe or a log could capture them).");
+  console.error("Run this yourself in a terminal window.");
+  process.exit(1);
+}
+if (mode === "local") {
+  const env = existsSync(".env.local") ? readFileSync(".env.local", "utf8") : "";
+  const m = /^NEXT_PUBLIC_CONVEX_URL=(.*)$/m.exec(env);
+  let host = "";
+  try {
+    host = new URL((m?.[1] ?? "").trim()).hostname;
+  } catch {
+    /* handled below */
+  }
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
+    console.error("Refusing --local: .env.local does not point at the local Convex backend (127.0.0.1).");
+    console.error("This would overwrite another deployment's OPERATOR_JWKS.");
+    process.exit(1);
+  }
+}
+
 const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true, modulusLength: 2048 });
 const privatePem = await exportPKCS8(privateKey);
 const jwk = { ...(await exportJWK(publicKey)), kid: KEY_ID, alg: "RS256", use: "sig" };
@@ -50,7 +71,7 @@ const lines = existing.split(/\r?\n/).filter((l) => l.length > 0 && !l.startsWit
 lines.push(`OPERATOR_JWT_PRIVATE_KEY=${privateEnv}`);
 writeFileSync(envPath, lines.join(eol) + eol);
 
-const set = spawnSync("npx", ["convex", "env", "set", "OPERATOR_JWKS", jwks], { shell: true, stdio: "pipe", encoding: "utf8" });
+const set = spawnSync("npx", ["convex", "env", "set", "OPERATOR_JWKS", `"${jwks}"`], { shell: true, stdio: "pipe", encoding: "utf8" });
 if (set.status !== 0) {
   console.error("Wrote .env.local, but setting OPERATOR_JWKS on the local Convex backend failed.");
   console.error("Is the local backend running (scripts/local-backend.ps1)? Re-run this command once it is.");

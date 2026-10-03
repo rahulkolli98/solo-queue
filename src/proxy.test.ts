@@ -75,6 +75,17 @@ describe("Basic Auth gate (proxy)", () => {
     expect(proxy(req(basic("rahul", "s3cret"), "/api/convex-token")).status).toBe(200);
   });
 
+  it("keeps the OAuth start routes behind the login (they issue the state the callbacks trust)", () => {
+    vi.stubEnv("BASIC_AUTH_USER", "rahul");
+    vi.stubEnv("BASIC_AUTH_PASS", "s3cret");
+    const re = new RegExp(`^${config.matcher[0]}$`);
+    for (const path of ["/api/oauth/threads/start", "/api/oauth/instagram/start"]) {
+      expect(re.test(path)).toBe(true);
+      expect(proxy(req(undefined, path)).status).toBe(401);
+      expect(proxy(req(basic("rahul", "s3cret"), path)).status).toBe(200);
+    }
+  });
+
   it("keeps the OAuth callbacks outside the matcher so Meta can reach them", () => {
     const [pattern] = config.matcher;
     const re = new RegExp(`^${pattern}$`);
