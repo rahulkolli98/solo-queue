@@ -1,4 +1,5 @@
-import { action, internalMutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
+import { operatorAction } from "./lib/operator";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { generateObject, generateText } from "ai";
@@ -113,7 +114,7 @@ export const storeDraft = internalMutation({
  * labels come from the frame at display time), so what is stored is what is
  * published. Marks the topic ready on success.
  */
-export const generate = action({
+export const generate = operatorAction({
   args: {
     topicId: v.id("topics"),
     formats: v.optional(v.array(formatArg)),

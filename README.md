@@ -46,6 +46,8 @@ for Bricolage Grotesque, DM Sans, and DM Mono per the design tokens.
 | `OAUTH_STATE_SECRET` | Signs OAuth state cookies (REQUIRED for Connect flows; any 32-byte hex) | Vercel only |
 | `PUBLISH_DRY_RUN` | Publisher mode. Posts for real **only when exactly `0`**; unset or anything else is dry-run | Convex only (set `1` on local and prod until the publisher is verified) |
 | `CONVEX_DEPLOY_KEY` | Production deploy key used by `npx convex deploy` in the Vercel build command (TASK-087). Production environment only | Vercel build only |
+| `OPERATOR_JWT_PRIVATE_KEY` | Private half of the operator signing key (base64 PEM). Signs the 1-hour token the browser uses to call Convex (`/api/convex-token`) | Vercel **Production only** (and `.env.local` for local dev) |
+| `OPERATOR_JWKS` | Public half (a `data:` URI key set). Lets Convex verify operator tokens; the deploy fails without it | **Convex only** (local backend and prod) |
 | `ALLOW_TEST_PUBLISH` | Enables the Connections test publish/delete (posts to the real Threads account). Off unless exactly `1` | Convex only; leave unset on prod |
 
 Backend actions run on Convex Cloud and read **Convex** env vars — Vercel
@@ -70,6 +72,38 @@ Protection). Why both: on the Hobby plan, Vercel Authentication covers preview
 and deployment URLs but NOT the production domain — the in-app Basic Auth gate
 (`src/proxy.ts`) covers everything, and refuses to serve production at all if
 its vars are missing.
+
+## Operator auth (TASK-089)
+
+Every public Convex function (except the landing page waitlist) refuses callers
+who are not the operator, so knowing the Convex URL is not enough to read drafts,
+spend LLM credits or queue posts. How it works: the Basic Auth login gates
+`/api/convex-token`, which signs a 1-hour RS256 token; the browser sends it to
+Convex, which verifies it with the public key (`convex/auth.config.ts`). The
+browser refreshes the token itself; if it ever cannot, the app shows "Session
+ended" and a reload brings the login prompt back.
+
+- **Local dev (once):** `node scripts/operator-keys.mjs --local` writes a
+  throwaway key pair into `.env.local` and the local Convex env (prints nothing).
+  Restart `next dev`, then `npx convex dev --once`.
+- **Production (once, by the founder):** `node scripts/operator-keys.mjs --print`,
+  then paste the private key into Vercel as `OPERATOR_JWT_PRIVATE_KEY`
+  (**Production only**, never Preview) and the public key set into Convex prod as
+  `OPERATOR_JWKS` (`npx convex env set --prod OPERATOR_JWKS "<value>"`). Do both
+  **before** the deploy that contains this change; the deploy fails without
+  `OPERATOR_JWKS`. Tabs open during that deploy need one reload.
+- **Rotate** (only if a key may have leaked): re-run `--print`, replace both
+  values, redeploy. Open tabs show "Session ended" until reloaded.
+- **Check it:** `node scripts/verify-operator-auth.mjs` (local backend only unless
+  `--allow-remote`) confirms anonymous, forged, expired and wrong-audience calls
+  are refused and a valid token works.
+- **CLI:** guarded functions need an identity:
+  `npx convex run topics:list --identity issuer:https://solo-queue.operator`.
+  Internal functions (`internal.*`) need none.
+- **Adding a function:** build public ones with `operatorQuery` /
+  `operatorMutation` / `operatorAction` from `convex/lib/operator.ts`, never the
+  raw builders. `src/lib/operatorGuard.test.ts` fails if a raw builder appears
+  outside `convex/waitlist.ts`.
 
 ## Local backend trouble
 

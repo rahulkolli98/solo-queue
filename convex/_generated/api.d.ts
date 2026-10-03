@@ -19,6 +19,8 @@ import type * as lib_drafting from "../lib/drafting.js";
 import type * as lib_framesModel from "../lib/framesModel.js";
 import type * as lib_http from "../lib/http.js";
 import type * as lib_llm from "../lib/llm.js";
+import type * as lib_operator from "../lib/operator.js";
+import type * as lib_operatorConfig from "../lib/operatorConfig.js";
 import type * as lib_research from "../lib/research.js";
 import type * as lib_safety from "../lib/safety.js";
 import type * as lib_settingsDb from "../lib/settingsDb.js";
@@ -64,6 +66,8 @@ declare const fullApi: ApiFromModules<{
   "lib/framesModel": typeof lib_framesModel;
   "lib/http": typeof lib_http;
   "lib/llm": typeof lib_llm;
+  "lib/operator": typeof lib_operator;
+  "lib/operatorConfig": typeof lib_operatorConfig;
   "lib/research": typeof lib_research;
   "lib/safety": typeof lib_safety;
   "lib/settingsDb": typeof lib_settingsDb;

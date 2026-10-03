@@ -1,4 +1,5 @@
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
@@ -29,7 +30,7 @@ function requireTitle(title: string): string {
 }
 
 /** Topics still in the research inbox: not archived, not yet queued or done. */
-export const count = query({
+export const count = operatorQuery({
   args: {},
   handler: async (ctx): Promise<number> => {
     let n = 0;
@@ -45,7 +46,7 @@ export const count = query({
 });
 
 /** Single topic by id (composer + drafting flows). */
-export const get = query({
+export const get = operatorQuery({
   args: { id: v.id("topics") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
@@ -53,7 +54,7 @@ export const get = query({
 });
 
 /** Ritual list: unqueued statuses first, oldest first within each rank. Archived topics are left out. */
-export const list = query({
+export const list = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("topics").take(INBOX_LIMIT);
@@ -70,7 +71,7 @@ async function sourceCountOf(ctx: QueryCtx, topicId: Id<"topics">): Promise<numb
 }
 
 /** Research board rows: each topic with its source count and READY / NEEDS N MORE. */
-export const board = query({
+export const board = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const rows = (await ctx.db.query("topics").take(INBOX_LIMIT))
@@ -90,7 +91,7 @@ export const board = query({
   },
 });
 
-export const create = mutation({
+export const create = operatorMutation({
   args: {
     title: v.string(),
     notes: v.optional(v.string()),
@@ -112,7 +113,7 @@ export const create = mutation({
   },
 });
 
-export const update = mutation({
+export const update = operatorMutation({
   args: {
     id: v.id("topics"),
     title: v.optional(v.string()),
@@ -141,7 +142,7 @@ export const update = mutation({
 });
 
 /** Hide a topic from the inbox without deleting anything. */
-export const archive = mutation({
+export const archive = operatorMutation({
   args: { id: v.id("topics") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, { archivedAt: Date.now() });
@@ -149,7 +150,7 @@ export const archive = mutation({
   },
 });
 
-export const unarchive = mutation({
+export const unarchive = operatorMutation({
   args: { id: v.id("topics") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, { archivedAt: undefined });
@@ -158,7 +159,7 @@ export const unarchive = mutation({
 });
 
 /** Founder edit of the brief. Marks it edited so regenerating must confirm before overwriting. */
-export const editBrief = mutation({
+export const editBrief = operatorMutation({
   args: { id: v.id("topics"), brief: v.string() },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
@@ -206,7 +207,7 @@ async function draftHasSlot(ctx: QueryCtx, draftId: Id<"drafts">): Promise<boole
  * Refused when any of its drafts has a slot (queued or published): that work
  * must not vanish, so archive the topic instead.
  */
-export const remove = mutation({
+export const remove = operatorMutation({
   args: { id: v.id("topics") },
   handler: async (ctx, args) => {
     const drafts = await draftsOf(ctx, args.id);

@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { api } from "../../../../../../convex/_generated/api";
+import { OPERATOR_CALLBACK_TOKEN_TTL_SECONDS } from "../../../../../../convex/lib/operatorConfig";
+import { mintOperatorToken } from "@/lib/operatorToken";
 import { THREADS_STATE_COOKIE, verifyState } from "@/lib/oauth";
 
 function fail(code: string, detail?: string): never {
@@ -31,7 +33,10 @@ export async function GET(request: NextRequest) {
   if (!convexUrl) fail("misconfigured");
 
   try {
+    // The callback is public for Meta, but the state check above proves the operator started this flow.
+    const { token } = await mintOperatorToken(OPERATOR_CALLBACK_TOKEN_TTL_SECONDS);
     const client = new ConvexHttpClient(convexUrl as string);
+    client.setAuth(token);
     await client.action(api.connections.exchangeCode, {
       platform: "threads",
       code,

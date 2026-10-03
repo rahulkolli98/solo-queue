@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import { checkEditedBody } from "./lib/drafting";
 import { refusal } from "./lib/slots";
 
@@ -7,7 +7,7 @@ import { refusal } from "./lib/slots";
  * Drafts for one topic, oldest first. Powers the composer tabs (Phase 2)
  * and verifies regeneration replaces instead of duplicating.
  */
-export const listByTopic = query({
+export const listByTopic = operatorQuery({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args) => {
     const [threads, instagram, blog] = await Promise.all(
@@ -30,7 +30,7 @@ export const listByTopic = query({
  * Persist an inline edit from the composer. Recomputes charCount/constraintOk
  * server-side with the same mapping as generation, so stored badges never
  * drift from what the queue validator will check.
- */export const update = mutation({
+ */export const update = operatorMutation({
   args: { id: v.id("drafts"), body: v.string() },
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);
@@ -56,7 +56,7 @@ export const listByTopic = query({
  * this before they can queue; the asset itself must exist. Verification
  * freshness is checked at enqueue time, not here.
  */
-export const attachMedia = mutation({
+export const attachMedia = operatorMutation({
   args: { id: v.id("drafts"), mediaAssetId: v.union(v.id("mediaAssets"), v.null()) },
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);

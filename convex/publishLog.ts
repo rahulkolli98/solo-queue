@@ -1,5 +1,5 @@
-import { query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
+import { operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
 import { daysUntil } from "./lib/coverage";
 import { isLivePublishing } from "./lib/safety";
@@ -34,7 +34,7 @@ async function kv(ctx: QueryCtx, key: string): Promise<KvRow> {
 }
 
 /** Publisher health, limits and connection tokens. `now` is passed in (a query must not read the clock). */
-export const status = query({
+export const status = operatorQuery({
   args: { now: v.number() },
   handler: async (ctx, args) => {
     const beat = parseJson<{ at: number; claimed: number; published: number; failed: number } | null>(
@@ -77,7 +77,7 @@ export const status = query({
 });
 
 /** Publish attempts, newest first, with the post they belong to. Optionally only one outcome. */
-export const attempts = query({
+export const attempts = operatorQuery({
   args: {
     outcome: v.optional(
       v.union(v.literal("success"), v.literal("retryable"), v.literal("permanent"))

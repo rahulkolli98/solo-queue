@@ -1,5 +1,5 @@
-import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { operatorAction } from "./lib/operator";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { generateObject, generateText } from "ai";
@@ -20,7 +20,7 @@ const SYSTEM =
  * Write the topic's ~140-word brief from its notes and sources. Refuses to
  * overwrite a brief the founder edited unless `force` is set.
  */
-export const brief = action({
+export const brief = operatorAction({
   args: { topicId: v.id("topics"), force: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ brief: string }> => {
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
@@ -48,7 +48,7 @@ export const brief = action({
 });
 
 /** Suggest three post angles (platform, format, story frame) for a topic. */
-export const angles = action({
+export const angles = operatorAction({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args): Promise<{ angles: { platform: string; format: string; frameKey: string; title: string }[] }> => {
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });

@@ -2,6 +2,7 @@
 import { convexTest } from "convex-test";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { OPERATOR_ISSUER, OPERATOR_SUBJECT } from "../../convex/lib/operatorConfig";
 
 /**
  * Shared helpers for Convex function tests (convex-test, in-memory backend).
@@ -9,7 +10,20 @@ import schema from "../../convex/schema";
  */
 const modules = import.meta.glob(["../../convex/**/*.ts", "!../../convex/**/*.test.ts"]);
 
+/** The signed-in operator: what every guarded function requires. */
+export const OPERATOR_IDENTITY = {
+  issuer: OPERATOR_ISSUER,
+  subject: OPERATOR_SUBJECT,
+  tokenIdentifier: `${OPERATOR_ISSUER}|${OPERATOR_SUBJECT}`,
+};
+
+/** A backend whose caller is the operator (the default for tests). */
 export function newTest() {
+  return convexTest(schema, modules).withIdentity(OPERATOR_IDENTITY);
+}
+
+/** A backend whose caller is anonymous: anyone who knows the deployment URL. */
+export function newAnonymousTest() {
   return convexTest(schema, modules);
 }
 

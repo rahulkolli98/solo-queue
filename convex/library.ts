@@ -1,5 +1,5 @@
-import { query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
+import { operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
 import { readSettings } from "./lib/settingsDb";
 
@@ -17,7 +17,7 @@ function firstPost(body: string): string {
  * evergreen and whether the rest period allows a requeue yet. `now` is passed
  * in because a query must not read the clock.
  */
-export const published = query({
+export const published = operatorQuery({
   args: {
     now: v.number(),
     pillar: v.optional(v.string()),
@@ -79,7 +79,7 @@ export function draftStatus(draft: Pick<Doc<"drafts">, "platform" | "constraintO
 }
 
 /** Drafts with no slot yet (never queued), newest first, with a status and tab counts. */
-export const drafts = query({
+export const drafts = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("drafts").order("desc").take(PAGE);

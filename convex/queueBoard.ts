@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
 import { refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
@@ -28,7 +28,7 @@ function hhmm(ts: number, tz: string): string {
  * visible) and the settings times that are still open. `tz` is the browser
  * zone, used while the saved zone is still "auto".
  */
-export const dayColumns = query({
+export const dayColumns = operatorQuery({
   args: { from: v.number(), days: v.optional(v.number()), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const settings = await readSettings(ctx);
@@ -146,7 +146,7 @@ export const dayColumns = query({
 });
 
 /** Everything the slot drawer shows: the post, its topic, its media and every publish attempt. */
-export const detail = query({
+export const detail = operatorQuery({
   args: { id: v.id("slots") },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -200,7 +200,7 @@ export const detail = query({
  * slot. Attempts restart at zero; the receipts of earlier attempts stay as
  * history.
  */
-export const retry = mutation({
+export const retry = operatorMutation({
   args: { id: v.id("slots"), scheduledAt: v.optional(v.number()), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -232,7 +232,7 @@ export const retry = mutation({
 });
 
 /** Mark a post as evergreen: it can be requeued once the rest period has passed. */
-export const setEvergreen = mutation({
+export const setEvergreen = operatorMutation({
   args: { id: v.id("slots"), evergreen: v.boolean() },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -247,7 +247,7 @@ export const setEvergreen = mutation({
  * time, with the original kept as history. Allowed once the rest period
  * (settings.rules.evergreenRestDays) has passed since it published.
  */
-export const requeue = mutation({
+export const requeue = operatorMutation({
   args: { id: v.id("slots"), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);

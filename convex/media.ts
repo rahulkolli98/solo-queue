@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
-import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { operatorAction, operatorMutation, operatorQuery } from "./lib/operator";
+import { internalMutation, internalQuery } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -46,7 +47,7 @@ async function draftsUsing(ctx: QueryCtx, assetId: Id<"mediaAssets">): Promise<D
 }
 
 /** Newest assets first, bounded, each with how many drafts use it. */
-export const list = query({
+export const list = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const assets = await ctx.db.query("mediaAssets").order("desc").take(50);
@@ -63,7 +64,7 @@ export const list = query({
  * Specific assets by id (a draft's attached media), so a draft whose asset is
  * older than the newest 50 in `list` still resolves. Missing ids are left out.
  */
-export const byIds = query({
+export const byIds = operatorQuery({
   args: { ids: v.array(v.id("mediaAssets")) },
   handler: async (ctx, args) => {
     const out: Doc<"mediaAssets">[] = [];
@@ -76,7 +77,7 @@ export const byIds = query({
 });
 
 /** Short-lived URL the browser POSTs a file to (Convex storage upload). */
-export const generateUploadUrl = mutation({
+export const generateUploadUrl = operatorMutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl();
@@ -84,7 +85,7 @@ export const generateUploadUrl = mutation({
 });
 
 /** Record an uploaded file as a library asset with its public URL. */
-export const store = mutation({
+export const store = operatorMutation({
   args: { storageId: v.id("_storage"), mimeType: v.string(), filename: v.optional(v.string()) },
   handler: async (ctx, args) => {
     requireVisualMime(args.mimeType);
@@ -106,7 +107,7 @@ export const store = mutation({
 });
 
 /** Register a hosted (non-uploaded) URL — e.g. stock media — for verification. */
-export const registerExternal = mutation({
+export const registerExternal = operatorMutation({
   args: { url: v.string(), mimeType: v.string() },
   handler: async (ctx, args) => {
     requireVisualMime(args.mimeType);
@@ -144,7 +145,7 @@ export const markVerifyFailed = internalMutation({
  * earlier error. On failure the reason is stored on the asset (shown as "not
  * reachable" in Library > Media) and a readable error is thrown.
  */
-export const verify = action({
+export const verify = operatorAction({
   args: { id: v.id("mediaAssets") },
   handler: async (ctx, args): Promise<{ status: number }> => {
     const asset: {
@@ -177,7 +178,7 @@ export const getForVerify = internalQuery({
  * Delete the asset doc and its stored file (external URLs have no file).
  * Refused while a draft uses it: a queued post must not lose its media.
  */
-export const remove = mutation({
+export const remove = operatorMutation({
   args: { id: v.id("mediaAssets") },
   handler: async (ctx, args) => {
     const doc = await ctx.db.get(args.id);

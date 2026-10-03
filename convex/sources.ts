@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { refusal } from "./lib/slots";
@@ -33,7 +33,7 @@ async function refreshReadiness(ctx: MutationCtx, topicId: Id<"topics">): Promis
  * Add a clipping to a topic. With no `topicId` this is the capture bar: it
  * creates a topic from what was pasted and attaches the clipping to it.
  */
-export const add = mutation({
+export const add = operatorMutation({
   args: {
     topicId: v.optional(v.id("topics")),
     kind: kindArg,
@@ -74,7 +74,7 @@ export const add = mutation({
 });
 
 /** A topic's clippings, oldest first. */
-export const listByTopic = query({
+export const listByTopic = operatorQuery({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args) =>
     ctx.db
@@ -83,7 +83,7 @@ export const listByTopic = query({
       .take(200),
 });
 
-export const remove = mutation({
+export const remove = operatorMutation({
   args: { id: v.id("sources") },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.id);

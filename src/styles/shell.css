@@ -308,3 +308,47 @@
     bottom: calc(var(--tabbar-height) + var(--space-12));
   }
 }
+
+/* sign-in gate: shown while the operator token is fetched, and when the session ends */
+.sq-gate {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  padding: var(--space-32) var(--space-16);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  text-align: center;
+}
+.sq-gate-logo {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sq-gate-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-instagram);
+  display: inline-block;
+  margin-top: 8px;
+}
+.sq-gate-title {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin: 0;
+}
+.sq-gate-note {
+  max-width: 420px;
+  margin: 0;
+  color: var(--color-muted-on-surface);
+}

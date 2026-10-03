@@ -13,6 +13,8 @@
     "@ai-sdk/openai-compatible": "^3.0.60",
     "ai": "^7.0.123",
     "convex": "^1.46.0",
+    "convex-helpers": "^0.1.126",
+    "jose": "^6.2.12",
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",

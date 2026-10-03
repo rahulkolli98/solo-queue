@@ -1,11 +1,7 @@
 import { v } from "convex/values";
+import { operatorQuery } from "./lib/operator";
 import type { Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  query,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { instagramCaption, splitPosts } from "./lib/drafting";
@@ -154,7 +150,7 @@ export interface DayCounts {
  * Per-day outcome counts (UTC buckets), newest first. Feeds the Health
  * screen; the mixed-outcome drill in the roadmap verifies the bucketing.
  */
-export const countsByDay = query({
+export const countsByDay = operatorQuery({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, args): Promise<DayCounts[]> => {
     const n = Math.min(Math.max(args.days ?? 14, 1), 90);

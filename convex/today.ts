@@ -1,5 +1,5 @@
-import { query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
+import { operatorQuery } from "./lib/operator";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { compareTopics } from "./lib/topicOrder";
@@ -60,7 +60,7 @@ async function usage24h(ctx: QueryCtx, now: number): Promise<Record<Platform, nu
  * query must not read the clock; `tz` is the browser zone, used while the
  * saved zone is still "auto".
  */
-export const summary = query({
+export const summary = operatorQuery({
   args: { now: v.number(), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = args.now;

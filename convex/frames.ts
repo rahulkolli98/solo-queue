@@ -1,4 +1,5 @@
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { refusal } from "./lib/slots";
@@ -34,7 +35,7 @@ export async function insertMissingDefaults(ctx: MutationCtx): Promise<number> {
 }
 
 /** Active frames, oldest first (the Library rail and the Studio picker). */
-export const list = query({
+export const list = operatorQuery({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("frames").take(100);
@@ -45,7 +46,7 @@ export const list = query({
 });
 
 /** One frame by key (active or not), or null. */
-export const getByKey = query({
+export const getByKey = operatorQuery({
   args: { key: v.string() },
   handler: async (ctx, args) =>
     ctx.db
@@ -55,7 +56,7 @@ export const getByKey = query({
 });
 
 /** Creates the six default frames the first time the Library asks. Safe to call repeatedly. */
-export const ensureDefaults = mutation({
+export const ensureDefaults = operatorMutation({
   args: {},
   handler: async (ctx): Promise<{ inserted: number }> => ({
     inserted: await insertMissingDefaults(ctx),
@@ -74,7 +75,7 @@ export const seedDefaults = internalMutation({
  * drafts that already used the frame keep its key (soft reference), so an
  * edit never rewrites past posts.
  */
-export const save = mutation({
+export const save = operatorMutation({
   args: {
     key: v.string(),
     name: v.string(),
@@ -110,7 +111,7 @@ export const save = mutation({
 });
 
 /** Hide or restore a frame without deleting it (old drafts still point at its key). */
-export const setActive = mutation({
+export const setActive = operatorMutation({
   args: { key: v.string(), isActive: v.boolean() },
   handler: async (ctx, args) => {
     const row = await ctx.db

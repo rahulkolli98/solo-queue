@@ -66,6 +66,15 @@ describe("Basic Auth gate (proxy)", () => {
     expect(proxy(req(undefined, "/dev")).status).toBe(200);
   });
 
+  it("keeps the operator token route behind the login", () => {
+    vi.stubEnv("BASIC_AUTH_USER", "rahul");
+    vi.stubEnv("BASIC_AUTH_PASS", "s3cret");
+    const [pattern] = config.matcher;
+    expect(new RegExp(`^${pattern}$`).test("/api/convex-token")).toBe(true);
+    expect(proxy(req(undefined, "/api/convex-token")).status).toBe(401);
+    expect(proxy(req(basic("rahul", "s3cret"), "/api/convex-token")).status).toBe(200);
+  });
+
   it("keeps the OAuth callbacks outside the matcher so Meta can reach them", () => {
     const [pattern] = config.matcher;
     const re = new RegExp(`^${pattern}$`);

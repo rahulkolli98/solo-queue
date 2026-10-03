@@ -1,4 +1,5 @@
-import { mutation, internalMutation, internalQuery, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -12,7 +13,7 @@ import {
 import { planNextSlot, takenTimes } from "./lib/slotPlanning";
 
 /** Scheduled (not yet claimed) slots per platform — powers at-risk warnings. */
-export const countScheduledByPlatform = query({
+export const countScheduledByPlatform = operatorQuery({
   args: { platform: v.union(v.literal("threads"), v.literal("instagram")) },
   handler: async (ctx, args) => {
     const rows = await ctx.db
@@ -30,7 +31,7 @@ export const countScheduledByPlatform = query({
  * snippet + topic title each card needs. Bounded — the week view never
  * needs more than a screenful.
  */
-export const week = query({
+export const week = operatorQuery({
   args: { from: v.number(), days: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const span = Math.min(Math.max(args.days ?? 7, 1), 31) * 86400000;
@@ -72,7 +73,7 @@ export const week = query({
 });
 
 /** Move a scheduled slot to a new future time. */
-export const reschedule = mutation({
+export const reschedule = operatorMutation({
   args: { id: v.id("slots"), scheduledAt: v.number() },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -90,7 +91,7 @@ export const reschedule = mutation({
  * Cancel a scheduled slot. The draft is preserved; the topic drops back to
  * ready unless its other drafts are still queued.
  */
-export const cancel = mutation({
+export const cancel = operatorMutation({
   args: { id: v.id("slots") },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
@@ -365,7 +366,7 @@ async function doEnqueue(
     return { slotId, scheduledAt: at, platform, templateKey: draft.templateKey };
 }
 
-export const enqueue = mutation({
+export const enqueue = operatorMutation({
   args: {
     draftId: v.id("drafts"),
     scheduledAt: v.optional(v.number()),
@@ -452,7 +453,7 @@ const WEEK_FORMATS = [
  * its next free slot. Best-effort per draft — refusals land in `skipped`
  * with their VALIDATION code/message instead of failing the batch.
  */
-export const queueTopic = mutation({
+export const queueTopic = operatorMutation({
   args: { topicId: v.id("topics"), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
