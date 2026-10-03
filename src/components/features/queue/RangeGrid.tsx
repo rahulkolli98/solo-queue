@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { dayCards, PLATFORM_NAME, type BoardDay, type PlatformFilter } from "@/lib/queueBoard";
+import { studioFillHref } from "@/lib/studioHandoff";
 import { statusLabel } from "./StatusChip";
 
 const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -52,7 +53,7 @@ export default function RangeGrid({
               </button>
             ))}
             {open > 0 && (
-              <Link href="/studio" className="sq-q-open sq-q-open-chip" aria-label={`${open} open slots on ${day.label}. Fill from research.`}>
+              <Link href={studioFillHref({ dayKey: day.key })} className="sq-q-open sq-q-open-chip" aria-label={`${open} open slots on ${day.label}. Fill from research.`}>
                 <span className="t-meta">{open} OPEN</span>
               </Link>
             )}

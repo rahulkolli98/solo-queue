@@ -2,22 +2,20 @@
 
 import MediaThumb from "@/components/features/studio/MediaThumb";
 import type { MediaActions } from "@/components/features/studio/useMediaActions";
+import { describeMediaStatus, mediaHost, mediaTypeLabel, type MediaStatusKind } from "@/lib/mediaStatus";
 import type { Asset, DraftKind, MediaState } from "@/lib/studioModel";
+import { useNow } from "@/lib/useNow";
 
 const NEED: Record<"caption" | "reel", string> = {
   reel: "A reel needs a video before it can be queued.",
   caption: "A caption post needs a photo or video before it can be queued.",
 };
 
-function verifiedOn(ts: number | undefined): string {
-  if (!ts) return "";
-  return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" }).toUpperCase();
-}
-
 /**
  * Board 07e's yellow "MEDIA REQUIRED" card, and the attached-media row once
- * something is attached: thumbnail, VERIFIED / UNVERIFIED / STALE pill, and
- * the matching action (Verify, Change, Detach).
+ * something is attached: preview, name, type and host, a plain-language state
+ * pill (READY FOR INSTAGRAM, NOT A MEDIA FILE, NOT CHECKED YET, CHECK AGAIN
+ * SOON), and the matching actions (Check, Open file, Change, Detach).
  */
 export default function MediaPanel({
   kind,
@@ -34,6 +32,7 @@ export default function MediaPanel({
   media: MediaActions;
   onAttach: () => void;
 }) {
+  const now = useNow();
   if (state === "none") {
     return (
       <div className="studio-media studio-media-need">
@@ -72,39 +71,46 @@ export default function MediaPanel({
       </div>
     );
   }
-  const pill =
-    state === "ok" ? (
-      <span className="sq-pill sq-pill-ok">VERIFIED · {verifiedOn(asset.verifiedAt)}</span>
-    ) : state === "stale" ? (
-      <span className="sq-pill sq-pill-bad">STALE · RE-VERIFY</span>
-    ) : (
-      <span className="sq-pill sq-pill-bad">UNVERIFIED</span>
-    );
+  const mkind: MediaStatusKind =
+    state === "ok" ? "ready" : state === "stale" ? "recheck" : asset.lastVerifyError ? "not_media" : "unchecked";
+  const status = describeMediaStatus(mkind, asset, now);
+  const name = asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image");
   return (
     <div className="studio-media studio-media-ok">
-      <MediaThumb asset={asset} />
+      <MediaThumb asset={asset} name={name} broken={mkind === "not_media"} />
       <div className="studio-media-body">
         <div className="studio-media-head">
-          <b>{asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image")}</b>
-          {pill}
+          <b>{name}</b>
+          <span className={`sq-pill sq-pill-${status.tone}`}>{status.label}</span>
         </div>
-        {asset.lastVerifyError && state !== "ok" && <p>Last check: {asset.lastVerifyError}</p>}
+        <span className="t-meta">
+          {mediaTypeLabel(asset.mimeType)} · {mediaHost(asset)}
+          {status.checked ? ` · ${status.checked}` : ""}
+        </span>
+        {status.reason && (
+          <p className="studio-reason">
+            {status.reason} <b>{status.next}</b>
+          </p>
+        )}
         {media.error && (
           <p className="studio-inline-error" role="alert">
             {media.error}
           </p>
         )}
         <div className="studio-actions-row">
-          {state !== "ok" && (
+          {mkind !== "ready" && (
             <button
               type="button"
               className="sq-btn sq-btn-sm sq-btn-dark"
               disabled={media.busy === asset._id}
               onClick={() => void media.verify(asset._id)}
             >
-              {media.busy === asset._id ? "Verifying…" : "Verify"}
+              {media.busy === asset._id ? "Checking…" : mkind === "unchecked" ? "Check" : "Recheck"}
             </button>
           )}
+          <a className="studio-open" href={asset.publicUrl} target="_blank" rel="noopener noreferrer">
+            Open file<span className="sq-sr"> (opens in a new tab)</span>
+          </a>
           <button type="button" className="sq-btn sq-btn-sm" onClick={onAttach}>
             Change
           </button>

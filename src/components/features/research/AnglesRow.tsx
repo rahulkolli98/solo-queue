@@ -3,7 +3,8 @@
 import { useAction } from "convex/react";
 import { useState } from "react";
 import { angleLabel } from "@/lib/researchBoard";
-import { refusalText } from "@/lib/refusalText";
+import { researchFailure, type ResearchFailure } from "@/lib/researchErrors";
+import ResearchStatus from "./ResearchStatus";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { Frame } from "./types";
@@ -22,15 +23,15 @@ export default function AnglesRow({
 }) {
   const suggest = useAction(api.research.angles);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ResearchFailure | null>(null);
 
   async function run() {
     setBusy(true);
-    setError(null);
+    setFailure(null);
     try {
       await suggest({ topicId });
     } catch (err) {
-      setError(refusalText(err, "Could not suggest angles. Try again."));
+      setFailure(researchFailure(err, "angles"));
     } finally {
       setBusy(false);
     }
@@ -64,9 +65,7 @@ export default function AnglesRow({
           </button>
         </div>
       )}
-      <p className="rs-status" aria-live="polite" data-bad={error ? true : undefined}>
-        {busy ? "Writing three angles…" : (error ?? "")}
-      </p>
+      <ResearchStatus busyText={busy ? "Writing three angles…" : undefined} failure={failure} />
     </div>
   );
 }

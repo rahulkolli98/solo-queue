@@ -1,24 +1,32 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { InstagramAvatar, ThreadsAvatar } from "@/components/features/studio/glyphs";
 import NewTopicColumn from "@/components/features/studio/NewTopicColumn";
 import StudioBottomBar from "@/components/features/studio/StudioBottomBar";
+import StudioGuideStrip from "@/components/features/studio/StudioGuideStrip";
 import { useOpenSlots } from "@/components/features/studio/useOpenSlots";
+import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
-import { barSummary } from "@/lib/studioModel";
+import { fillBanner, type FillSlot } from "@/lib/studioHandoff";
+import { barSummary, studioHomeGuide } from "@/lib/studioModel";
 
 const FALLBACK_BEATS = ["Hook", "Tension", "Turn", "Payoff"];
 const REEL_GHOSTS = ["0:00 · On screen", "0:02 · Voice-over", "0:08 · B-roll", "0:25 · Call to action"];
 
 /** Board 07c: /studio with no topic: capture form, inbox picker, empty columns, disabled bar. */
-export default function StudioHome() {
+export default function StudioHome({ slot = null }: { slot?: FillSlot | null }) {
   const settings = useQuery(api.settings.get);
   const frame = useQuery(api.frames.getByKey, settings ? { key: settings.voice.defaultFrameKey } : "skip");
   const beats = frame?.beats.map((b) => b.label) ?? FALLBACK_BEATS;
   const { board, chips } = useOpenSlots();
   const summary = barSummary({ states: {}, generating: false, emptySub: "PICK A TOPIC TO START" });
+  const inbox = useQuery(api.topics.board);
+  const guide = studioHomeGuide((inbox ?? []).some((t) => t.status === "drafting" || t.status === "ready"));
+  const [dismissed, setDismissed] = useState(false);
+  const fill = slot && !dismissed ? fillBanner(slot) : null;
 
   return (
     <>
@@ -31,8 +39,17 @@ export default function StudioHome() {
           </>
         }
       />
+      <StudioGuideStrip steps={guide.steps} />
+      {fill && (
+        <Banner
+          tone="blue"
+          title={fill.title}
+          detail={fill.detail}
+          actions={[{ label: "Got it", onClick: () => setDismissed(true) }]}
+        />
+      )}
       <div className="studio-grid" data-pane="threads">
-        <NewTopicColumn />
+        <NewTopicColumn emphasiseInbox={Boolean(fill)} />
         <section className="studio-col studio-col-threads" aria-label="Threads thread">
           <div className="studio-colhead">
             <div className="studio-colhead-title">
@@ -74,6 +91,8 @@ export default function StudioHome() {
         onBlog={() => undefined}
         onQueue={() => undefined}
         queuing={false}
+        nextStep={guide.text}
+        nextTone={guide.tone}
       />
     </>
   );

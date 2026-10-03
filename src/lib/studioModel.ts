@@ -457,3 +457,197 @@ export function saveLabel(s: SaveLine, tz?: string): string {
       return "";
   }
 }
+
+// ---------- the guide: where you are and what to do next ----------
+
+export type GuideStepKey = "topic" | "drafts" | "media" | "queue";
+
+export interface GuideStep {
+  key: GuideStepKey;
+  /** "1" .. "4" */
+  number: number;
+  label: string;
+  state: "done" | "current" | "todo";
+}
+
+export interface StudioGuide {
+  steps: GuideStep[];
+  /** One plain sentence: what to do next, and why Queue is (not) available. */
+  text: string;
+  /** "fix" = something blocks queueing, "wait" = work in progress, "go" = press the button, "done" = nothing left. */
+  tone: "info" | "fix" | "wait" | "go" | "done";
+}
+
+export interface GuideInput {
+  generating: boolean;
+  /** A generation run failed and its error is showing. */
+  generationFailed: boolean;
+  states: Partial<Record<DraftKind, Readiness>>;
+  /** 1-based number of the first Threads post over the limit. */
+  firstOverPost?: number;
+  /** Text typed in a "Write it myself" box that is not saved to the topic. */
+  manualText: boolean;
+  /** Any open slot in the next two weeks. */
+  hasOpenSlot: boolean;
+}
+
+const IG_KINDS = ["reel", "caption"] as const;
+const IG_NAME: Record<(typeof IG_KINDS)[number], string> = { reel: "reel", caption: "caption" };
+const MEDIA_STATES: ReadyState[] = ["media_required", "media_missing", "media_unverified", "media_stale"];
+
+function listNames(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The 4-step strip (Topic, Drafts, Media for Instagram, Queue) and the one
+ * sentence that tells the founder what to do next. Pure, so every state is
+ * unit tested; the sentence also explains why the Queue button is disabled.
+ */
+export function studioGuide(input: GuideInput): StudioGuide {
+  const { states } = input;
+  const at = (k: DraftKind): ReadyState => states[k]?.state ?? "missing";
+  const written = QUEUE_KINDS.filter((k) => at(k) !== "missing");
+  const queued = written.filter((k) => at(k) === "queued");
+  const ready = QUEUE_KINDS.filter((k) => at(k) === "ready");
+  const readyN = ready.length;
+
+  const draftsDone = written.length === QUEUE_KINDS.length;
+  const igWritten = IG_KINDS.filter((k) => at(k) !== "missing");
+  const mediaNeed = igWritten.filter((k) => MEDIA_STATES.includes(at(k)));
+  const mediaDone = draftsDone && mediaNeed.length === 0;
+  const queueDone = draftsDone && queued.length === written.length;
+
+  const doneFlags = [true, draftsDone, mediaDone, queueDone];
+  const firstTodo = doneFlags.findIndex((d) => !d);
+  const steps: GuideStep[] = (
+    [
+      ["topic", "Topic"],
+      ["drafts", "Drafts"],
+      ["media", "Media for Instagram"],
+      ["queue", "Queue"],
+    ] as const
+  ).map(([key, label], i) => ({
+    key,
+    number: i + 1,
+    label,
+    state: doneFlags[i] ? "done" : i === firstTodo ? "current" : "todo",
+  }));
+
+  const queueWord = `Queue ${readyN} ${plural(readyN, "post", "posts")}`;
+  const made = (text: string, tone: StudioGuide["tone"]): StudioGuide => ({ steps, text, tone });
+
+  if (input.generating) {
+    return made("Writing your drafts. Stay on this page: each one appears as soon as it is written.", "wait");
+  }
+  if (written.length === 0) {
+    if (input.manualText) {
+      return made(
+        "You have typed a draft that is not saved yet. Press Save draft to keep it with this topic. Then you can add media and queue it.",
+        "fix"
+      );
+    }
+    if (input.generationFailed) {
+      return made("Drafting failed: the reason is shown above. Fix it and press Retry, or press Write it myself.", "fix");
+    }
+    return made(
+      "Press Generate drafts and the thread, the Instagram reel script and the caption are written from this topic.",
+      "info"
+    );
+  }
+  if (queueDone) {
+    return made("All queued. See the dates in the Queue; there is nothing left to do here.", "done");
+  }
+
+  // Problems, most urgent first.
+  const fixes: string[] = [];
+  if (at("threads") === "over") {
+    fixes.push(
+      input.firstOverPost
+        ? `Over the ${THREADS_POST_LIMIT}-character limit on post ${input.firstOverPost}: use Trim to fit.`
+        : `A post is over the ${THREADS_POST_LIMIT}-character limit: use Trim to fit.`
+    );
+  }
+  if (at("caption") === "over") {
+    fixes.push(`The caption is over the ${CAPTION_LIMIT.toLocaleString("en-GB")}-character limit: use Trim to fit.`);
+  }
+  const needsAttach = mediaNeed.filter((k) => at(k) === "media_required");
+  const gone = mediaNeed.filter((k) => at(k) === "media_missing");
+  const unchecked = mediaNeed.filter((k) => at(k) === "media_unverified");
+  const stale = mediaNeed.filter((k) => at(k) === "media_stale");
+  const names = (ks: readonly (typeof IG_KINDS)[number][]) => listNames(ks.map((k) => IG_NAME[k]));
+  const mediaLines: string[] = [];
+  if (needsAttach.length > 0) {
+    mediaLines.push(
+      `Instagram needs media: attach a photo or video to the ${names(needsAttach)} (Library > Media or the Attach button)`
+    );
+  }
+  if (gone.length > 0) mediaLines.push(`the media on the ${names(gone)} is gone: attach another`);
+  if (unchecked.length > 0) mediaLines.push(`press Check on the ${names(unchecked)} media`);
+  if (stale.length > 0) mediaLines.push(`press Recheck on the ${names(stale)} media, it was checked too long ago`);
+
+  const missing = QUEUE_KINDS.filter((k) => at(k) === "missing");
+  const missingLine =
+    missing.length > 0
+      ? `The ${listNames(missing.map((k) => KIND_META[k].noun))} ${missing.length === 1 ? "is" : "are"} not written: press Generate drafts, or Retry on it.`
+      : "";
+
+  if (fixes.length > 0 || mediaLines.length > 0 || missingLine) {
+    const lead = at("threads") === "ready" && fixes.length === 0 ? "Your thread is ready. " : "";
+    const media = mediaLines.length > 0 ? `${mediaLines.join("; ")}.` : "";
+    const mediaText = media ? media.charAt(0).toUpperCase() + media.slice(1) : "";
+    const tail = readyN > 0 ? ` Or press ${queueWord} now to queue only what is ready.` : "";
+    const finish = !tail && mediaText && fixes.length === 0 && !missingLine ? " Then press Queue posts." : "";
+    const text = `${lead}${[...fixes, mediaText].filter(Boolean).join(" ")}${finish}${missingLine ? ` ${missingLine}` : ""}${tail}`;
+    return made(text.trim(), "fix");
+  }
+
+  // Everything written is ready or already queued.
+  if (!input.hasOpenSlot) {
+    return made(
+      `All set, but there is no open slot in the next 2 weeks. Open Settings to add posting times, then press ${queueWord}.`,
+      "fix"
+    );
+  }
+  return made(`All set: press ${queueWord}.`, "go");
+}
+
+/** The story frame to preselect: your pick, the thread's frame, the voice default, else the first frame. */
+export function pickFrameKey(input: {
+  chosen: string | null;
+  threadsFrameKey?: string;
+  defaultKey?: string;
+  frames: { key: string }[] | undefined;
+}): string {
+  if (input.chosen) return input.chosen;
+  if (input.threadsFrameKey) return input.threadsFrameKey;
+  const keys = (input.frames ?? []).map((f) => f.key);
+  if (input.defaultKey && (keys.length === 0 || keys.includes(input.defaultKey))) return input.defaultKey;
+  return keys[0] ?? input.defaultKey ?? "";
+}
+
+/** "Admit, Cost, Fix, Invite" for a frame's option label. */
+export function frameBeatsLine(frame: { beats: { label: string }[] }): string {
+  return frame.beats.map((b) => b.label).join(", ");
+}
+
+/** What a story frame is, in one plain sentence (shown beside the picker). */
+export const FRAME_EXPLAINER =
+  "A story frame is the shape of the post, for example Confession: admit it, what it cost, the fix, the invite. Pick one, or leave the default.";
+
+/** The guide on /studio before a topic is open: step 1 is the one to do. */
+export function studioHomeGuide(hasInbox: boolean): StudioGuide {
+  const labels: [GuideStepKey, string][] = [
+    ["topic", "Topic"],
+    ["drafts", "Drafts"],
+    ["media", "Media for Instagram"],
+    ["queue", "Queue"],
+  ];
+  return {
+    steps: labels.map(([key, label], i) => ({ key, number: i + 1, label, state: i === 0 ? "current" : "todo" })),
+    text: hasInbox
+      ? "Type what the post is about and press Save and draft both, or pick a topic from your inbox and press Draft."
+      : "Type what the post is about and press Save and draft both. Nothing is posted until you queue it.",
+    tone: "info",
+  };
+}

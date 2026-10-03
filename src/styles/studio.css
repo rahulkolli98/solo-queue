@@ -29,6 +29,74 @@
 .studio-save[data-bad] {
   color: var(--color-primary-deep);
 }
+.studio-save[data-saved] {
+  gap: var(--space-6);
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+.studio-save svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ---------- guide: 4 steps and where you are ---------- */
+.studio-guide {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+.studio-guide-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 var(--space-14) 0 var(--space-6);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--rounded-pill);
+  color: var(--color-muted-on-surface);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.studio-guide-num {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font: 700 12px var(--font-body), "DM Sans", sans-serif;
+}
+.studio-guide-num svg {
+  width: 13px;
+  height: 13px;
+}
+.studio-guide-step[data-state="done"] {
+  color: var(--color-on-surface);
+}
+.studio-guide-step[data-state="done"] .studio-guide-num {
+  border-color: var(--color-chrome);
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.studio-guide-step[data-state="current"] {
+  border-color: var(--color-chrome);
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.studio-guide-step[data-state="current"] .studio-guide-num {
+  border-color: var(--color-threads);
+  background: var(--color-threads);
+  color: var(--color-on-surface);
+}
 .studio-linkbtn {
   all: unset;
   margin-left: var(--space-8);
@@ -277,6 +345,11 @@
   flex-direction: column;
   gap: var(--space-8);
 }
+.studio-frame-help {
+  margin: calc(var(--space-4) * -1) 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
 .studio-voice {
   margin: 0;
   display: flex;
@@ -322,6 +395,7 @@
 .studio-inbox-name {
   flex-grow: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.3;
@@ -417,13 +491,30 @@
   resize: none;
   overflow: hidden;
 }
-.studio-textarea:hover {
-  background: color-mix(in srgb, currentColor 7%, transparent);
+/*
+ * Hover and focus tint a text area with a gradient LAYER, never a background
+ * colour: a surface text area (manual draft, caption, reel script) keeps its
+ * own paper colour, so its text can never end up on the column's colour. The
+ * text colour is not touched in any state.
+ */
+.studio-textarea:hover,
+.studio-textarea:focus-visible {
+  background-image: linear-gradient(
+    color-mix(in srgb, currentColor 7%, transparent),
+    color-mix(in srgb, currentColor 7%, transparent)
+  );
 }
 .studio-textarea:focus-visible {
   outline: 2px solid var(--color-threads);
   outline-offset: 0;
-  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+.studio-textarea::placeholder {
+  color: currentColor;
+  opacity: 0.55;
+}
+.studio-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 .studio-col-ig .studio-textarea:focus-visible,
 .studio-col-blog .studio-textarea:focus-visible,
@@ -435,6 +526,7 @@
   margin: 0;
   padding: 10px 12px;
   background: var(--color-surface);
+  color: var(--color-on-surface);
   border-radius: var(--rounded-slot);
   min-height: 120px;
   font-size: 14px;
@@ -668,21 +760,6 @@
   font: 500 10.5px var(--font-mono), "DM Mono", monospace;
   letter-spacing: 0.05em;
 }
-.studio-thumb {
-  width: 72px;
-  height: 90px;
-  flex-shrink: 0;
-  object-fit: cover;
-  border-radius: var(--rounded-xs);
-  background: var(--color-line-soft);
-}
-.studio-thumb-video {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted-on-chrome);
-  background: var(--color-chrome);
-}
 .studio-inline-error {
   margin: 0;
   font-size: 13px;
@@ -726,6 +803,28 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
+}
+.studio-errcard .studio-errcard-reason {
+  font-size: 14px;
+  color: var(--color-on-surface);
+  overflow-wrap: anywhere;
+}
+.studio-manual-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted-on-chrome);
+}
+.studio-col-ig .studio-manual-note,
+.studio-col-blog .studio-manual-note {
+  color: var(--color-muted-on-surface);
+}
+.studio-manual-retry {
+  align-self: flex-start;
+}
+.studio-col-threads .studio-manual-retry {
+  border-color: var(--color-on-chrome-strong);
+  color: var(--color-on-chrome-strong);
 }
 .studio-manual-field {
   width: 100%;
@@ -813,6 +912,27 @@
 .studio-pick-body b {
   overflow-wrap: anywhere;
 }
+.studio-reason {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.studio-reason b {
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--color-primary-deep);
+}
+.studio-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* ---------- bottom bar ---------- */
 .studio-bar {
@@ -821,21 +941,53 @@
   z-index: 10;
   min-height: 78px;
   box-sizing: border-box;
-  display: flex;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "next next next next"
+    "count chips blog btn";
   align-items: center;
-  gap: 18px;
+  column-gap: 18px;
+  row-gap: var(--space-8);
   padding: var(--space-8) var(--space-12) var(--space-8) 22px;
   border-radius: var(--rounded-control);
   background: var(--color-chrome);
   color: var(--color-on-chrome-strong);
+}
+/* the one sentence of what to do next, and why Queue is (not) available */
+.studio-bar-next {
+  grid-area: next;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-10);
+  padding: var(--space-6) 0 var(--space-8);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-on-chrome-strong) 18%, transparent);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.studio-bar-next-label {
+  flex-shrink: 0;
+  color: var(--color-threads);
+}
+.studio-bar-next[data-tone="fix"] .studio-bar-next-label {
+  color: var(--color-instagram);
+}
+.studio-bar-next[data-tone="go"] .studio-bar-next-label,
+.studio-bar-next[data-tone="done"] .studio-bar-next-label {
+  color: var(--color-on-chrome-strong);
+}
+.studio-bar-next-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 /* toasts clear the bar (design.md: 124px from the bottom on desktop) */
 body:has(.studio-bar) {
   --toast-bottom: 124px;
 }
 .studio-bar-count {
-  width: 150px;
-  flex-shrink: 0;
+  grid-area: count;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -843,20 +995,28 @@ body:has(.studio-bar) {
 .studio-bar-count .t-meta {
   color: var(--color-muted-on-chrome);
 }
+/* chips that do not fit wrap to a clipped second row instead of colliding */
 .studio-chips {
-  flex-grow: 1;
+  grid-area: chips;
   min-width: 0;
+  height: 52px;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: var(--space-6);
+  overflow: hidden;
 }
 .studio-chip {
+  flex: 1 1 92px;
+  min-width: 92px;
   height: 52px;
   box-sizing: border-box;
-  padding: 0 var(--space-12);
+  padding: 0 var(--space-10);
+  overflow: hidden;
+  white-space: nowrap;
   border: 1.5px solid transparent;
   border-radius: var(--rounded-slot);
   background: color-mix(in srgb, var(--color-on-chrome-strong) 8%, transparent);
@@ -872,12 +1032,14 @@ body:has(.studio-bar) {
   border-color: var(--color-instagram);
 }
 .studio-chip-none {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
+  min-width: 0;
   border: 1.5px dashed color-mix(in srgb, var(--color-on-chrome-strong) 30%, transparent);
   background: transparent;
 }
 .studio-blogbox {
-  flex-shrink: 0;
+  grid-area: blog;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: var(--space-8);
@@ -896,7 +1058,7 @@ body:has(.studio-bar) {
   outline-offset: 2px;
 }
 .studio-queuebtn {
-  flex-shrink: 0;
+  grid-area: btn;
   height: 54px;
   padding: 0 22px;
   border-radius: var(--rounded-lg);
@@ -910,8 +1072,85 @@ body:has(.studio-bar) {
   outline-color: var(--color-threads);
 }
 
+/* ---------- laptops and tablets: fewer, wider columns instead of overflow ---------- */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .studio-col-topic {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+  .studio-col-topic .studio-topic-more {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--space-24);
+    align-items: start;
+  }
+  .studio-col-topic .studio-topic-more > .studio-topic-tools {
+    grid-column: 2;
+    grid-row: 1 / span 6;
+    margin-top: 0;
+  }
+  .studio-col-topic .studio-topic-more > :not(.studio-topic-tools) {
+    grid-column: 1;
+  }
+  .studio-col {
+    min-height: 420px;
+  }
+  .studio-bar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "next next next"
+      "count blog btn"
+      "chips chips chips";
+  }
+}
+@media (min-width: 768px) and (max-width: 899px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-col-blog {
+    grid-column: auto;
+  }
+  .studio-col-topic .studio-topic-more {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-col-topic .studio-topic-more > .studio-topic-tools {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
 /* ---------- phones ---------- */
 @media (max-width: 767px) {
+  .studio-guide {
+    gap: var(--space-6);
+  }
+  .studio-guide-step {
+    min-width: 0;
+    min-height: 32px;
+    gap: var(--space-4);
+    padding: 0 var(--space-8) 0 var(--space-4);
+    font-size: 11.5px;
+  }
+  .studio-guide-num {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+  .studio-guide-num svg {
+    width: 11px;
+    height: 11px;
+  }
+  .studio-bar {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .studio-bar-next {
+    flex: 1 0 100%;
+    font-size: 12.5px;
+  }
   .studio-head,
   .studio-seg-desktop {
     display: none;
@@ -1019,4 +1258,40 @@ body:has(.studio-bar) {
     align-items: center;
     min-height: 44px;
   }
+}
+
+/* ---------- arrived from an open slot: the inbox is where to look ---------- */
+.studio-inbox-box[data-emphasis] {
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--rounded-lg);
+  background: var(--color-surface-raised);
+  outline: 2.5px solid var(--color-primary);
+  outline-offset: 0;
+  box-shadow: var(--shadow-paper);
+}
+.studio-inbox-box[data-emphasis] .studio-inbox-title {
+  margin-top: 0;
+}
+.studio-inbox-box[data-emphasis] .studio-inbox-row:first-child {
+  border-top: 0;
+}
+.studio-inbox-lead {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-primary-deep);
+}
+.studio-bar-saved {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-threads);
+  white-space: nowrap;
+}
+.studio-bar-saved svg {
+  width: 13px;
+  height: 13px;
 }

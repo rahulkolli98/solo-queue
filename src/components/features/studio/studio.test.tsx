@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
+import MediaPanel from "@/components/features/studio/MediaPanel";
 import BlogPanel from "@/components/features/studio/BlogPanel";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
 import IgPanel from "@/components/features/studio/IgPanel";
@@ -193,8 +195,8 @@ describe("IgPanel", () => {
     const out = html(
       <IgPanel {...igBase} kind="caption" mediaState="unverified" asset={a} view={view("A caption")} />
     );
-    expect(out).toContain("UNVERIFIED");
-    expect(out).toContain("Verify");
+    expect(out).toContain("NOT CHECKED YET");
+    expect(out).toContain("Check");
     expect(out).toContain("Detach");
   });
 
@@ -359,5 +361,81 @@ describe("Studio toolbar and generate button", () => {
     expect(out).toContain("Threads + Instagram");
     expect(out).toContain("Instagram");
     expect(out).toContain("Blog");
+  });
+});
+
+describe("media on a card (Studio panel and attach dialog)", () => {
+  const NOW = 1_800_000_000_000;
+  const HOUR = 3600 * 1000;
+  const img = (over: Record<string, unknown>) =>
+    asset({
+      mimeType: "image/jpeg",
+      publicUrl: "https://picsum.photos/200/300.jpg",
+      filename: "300.jpg",
+      source: "external",
+      createdAt: NOW - 5 * HOUR,
+      ...over,
+    });
+  const panel = (a: Asset, state: "ok" | "stale" | "unverified") =>
+    html(<MediaPanel kind="caption" draftId="d1" asset={a} state={state} media={media} onAttach={vi.fn()} />);
+  const dialog = (assets: Asset[]) =>
+    html(
+      <AttachMediaDialog
+        open
+        onClose={vi.fn()}
+        assets={assets as (Asset & { createdAt: number })[]}
+        draftId="d1"
+        currentAssetId={undefined}
+        forLabel="Caption"
+        now={NOW}
+        media={media}
+      />
+    );
+
+  it("panel: a verified image reads READY FOR INSTAGRAM with a preview, name, host and type", () => {
+    const out = panel(img({ verifiedAt: Date.now() - 3 * HOUR }), "ok");
+    expect(out).toContain("READY FOR INSTAGRAM");
+    expect(out).toContain('alt="Preview of 300.jpg"');
+    expect(out).toContain("IMAGE · picsum.photos");
+    expect(out).toContain("Open file");
+    expect(out).not.toContain("Recheck");
+  });
+
+  it("panel: a refused link reads NOT A MEDIA FILE with the whole reason and the next step", () => {
+    const reason = "That link is a text/html page, not an image or video file. Upload the file instead.";
+    const out = panel(img({ lastVerifyError: reason }), "unverified");
+    expect(out).toContain("NOT A MEDIA FILE");
+    expect(out).toContain(reason);
+    expect(out).toContain("Upload the file instead.");
+    expect(out).toContain("Can&#x27;t load preview");
+    expect(out).toContain("Recheck");
+  });
+
+  it("panel: never-checked reads NOT CHECKED YET with a Check button; stale reads CHECK AGAIN SOON", () => {
+    const fresh = panel(img({}), "unverified");
+    expect(fresh).toContain("NOT CHECKED YET");
+    expect(fresh).toContain(">Check<");
+    const stale = panel(img({ verifiedAt: Date.now() - 30 * HOUR }), "stale");
+    expect(stale).toContain("CHECK AGAIN SOON");
+    expect(stale).toContain("Recheck");
+  });
+
+  it("dialog: every card shows preview, name, host, type and a worded state", () => {
+    const out = dialog([
+      img({ _id: "a", verifiedAt: NOW - 3 * HOUR }),
+      img({ _id: "b", mimeType: "video/mp4", filename: "clip.mp4", source: "upload", verifiedAt: NOW - HOUR }),
+      img({ _id: "c", publicUrl: "https://youtu.be/x", filename: "x", lastVerifyError: "That link is a text/html page, not a file." }),
+      img({ _id: "d" }),
+      img({ _id: "e", verifiedAt: NOW - 30 * HOUR }),
+    ]);
+    expect(out).toContain("READY FOR INSTAGRAM");
+    expect(out).toContain("checked 3 h ago");
+    expect(out).toContain("<video");
+    expect(out).toContain("VIDEO · Uploaded");
+    expect(out).toContain("NOT A MEDIA FILE");
+    expect(out).toContain("That link is a text/html page, not a file.");
+    expect(out).toContain("NOT CHECKED YET");
+    expect(out).toContain("CHECK AGAIN SOON");
+    expect(out).toContain("Open file");
   });
 });

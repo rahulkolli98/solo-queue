@@ -19,6 +19,7 @@ export default function BlogPanel({
   gen,
   onWrite,
   writing,
+  onSaveManual,
 }: {
   view?: DraftView;
   topicTitle: string | undefined;
@@ -29,6 +30,8 @@ export default function BlogPanel({
   onWrite: () => void;
   /** Any generation is running. */
   writing: boolean;
+  /** Store the "Write it myself" text as the topic's blog draft. */
+  onSaveManual?: (text: string) => Promise<void>;
 }) {
   const { tabId, panelId } = useTabIds();
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
@@ -87,11 +90,12 @@ export default function BlogPanel({
     );
   } else if (gen.error) {
     content = manual ? (
-      <ManualDraft label="Blog draft" />
+      <ManualDraft label="Blog draft" onSave={onSaveManual} onRetry={gen.onRetry} retrying={gen.retrying} />
     ) : (
       <GenerationErrorCard
         title="Couldn't write the blog draft"
         message={gen.error}
+        code={gen.errorCode}
         onRetry={gen.onRetry}
         busy={gen.retrying}
         onWriteMyself={() => setManual(true)}
