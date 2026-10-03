@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "./proxy";
 
-function req(authorization?: string): NextRequest {
-  return new NextRequest("https://app.example.test/queue", {
+function req(authorization?: string, path = "/queue"): NextRequest {
+  return new NextRequest(`https://app.example.test${path}`, {
     headers: authorization ? { authorization } : {},
   });
 }
@@ -48,6 +48,22 @@ describe("Basic Auth gate (proxy)", () => {
     vi.stubEnv("BASIC_AUTH_PASS", "");
     vi.stubEnv("NODE_ENV", "development");
     expect(proxy(req()).status).toBe(200);
+  });
+
+  it("returns a real 404 for the dev gallery in production, even when logged in", () => {
+    vi.stubEnv("BASIC_AUTH_USER", "rahul");
+    vi.stubEnv("BASIC_AUTH_PASS", "s3cret");
+    vi.stubEnv("NODE_ENV", "production");
+    expect(proxy(req(basic("rahul", "s3cret"), "/dev")).status).toBe(404);
+    expect(proxy(req(basic("rahul", "s3cret"), "/dev/loading/today")).status).toBe(404);
+    expect(proxy(req(basic("rahul", "s3cret"), "/devices")).status).toBe(200);
+  });
+
+  it("serves the dev gallery in development", () => {
+    vi.stubEnv("BASIC_AUTH_USER", "");
+    vi.stubEnv("BASIC_AUTH_PASS", "");
+    vi.stubEnv("NODE_ENV", "development");
+    expect(proxy(req(undefined, "/dev")).status).toBe(200);
   });
 
   it("keeps the OAuth callbacks outside the matcher so Meta can reach them", () => {

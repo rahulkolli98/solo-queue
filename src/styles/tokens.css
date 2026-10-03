@@ -1,0 +1,212 @@
+/*
+ * Espresso Collage design tokens. Source of truth: docs/design.md
+ * (YAML front matter). Names mirror the token names there:
+ * --color-<name>, --rounded-<name>, --space-<n>.
+ */
+:root {
+  /* colors */
+  --color-chrome: #2b1a14;
+  --color-chrome-hover: #3a2a22;
+  --color-surface: #f4ebd9;
+  --color-surface-raised: #fbf5e8;
+  --color-line: #d6c4a6;
+  --color-line-soft: #e2d3b8;
+  --color-on-surface: #2b1a14;
+  --color-muted-on-surface: #6b5146;
+  --color-on-chrome: #e9dcc4;
+  --color-on-chrome-strong: #f4ebd9;
+  --color-muted-on-chrome: #bfae98;
+  --color-primary: #c8412b;
+  --color-primary-deep: #a3361f;
+  --color-on-primary: #ffffff;
+  --color-threads: #ffd54a;
+  --color-instagram: #f0775c;
+  --color-pillar-build: #f0775c;
+  --color-pillar-tools: #8fb3da;
+  --color-pillar-screen: #eba3d0;
+  --color-pillar-craft: #ffd54a;
+  --color-success: #2b1a14;
+  --color-warning: #ffd54a;
+  --color-error: #c8412b;
+  --color-info: #8fb3da;
+  --color-error-tint: #f6dfd6;
+  --color-slot-empty: #45332a;
+  --color-tape-yellow: #ffd86f;
+  --color-tape-cream: #efe4ce;
+  --color-tape-coral: #f3977f;
+  --color-dot-blue: #5e8fc2;
+  --color-paper-dim: #e9dcc4;
+
+  /* radii */
+  --rounded-sharp: 4px;
+  --rounded-xs: 6px;
+  --rounded-sm: 8px;
+  --rounded-md: 12px;
+  --rounded-slot: 14px;
+  --rounded-lg: 16px;
+  --rounded-xl: 18px;
+  --rounded-segment: 19px;
+  --rounded-control: 22px;
+  --rounded-card: 26px;
+  --rounded-panel: 30px;
+  --rounded-pill: 999px;
+
+  /* spacing */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+
+  /* the one shadow in the language: paper resting on the desk */
+  --shadow-paper: 0 3px 0 rgba(43, 26, 20, 0.16);
+
+  /* layout */
+  --tabbar-height: 84px;
+  --mobile-header-height: 60px;
+}
+
+/* Typography ramp (design.md § typography). Display/grotesk, body/DM Sans, mono/DM Mono. */
+.t-display,
+.t-headline,
+.t-figure,
+.t-title-lg,
+.t-title,
+.t-title-sm,
+.t-kicker,
+.t-date {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+}
+
+.t-display {
+  font-size: 78px;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.038em;
+}
+.t-headline {
+  font-size: 66px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.038em;
+}
+.t-figure {
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.037em;
+}
+.t-title-lg {
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+}
+.t-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.023em;
+}
+.t-title-sm {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.017em;
+}
+.t-kicker {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.t-date {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.t-body {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.t-body-strong {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.t-body-sm {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.t-caption {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.t-aside {
+  font-size: 18px;
+  line-height: 1.3;
+}
+.t-aside-lg {
+  font-size: 20px;
+  line-height: 1.25;
+}
+.t-mono,
+.t-meta,
+.t-eyebrow,
+.t-tag,
+.t-tag-sm {
+  font-family: var(--font-mono), "DM Mono", monospace;
+}
+.t-mono {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.t-meta {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.t-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.t-tag {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.t-tag-sm {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Visually hidden, still read by screen readers. */
+.sq-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

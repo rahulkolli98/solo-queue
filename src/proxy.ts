@@ -11,7 +11,19 @@ import type { NextRequest } from "next/server";
  *   accidentally public dashboard). Set the vars in Vercel instead.
  * - Creds unset + dev → open (local development convenience).
  */
+/** Development-only routes (the component gallery) do not exist in production. */
+function isDevOnlyPath(pathname: string): boolean {
+  return pathname === "/dev" || pathname.startsWith("/dev/");
+}
+
 export function proxy(request: NextRequest) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    isDevOnlyPath(request.nextUrl.pathname)
+  ) {
+    return new NextResponse("Not found.", { status: 404 });
+  }
+
   const user = process.env.BASIC_AUTH_USER;
   const pass = process.env.BASIC_AUTH_PASS;
 
