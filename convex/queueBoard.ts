@@ -3,6 +3,7 @@ import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
+import { slotRisk } from "./lib/connectionRisk";
 import { readSettings } from "./lib/settingsDb";
 import { hasOpenSlot, planNextSlot, takenTimes } from "./lib/slotPlanning";
 import { dayKey, resolveTz, zonedParts, zonedWallToUtc } from "./lib/zoned";
@@ -51,7 +52,10 @@ export const dayColumns = query({
       hasMedia: boolean;
       attempts: number;
       lastError: string | null;
+      /** Why this scheduled post may not go out (a connection problem), else null. */
+      atRisk: string | null;
     };
+    const connections = await ctx.db.query("connections").take(10);
     const byDay = new Map<string, { threads: Card[]; instagram: Card[] }>();
 
     for (const platform of ["threads", "instagram"] as const) {
@@ -89,6 +93,12 @@ export const dayColumns = query({
           hasMedia: Boolean(draft?.mediaAssetId),
           attempts: slot.attempts,
           lastError: slot.lastError ?? null,
+          atRisk: slotRisk(
+            platform,
+            slot.status,
+            slot.scheduledAt,
+            connections.find((c) => c.platform === platform)
+          ),
         };
         const key = dayKey(slot.scheduledAt, tz);
         const bucket = byDay.get(key) ?? { threads: [], instagram: [] };
@@ -144,6 +154,10 @@ export const detail = query({
     const draft = await ctx.db.get(slot.draftId);
     const topic = draft ? await ctx.db.get(draft.topicId) : null;
     const asset = draft?.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    const connection = await ctx.db
+      .query("connections")
+      .withIndex("by_platform", (q) => q.eq("platform", slot.platform))
+      .first();
     const receipts = await ctx.db
       .query("publishReceipts")
       .withIndex("by_slot", (q) => q.eq("slotId", args.id))
@@ -151,6 +165,7 @@ export const detail = query({
       .take(20);
     return {
       slot,
+      atRisk: slotRisk(slot.platform, slot.status, slot.scheduledAt, connection ?? undefined),
       draft: draft
         ? {
             _id: draft._id,

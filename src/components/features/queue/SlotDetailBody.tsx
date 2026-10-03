@@ -3,6 +3,7 @@
 import { useState } from "react";
 import FormField from "@/components/ui/FormField";
 import type { SlotStatus } from "@/lib/queueBoard";
+import { AtRiskNote } from "./AtRiskMark";
 import ReceiptsTable, { type Receipt } from "./ReceiptsTable";
 import type { useSlotActions } from "./useSlotActions";
 
@@ -27,6 +28,7 @@ export interface SlotDetail {
   topic: { title: string } | null;
   media: { publicUrl: string; mimeType: string; verifiedAt: number | null; lastVerifyError: string | null } | null;
   receipts: Receipt[];
+  atRisk?: string | null;
 }
 
 function MediaPreview({ media, failed }: { media: NonNullable<SlotDetail["media"]>; failed: boolean }) {
@@ -73,6 +75,7 @@ export default function SlotDetailBody({
         </span>
         {draft && !draft.constraintOk && <span className="sq-pill sq-pill-bad">OVER LIMIT</span>}
       </div>
+      <AtRiskNote reason={detail.atRisk} />
       {slot.status === "failed" && slot.lastError && (
         <div className="sq-error-box" role="alert">
           {slot.lastError}

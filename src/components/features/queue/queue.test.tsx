@@ -163,3 +163,18 @@ describe("ReceiptsTable", () => {
     expect(html(<ReceiptsTable tz="UTC" receipts={[]} />)).toContain("No attempts yet");
   });
 });
+
+describe("at-risk marks", () => {
+  const reason = "The Threads connection needs attention. Reconnect before this posts.";
+  it("shows AT RISK in words on a card and a tile, with the reason in the name", () => {
+    const threads = html(<ThreadsCard card={card({ atRisk: reason })} onOpen={noop} />);
+    expect(threads).toContain("AT RISK");
+    expect(threads).toContain(`At risk: ${reason}`);
+    const ig = html(<IgTile card={card({ platform: "instagram", format: "reel", atRisk: reason })} index={0} onOpen={noop} />);
+    expect(ig).toContain("AT RISK");
+  });
+  it("shows nothing when the post is fine", () => {
+    expect(html(<ThreadsCard card={card({ atRisk: null })} onOpen={noop} />)).not.toContain("AT RISK");
+    expect(html(<ThreadsCard card={card()} onOpen={noop} />)).not.toContain("AT RISK");
+  });
+});

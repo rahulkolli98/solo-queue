@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as drafting from "../drafting.js";
 import type * as drafts from "../drafts.js";
 import type * as frames from "../frames.js";
+import type * as lib_connectionRisk from "../lib/connectionRisk.js";
 import type * as lib_coverage from "../lib/coverage.js";
 import type * as lib_drafting from "../lib/drafting.js";
 import type * as lib_framesModel from "../lib/framesModel.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   drafting: typeof drafting;
   drafts: typeof drafts;
   frames: typeof frames;
+  "lib/connectionRisk": typeof lib_connectionRisk;
   "lib/coverage": typeof lib_coverage;
   "lib/drafting": typeof lib_drafting;
   "lib/framesModel": typeof lib_framesModel;

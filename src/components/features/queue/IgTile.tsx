@@ -1,4 +1,5 @@
 import { PLATFORM_NAME, type BoardCard } from "@/lib/queueBoard";
+import AtRiskMark from "./AtRiskMark";
 import StatusChip, { statusLabel } from "./StatusChip";
 
 /** Per-column tilt and decoration so the tiles read as collage, not a grid. */
@@ -21,7 +22,7 @@ export default function IgTile({
       className={`sq-q-tile sq-q-st-${card.status}`}
       style={{ background: `var(--color-${card.pillarColor})`, transform: `rotate(${TILTS[index % TILTS.length]}deg)` }}
       onClick={() => onOpen(card._id)}
-      aria-label={`${PLATFORM_NAME[card.platform]} ${card.format ?? "post"} at ${card.time}, ${card.topicTitle}, ${statusLabel(card.status)}. Open details.`}
+      aria-label={`${PLATFORM_NAME[card.platform]} ${card.format ?? "post"} at ${card.time}, ${card.topicTitle}, ${statusLabel(card.status)}.${card.atRisk ? ` At risk: ${card.atRisk}` : ""} Open details.`}
     >
       <span className="sq-q-tile-tape" aria-hidden="true" />
       <span className="sq-q-tile-art" aria-hidden="true">
@@ -32,6 +33,7 @@ export default function IgTile({
         <span className="sq-q-tile-format">{(card.format ?? "post").toUpperCase()}</span>
         <StatusChip status={card.status} />
       </span>
+      <AtRiskMark reason={card.atRisk} />
       <span className="sq-q-tile-bottom">
         <span className="sq-q-tile-title">{card.topicTitle}</span>
         <span className="t-meta">{card.time}</span>

@@ -32,6 +32,8 @@ export interface BoardCard {
   hasMedia: boolean;
   attempts: number;
   lastError: string | null;
+  /** Why a scheduled post may not go out (a connection problem), else null. */
+  atRisk?: string | null;
 }
 
 export interface BoardDay {

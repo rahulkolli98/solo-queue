@@ -11,6 +11,7 @@ import {
   type Platform,
   type PlatformFilter,
 } from "@/lib/queueBoard";
+import AtRiskMark from "./AtRiskMark";
 import IgTile from "./IgTile";
 import PlatformGlyph from "./PlatformGlyph";
 import StatusChip, { statusLabel } from "./StatusChip";
@@ -36,13 +37,14 @@ function MobileCard({ card, pillarName, onOpen }: { card: BoardCard; pillarName:
       className={`sq-q-mcard sq-q-st-${card.status}`}
       style={{ background: `var(--color-${card.pillarColor})` }}
       onClick={() => onOpen(card._id)}
-      aria-label={`Threads post at ${card.time}, ${card.topicTitle}, ${statusLabel(card.status)}. Open details.`}
+      aria-label={`Threads post at ${card.time}, ${card.topicTitle}, ${statusLabel(card.status)}.${card.atRisk ? ` At risk: ${card.atRisk}` : ""} Open details.`}
     >
       <span className="sq-q-mcard-top">
         <PlatformGlyph platform="threads" size={20} />
         <span className="t-meta">THREADS · {pillarName.toUpperCase()}</span>
         <StatusChip status={card.status} />
       </span>
+      <AtRiskMark reason={card.atRisk} />
       <span className="sq-q-mini-text">{card.snippet || card.topicTitle}</span>
     </button>
   );
