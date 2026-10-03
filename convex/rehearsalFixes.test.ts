@@ -112,6 +112,57 @@ describe("media verification needs a real image or video file", () => {
   });
 });
 
+describe("Write it myself (drafts.createManual)", () => {
+  it("stores hand-written text as a real draft that can be edited and queued", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    const id = await t.mutation(api.drafts.createManual, { topicId: topic, kind: "threads", body: "My own thread.\r\n---\r\nSecond post." });
+    const row = await t.run(async (ctx) => ctx.db.get(id));
+    expect(row).toMatchObject({
+      platform: "threads",
+      templateKey: "threads-hook-story",
+      format: "thread",
+      body: "My own thread.\n---\nSecond post.",
+      constraintOk: true,
+    });
+    expect((await t.query(api.drafts.listByTopic, { topicId: topic })).map((d) => d._id)).toEqual([id]);
+    expect((await t.run(async (ctx) => ctx.db.get(topic)))?.status).toBe("ready");
+    await expect(t.mutation(api.slots.enqueue, { draftId: id })).resolves.toBeTruthy();
+  });
+
+  it("measures the limits like a generated draft and replaces an unqueued one instead of duplicating", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    const a = await t.mutation(api.drafts.createManual, { topicId: topic, kind: "threads", body: "x".repeat(501) });
+    expect((await t.run(async (ctx) => ctx.db.get(a)))?.constraintOk).toBe(false);
+    const b = await t.mutation(api.drafts.createManual, { topicId: topic, kind: "threads", body: "Short now." });
+    expect(b).toBe(a);
+    expect((await t.query(api.drafts.listByTopic, { topicId: topic })).length).toBe(1);
+  });
+
+  it("keeps a draft that already has a post and adds the new one beside it; covers every kind", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    const first = await t.mutation(api.drafts.createManual, { topicId: topic, kind: "threads", body: "Posted already." });
+    await t.run(async (ctx) => ctx.db.insert("slots", { platform: "threads", draftId: first, scheduledAt: 1, status: "published", attempts: 0, createdAt: 1 }));
+    const second = await t.mutation(api.drafts.createManual, { topicId: topic, kind: "threads", body: "A new one." });
+    expect(second).not.toBe(first);
+    for (const kind of ["caption", "reel", "blog"] as const) {
+      await t.mutation(api.drafts.createManual, { topicId: topic, kind, body: "Hand-written." });
+    }
+    const keys = (await t.query(api.drafts.listByTopic, { topicId: topic })).map((d) => d.templateKey).sort();
+    expect(keys).toEqual(["blog-draft", "ig-caption-beats", "reel-script", "threads-hook-story", "threads-hook-story"]);
+  });
+
+  it("refuses an empty draft and a missing topic with readable codes", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    expect(data(await t.mutation(api.drafts.createManual, { topicId: topic, kind: "caption", body: "  " }).catch((e: unknown) => e))).toMatch(/EMPTY_DRAFT/);
+    await t.run(async (ctx) => ctx.db.delete(topic));
+    expect(data(await t.mutation(api.drafts.createManual, { topicId: topic, kind: "caption", body: "Hi" }).catch((e: unknown) => e))).toMatch(/TOPIC_NOT_FOUND/);
+  });
+});
+
 describe("placeholders must be filled in before anything is queued or posted", () => {
   it("refuses to queue a draft that still has a [[placeholder]]", async () => {
     const t = newTest();
