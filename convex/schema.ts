@@ -185,6 +185,7 @@ export default defineSchema({
       description: v.string(),
       learnedFromCount: v.number(),
       defaultFrameKey: v.string(),
+      defaultPostCount: v.optional(v.number()),
       threadsTopicTag: v.union(v.literal("auto"), v.literal("off")),
       igHashtagMax: v.number(),
       signOff: v.optional(v.string()),

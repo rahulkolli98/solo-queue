@@ -46,7 +46,7 @@ const DEFAULT_FORMATS: Format[] = [
 const BASE_SYSTEM =
   "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble. " +
   "Use only facts, numbers, prices, dates, names and quotes that appear in the topic, notes or sources. " +
-  "Never invent them. Where a number or detail would help and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in. " +
+  "Never invent them. Prefer writing without a number at all. Only when one specific fact is essential and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in, and use at most two placeholders in the whole thread. " +
   "Do not write beat labels or character counts (such as HOOK · 117 / 500) into the posts.";
 
 /**
@@ -144,6 +144,9 @@ export const generate = operatorAction({
     }
 
     const settings = await ctx.runQuery(api.settings.get, {});
+    // A number chosen for this run wins; otherwise the saved default; otherwise the story frame decides.
+    const savedCount = settings.voice.defaultPostCount;
+    const postCount = args.postCount ?? (savedCount !== undefined && savedCount >= 2 ? savedCount : undefined);
     const frameKey = args.frameKey ?? settings.voice.defaultFrameKey;
     const frame = await ctx.runQuery(api.frames.getByKey, { key: frameKey });
 
@@ -181,8 +184,8 @@ export const generate = operatorAction({
       const basePrompt = fillSlots(template.body, vars);
       const withFrame = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
       const prompt =
-        format === "threads" && args.postCount
-          ? `${withFrame}\n\nWrite exactly ${args.postCount} posts, separated by --- lines. Ignore any other number of posts mentioned above, and spread the story across all ${args.postCount} posts.`
+        format === "threads" && postCount
+          ? `${withFrame}\n\nWrite exactly ${postCount} posts, separated by --- lines. Ignore any other number of posts mentioned above, and spread the story across all ${postCount} posts.`
           : withFrame;
 
       const body: string = await withLlmErrors(async () => {

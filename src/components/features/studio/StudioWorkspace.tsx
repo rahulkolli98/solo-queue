@@ -24,7 +24,15 @@ import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
 import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
-import { defaultPostCount, kindsAtRisk, postCountToSend, replaceQuestion, studioEntry } from "@/lib/studioCompose";
+import {
+  defaultPostCount,
+  kindsAtRisk,
+  postCountToSend,
+  replaceQuestion,
+  savedPostCount,
+  studioEntry,
+} from "@/lib/studioCompose";
+import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
 import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, researchBanner } from "@/lib/studioHandoff";
 import { useDraftEditor } from "@/lib/useDraftEditor";
@@ -64,6 +72,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const ensureDefaults = useMutation(api.frames.ensureDefaults);
   const saveDraft = useMutation(api.drafts.update);
   const createManual = useMutation(api.drafts.createManual);
+  const updateSettings = useMutation(api.settings.update);
+  const { toast } = useToast();
 
   const editor = useDraftEditor(
     (draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }),
@@ -132,7 +142,21 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const blogKinds: DraftKind[] = blogOn || latest.blog ? ["blog"] : [];
   const frameSteps = (beatsFrame?.beats ?? pickedFrame?.beats)?.length;
   const frameDefaultPosts = defaultPostCount(frameSteps);
-  const postsShown = postsChosen ?? frameDefaultPosts;
+  // The founder's saved default (Settings, or "Make it my default") beats the story frame's step count.
+  const savedPosts = savedPostCount(settings?.voice.defaultPostCount);
+  const effectiveDefaultPosts = savedPosts ?? frameDefaultPosts;
+  const postsShown = postsChosen ?? effectiveDefaultPosts;
+
+  /** Save (or, with 0, clear) the default thread length. A settings patch replaces the whole voice section. */
+  async function saveDefaultPosts(count: number): Promise<void> {
+    if (!settings) return;
+    try {
+      await updateSettings({ patch: { voice: { ...settings.voice, defaultPostCount: count } } });
+      setPostsChosen(null);
+    } catch (e) {
+      toast({ title: "Couldn't save your default", detail: studioErrorText(e, "Try again."), tone: "bad" });
+    }
+  }
 
   /** Run now, or first ask once when it would replace text the founder already has. */
   function askThenRun(kinds: DraftKind[], run: () => void) {
@@ -159,7 +183,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         kinds,
         chosenFrame ?? (frameValue || undefined),
         existingIds,
-        postCountToSend(postsChosen, frameDefaultPosts)
+        postCountToSend(postsChosen, effectiveDefaultPosts)
       );
     });
   };
@@ -336,7 +360,10 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       posts={{
         value: postsShown,
         steps: frameSteps,
-        onChange: (n) => setPostsChosen(n === frameDefaultPosts ? null : n),
+        onChange: (n) => setPostsChosen(n === effectiveDefaultPosts ? null : n),
+        saved: savedPosts,
+        onMakeDefault: (n) => void saveDefaultPosts(n),
+        onClearDefault: () => void saveDefaultPosts(0),
       }}
     />
   );
