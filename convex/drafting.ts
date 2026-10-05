@@ -151,11 +151,15 @@ export const generate = operatorAction({
     const frame = await ctx.runQuery(api.frames.getByKey, { key: frameKey });
 
     const model = await withLlmErrors(async () => llmModel());
+    // The research brief and the topic's sources are the model's main material when they exist.
+    const sources = await ctx.runQuery(api.sources.listByTopic, { topicId: args.topicId });
     const vars = buildTopicVars({
       title: topic.title,
       pillar: topic.pillar,
       notes: topic.notes,
       sourceUrl: topic.sourceUrl,
+      brief: topic.brief,
+      sources: sources.map((x) => ({ kind: x.kind, label: x.label, url: x.url, text: x.text })),
     });
     const system = [
       BASE_SYSTEM,

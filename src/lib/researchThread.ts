@@ -98,10 +98,11 @@ export const SAVE_STATE_TEXT: Record<SaveState, string> = {
 };
 
 /** The helper line under the "Send to Studio" button, by whether a thread is already written. */
-export function sendToStudioNote(hasThread: boolean): string {
-  return hasThread
-    ? "Opens this topic in Studio with your thread already there."
-    : "Opens this topic in Studio. Press Generate drafts to have a thread, reel script and caption written, or write the thread yourself.";
+export function sendToStudioNote(hasThread: boolean, hasBrief = false): string {
+  if (hasThread) return "Opens this topic in Studio with your thread already there.";
+  return hasBrief
+    ? "Opens this topic in Studio. Press Generate drafts and your brief and sources go to the model, which writes a thread, reel script and caption from them. Or write the thread yourself."
+    : "Opens this topic in Studio. Press Generate drafts to have a thread, reel script and caption written from the topic, or write the thread yourself.";
 }
 
 /** The line shown above an empty writer. */

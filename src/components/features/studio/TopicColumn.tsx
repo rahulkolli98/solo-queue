@@ -87,6 +87,12 @@ export default function TopicColumn({
             +{more} MORE IN RESEARCH
           </Link>
         )}
+        {topic.brief && (
+          <div className="studio-note" data-tone="cream" data-i="8">
+            <span className="t-meta">YOUR BRIEF · SENT TO THE MODEL WHEN YOU GENERATE</span>
+            <span className="studio-note-text">{topic.brief}</span>
+          </div>
+        )}
         {topic.notes && (
           <div className="studio-note" data-tone="cream" data-i="9">
             <span className="t-meta">YOUR NOTE</span>

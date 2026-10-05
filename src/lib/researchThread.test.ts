@@ -108,8 +108,12 @@ describe("Send to Studio note", () => {
   });
   it("says Generate drafts or write it yourself when there is no thread", () => {
     expect(sendToStudioNote(false)).toBe(
-      "Opens this topic in Studio. Press Generate drafts to have a thread, reel script and caption written, or write the thread yourself."
+      "Opens this topic in Studio. Press Generate drafts to have a thread, reel script and caption written from the topic, or write the thread yourself."
     );
+  });
+  it("says the brief and sources go to the model when there is a brief", () => {
+    expect(sendToStudioNote(false, true)).toContain("your brief and sources go to the model");
+    expect(sendToStudioNote(true, true)).toBe("Opens this topic in Studio with your thread already there.");
   });
 });
 

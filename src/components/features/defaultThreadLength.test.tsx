@@ -1,15 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PostsControl } from "@/components/features/studio/StudioActions";
 import { defaultPostCount, postCountToSend, postsHelper, savedPostCount } from "@/lib/studioCompose";
-
-const settingsState: { value: unknown } = { value: undefined };
-vi.mock("convex/react", () => ({
-  useQuery: () => settingsState.value,
-  useMutation: () => vi.fn(),
-}));
-
-import ThreadLengthForm from "./ThreadLengthForm";
 
 describe("savedPostCount", () => {
   it("is the saved length for 2 to 12, and undefined (the story frame decides) for unset or 0", () => {
@@ -35,7 +27,7 @@ describe("the saved default and what is sent to the model", () => {
   });
 });
 
-describe("Posts control with a saved default", () => {
+describe("Posts control with a saved default (thread length lives in Studio)", () => {
   const base = { value: 4, steps: 4, disabled: false, onChange: () => {} };
 
   it("with no default saved, offers to make the shown count the default and explains the frame", () => {
@@ -55,26 +47,5 @@ describe("Posts control with a saved default", () => {
   it("offers to replace the saved default when another count is shown", () => {
     const out = renderToStaticMarkup(<PostsControl {...base} value={8} saved={6} onMakeDefault={() => {}} onClearDefault={() => {}} />);
     expect(out).toContain("Make 8 my default");
-  });
-});
-
-describe("Settings: thread length", () => {
-  it("follows the story frame until a length is saved", () => {
-    settingsState.value = { voice: {} };
-    const out = renderToStaticMarkup(<ThreadLengthForm />);
-    expect(out).toContain("Follow the story frame");
-    expect(out).toMatch(/<option value="0" selected/);
-    expect(out).toContain("12 posts");
-    expect(out).toContain("up to 25");
-  });
-
-  it("shows the saved length", () => {
-    settingsState.value = { voice: { defaultPostCount: 7 } };
-    expect(renderToStaticMarkup(<ThreadLengthForm />)).toMatch(/<option value="7" selected/);
-  });
-
-  it("shows a loading line before settings arrive", () => {
-    settingsState.value = undefined;
-    expect(renderToStaticMarkup(<ThreadLengthForm />)).toContain("Loading thread length");
   });
 });
