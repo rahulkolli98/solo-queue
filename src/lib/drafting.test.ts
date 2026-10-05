@@ -121,6 +121,15 @@ describe("stripBeatHeaders", () => {
     expect(stripBeatHeaders(body)).toBe("I paid per post.\n---\nIt cost me.\n---\nSwitched.\n---\nFollow along.");
   });
 
+  it("strips combined labels such as COST+FIX or Admit / Cost (seen when asking for fewer posts)", () => {
+    const body = "COST+FIX · 143 / 500\nFirst.\n---\nADMIT + COST · 89 / 500\nSecond.\n---\nAdmit / Cost · 40 / 500\nThird.";
+    expect(stripBeatHeaders(body)).toBe("First.\n---\nSecond.\n---\nThird.");
+  });
+
+  it("strips a label that itself contains a separator (COST · FIX · 157 / 500)", () => {
+    expect(stripBeatHeaders("COST · FIX · 157 / 500\nSwitched.\n---\nINVITE · 80 / 500\nFollow.")).toBe("Switched.\n---\nFollow.");
+  });
+
   it("only treats a Threads counter (/ 500) as a label, so ordinary lines survive", () => {
     const body = "Day · 3 / 7\nStill going.";
     expect(stripBeatHeaders(body)).toBe(body);

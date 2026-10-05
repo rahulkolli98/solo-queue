@@ -1468,3 +1468,24 @@ body:has(.studio-bar) {
     flex: 1;
   }
 }
+
+/* Posts control: save the shown count as the default, or let the story frame decide again */
+.studio-posts-link {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.studio-posts-link:hover:not(:disabled) {
+  text-decoration-thickness: 2px;
+}
+.studio-posts-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

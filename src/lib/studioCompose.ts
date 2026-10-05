@@ -40,8 +40,14 @@ export function postsLabel(count: number): string {
 }
 
 /** The one-line explanation under the Posts control. */
-export function postsHelper(frameSteps: number | undefined): string {
+export function postsHelper(frameSteps: number | undefined, savedDefault?: number): string {
+  if (savedDefault !== undefined) return `Your default is ${savedDefault} posts. Pick another for this run only.`;
   return `A story frame has ${frameSteps && frameSteps > 0 ? frameSteps : POSTS_FALLBACK} steps; more posts stretch them.`;
+}
+
+/** The saved default thread length from settings, or undefined when the story frame decides (unset or 0). */
+export function savedPostCount(value: number | undefined | null): number | undefined {
+  return typeof value === "number" && value >= POSTS_MIN ? clampPosts(value) : undefined;
 }
 
 export interface GenerateArgs {

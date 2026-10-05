@@ -40,12 +40,21 @@ export function PostsControl({
   steps,
   disabled,
   onChange,
+  saved,
+  onMakeDefault,
+  onClearDefault,
 }: {
   value: number;
   /** The story frame's step count, for the helper line. */
   steps?: number;
   disabled: boolean;
   onChange: (count: number) => void;
+  /** The saved default length, when the founder has set one. */
+  saved?: number;
+  /** Save the shown count as the default for every thread. */
+  onMakeDefault?: (count: number) => void;
+  /** Go back to letting the story frame decide. */
+  onClearDefault?: () => void;
 }) {
   const id = useId();
   const options = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
@@ -69,8 +78,18 @@ export function PostsControl({
         ))}
       </select>
       <span id={`${id}-hint`} className="studio-posts-hint">
-        {postsHelper(steps)}
+        {postsHelper(steps, saved)}
       </span>
+      {onMakeDefault && value !== (saved ?? Number.NaN) && (
+        <button type="button" className="studio-posts-link" disabled={disabled} onClick={() => onMakeDefault(value)}>
+          Make {value} my default
+        </button>
+      )}
+      {onClearDefault && saved !== undefined && value === saved && (
+        <button type="button" className="studio-posts-link" disabled={disabled} onClick={onClearDefault}>
+          Let the story frame decide
+        </button>
+      )}
     </div>
   );
 }
@@ -85,11 +104,26 @@ export function GenerateControls({
   hasDrafts: boolean;
   running: boolean;
   onGenerate: () => void;
-  posts: { value: number; steps?: number; onChange: (count: number) => void };
+  posts: {
+    value: number;
+    steps?: number;
+    onChange: (count: number) => void;
+    saved?: number;
+    onMakeDefault?: (count: number) => void;
+    onClearDefault?: () => void;
+  };
 }) {
   return (
     <div className="studio-gen">
-      <PostsControl value={posts.value} steps={posts.steps} disabled={running} onChange={posts.onChange} />
+      <PostsControl
+        value={posts.value}
+        steps={posts.steps}
+        disabled={running}
+        onChange={posts.onChange}
+        saved={posts.saved}
+        onMakeDefault={posts.onMakeDefault}
+        onClearDefault={posts.onClearDefault}
+      />
       <GenerateButton hasDrafts={hasDrafts} running={running} onGenerate={onGenerate} />
     </div>
   );

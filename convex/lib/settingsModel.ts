@@ -33,6 +33,8 @@ export interface AppSettings {
     description: string;
     learnedFromCount: number;
     defaultFrameKey: string;
+    /** Posts in an AI-written thread (2 to 12). Unset or 0 follows the story frame. */
+    defaultPostCount?: number;
     threadsTopicTag: "auto" | "off";
     igHashtagMax: number;
     signOff?: string;
@@ -177,6 +179,11 @@ export const sectionSchemas = {
     description: z.string().max(600),
     learnedFromCount: z.number().int().min(0),
     defaultFrameKey: z.string().min(1).max(60),
+    defaultPostCount: z
+      .number()
+      .int()
+      .refine((n) => n === 0 || (n >= 2 && n <= 12), "Thread length is 2 to 12 posts, or 0 to follow the story frame.")
+      .optional(),
     threadsTopicTag: z.enum(["auto", "off"]),
     igHashtagMax: z.number().int().min(0).max(30),
     signOff: z.string().max(80).optional(),

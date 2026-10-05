@@ -40,7 +40,7 @@ export function splitPosts(body: string): string[] {
 }
 
 /** A beat label with its counter, as the Threads template asks for: "HOOK · 117 / 500". */
-const BEAT_HEADER = /^\s*\**\s*[A-Za-z][A-Za-z0-9 '&-]{1,30}\s*[·•|]\s*\d+\s*\/\s*500\s*\**\s*$/;
+const BEAT_HEADER = /^\s*\**\s*[A-Za-z][^\n]{0,40}?\s*[·•|]\s*\d+\s*\/\s*500\s*\**\s*$/;
 
 /** Marker the drafting prompt uses where a fact is missing: [[your number]]. */
 const PLACEHOLDER = /\[\[[^\]]*\]\]/;
