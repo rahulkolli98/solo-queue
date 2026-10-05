@@ -54,22 +54,99 @@ const PHOTO: InstagramPostInput = {
 };
 
 describe("publishInstagramPost", () => {
-  it("publishes a photo immediately after pre-flight", async () => {
+  it("publishes a photo once the container reports FINISHED, with no waiting when it already is", async () => {
     const { fn, calls } = mockFetch([
       headOk(), // reachability
       json({ id: "ig1" }), // identity
       json({ id: "c1" }), // container
+      json({ status_code: "FINISHED" }), // status poll
       json({ id: "m1" }), // publish
     ]);
     const c = clock();
-    const out = await publishInstagramPost(PHOTO, {
-      fetchImpl: fn,
-      sleepMs: c.sleepMs,
-      now: c.now,
-    });
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
     expect(out).toEqual({ ok: true, mediaId: "m1", via: "fast" });
     expect(c.sleeps).toEqual([]);
-    expect(calls.some((x) => x.url.includes("media_publish"))).toBe(true);
+    const urls = calls.map((x) => x.url);
+    const poll = urls.findIndex((u) => u.includes("status_code"));
+    const publish = urls.findIndex((u) => u.includes("media_publish"));
+    expect(poll).toBeGreaterThan(-1);
+    expect(publish).toBeGreaterThan(poll); // never publishes before checking the container
+  });
+
+  it("waits for a photo container that is still IN_PROGRESS instead of publishing at once (the first live failure)", async () => {
+    const { fn } = mockFetch([
+      headOk(),
+      json({ id: "ig1" }),
+      json({ id: "c1" }),
+      json({ status_code: "IN_PROGRESS" }),
+      json({ status_code: "FINISHED" }),
+      json({ id: "m1" }),
+    ]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toEqual({ ok: true, mediaId: "m1", via: "polled" });
+    expect(c.sleeps).toEqual([5000]);
+  });
+
+  it("retries publish when Instagram answers 'Media ID is not available', and then succeeds", async () => {
+    const notReady = () => json({ error: { message: "Media ID is not available", code: 9007, error_subcode: 2207027 } }, 400);
+    const { fn } = mockFetch([
+      headOk(),
+      json({ id: "ig1" }),
+      json({ id: "c1" }),
+      json({ status_code: "FINISHED" }),
+      notReady(),
+      notReady(),
+      json({ id: "m1" }),
+    ]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toMatchObject({ ok: true, mediaId: "m1" });
+    expect(c.sleeps).toEqual([3000, 6000]);
+  });
+
+  it("when it never becomes ready, hands back a RETRYABLE failure with the container so the tick resumes it", async () => {
+    const notReady = () => json({ error: { message: "Media ID is not available", code: 9007, error_subcode: 2207027 } }, 400);
+    const { fn } = mockFetch([headOk(), json({ id: "ig1" }), json({ id: "c1" }), json({ status_code: "FINISHED" }), notReady(), notReady(), notReady(), notReady()]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toMatchObject({ ok: false, retryable: true, code: "NOT_READY", containerId: "c1" });
+    expect((out as { message: string }).message).toContain("Media ID is not available (code 9007, subcode 2207027)");
+    expect(c.sleeps).toEqual([3000, 6000, 12000]);
+  });
+
+  it("a photo container still processing after a minute is handed back to resume, not failed", async () => {
+    const { fn } = mockFetch([headOk(), json({ id: "ig1" }), json({ id: "c1" }), json({ status_code: "IN_PROGRESS" })]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toMatchObject({ ok: false, retryable: true, code: "POLL_TIMEOUT", containerId: "c1" });
+  });
+
+  it("when Instagram rejects the image itself, the message carries Instagram's own reason", async () => {
+    const { fn } = mockFetch([
+      headOk(),
+      json({ id: "ig1" }),
+      json({ id: "c1" }),
+      json({ status_code: "ERROR", status: "Error: Media upload has failed with error code 2207052 (the image format is not supported)" }),
+    ]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toMatchObject({ ok: false, retryable: false, code: "CONTAINER_ERROR", containerId: "c1" });
+    expect((out as { message: string }).message).toContain("ERROR: Error: Media upload has failed with error code 2207052");
+  });
+
+  it("other rejections at publish stay permanent (a real error is not retried)", async () => {
+    const { fn } = mockFetch([
+      headOk(),
+      json({ id: "ig1" }),
+      json({ id: "c1" }),
+      json({ status_code: "FINISHED" }),
+      json({ error: { message: "Invalid image aspect ratio", code: 36003 } }, 400),
+    ]);
+    const c = clock();
+    const out = await publishInstagramPost(PHOTO, { fetchImpl: fn, sleepMs: c.sleepMs, now: c.now });
+    expect(out).toMatchObject({ ok: false, retryable: false, code: "REJECTED" });
+    expect(c.sleeps).toEqual([]);
   });
 
   it("polls a reel through processing then publishes", async () => {
