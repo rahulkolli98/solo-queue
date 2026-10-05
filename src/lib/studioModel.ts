@@ -603,7 +603,7 @@ export function studioGuide(input: GuideInput): StudioGuide {
   const mediaLines: string[] = [];
   if (needsAttach.length > 0) {
     mediaLines.push(
-      `Instagram needs media: attach a photo or video to the ${names(needsAttach)} (Library > Media or the Attach button)`
+      `Instagram needs media: attach a photo or video to the ${names(needsAttach)} (press Attach media and upload one right there, or pick one from the library)`
     );
   }
   if (gone.length > 0) mediaLines.push(`the media on the ${names(gone)} is gone: attach another`);
