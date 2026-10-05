@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { insertDraft, insertSlot, insertTopic, newTest } from "../src/test-utils/convex";
 
 const MIN = 60_000;
@@ -26,7 +26,8 @@ async function connectThreads(t: ReturnType<typeof newTest>) {
 }
 
 /** A tiny fake of the Threads API: containers, status polling, publish and replies. */
-function fakeThreads(opts: { failReplyAt?: number } = {}) {
+function fakeThreads(opts: { failReplyAt?: number; flakyPublishAt?: number; alwaysFlaky?: boolean } = {}) {
+  let flaked = false;
   const posts: { text: string; replyTo: string | null; container: string; media: string }[] = [];
   let containers = 0;
   const pending = new Map<string, { text: string; replyTo: string | null }>();
@@ -45,6 +46,19 @@ function fakeThreads(opts: { failReplyAt?: number } = {}) {
     if (method === "POST" && url === `${API}/u1/threads_publish`) {
       const body = JSON.parse(String(init?.body));
       const c = pending.get(body.creation_id)!;
+      // Meta sometimes says a just-created post does not exist yet: fail the nth reply's publish.
+      if (
+        opts.flakyPublishAt !== undefined &&
+        c.replyTo &&
+        posts.length === opts.flakyPublishAt - 1 &&
+        (opts.alwaysFlaky || !flaked)
+      ) {
+        flaked = true;
+        return new Response(
+          JSON.stringify({ error: { message: "The requested resource does not exist", code: 24, error_subcode: 4279009 } }),
+          { status: 400 }
+        );
+      }
       const media = `m${posts.length + 1}`;
       posts.push({ text: c.text, replyTo: c.replyTo, container: body.creation_id, media });
       return new Response(JSON.stringify({ id: media }), { status: 200 });
@@ -117,6 +131,49 @@ describe("publish.tick", () => {
     // A second tick has nothing to do for this slot.
     expect(await t.action(internal.publish.tick, {})).toMatchObject({ claimed: 0 });
     expect(fake.posts).toHaveLength(1);
+  });
+
+  it("a reply that Meta says does not exist yet is retried on the same container, and the thread completes once", async () => {
+    vi.stubEnv("PUBLISH_DRY_RUN", "0");
+    vi.stubEnv("REPLY_RETRY_DELAYS_MS", "1,1,1");
+    const fake = fakeThreads({ flakyPublishAt: 3 });
+    vi.stubGlobal("fetch", fake.impl);
+    const t = newTest();
+    await connectThreads(t);
+    const topic = await insertTopic(t);
+    const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree\n---\nFour");
+    const slot = await insertSlot(t, draft, Date.now() - MIN);
+
+    await t.action(internal.publish.tick, {});
+    expect(fake.posts.map((p) => p.text)).toEqual(["One", "Two", "Three", "Four"]);
+    expect(fake.posts.map((p) => p.replyTo)).toEqual([null, "m1", "m2", "m3"]);
+    // One container per post: the retry resumed the failed one instead of creating another.
+    expect(new Set(fake.posts.map((p) => p.container)).size).toBe(4);
+    const row = await t.run(async (ctx) => ctx.db.get(slot));
+    expect(row?.status).toBe("published");
+    expect(row?.lastError).toBeUndefined();
+    const receipts = await t.query(api.publishLog.attempts, {});
+    expect(receipts.some((r) => r.providerMessage === "Published 4 posts as a thread.")).toBe(true);
+  });
+
+  it("gives up after the retries, saying how many tries and which Meta error, and posts nothing twice", async () => {
+    vi.stubEnv("PUBLISH_DRY_RUN", "0");
+    vi.stubEnv("REPLY_RETRY_DELAYS_MS", "1,1,1");
+    const fake = fakeThreads({ flakyPublishAt: 2, alwaysFlaky: true });
+    vi.stubGlobal("fetch", fake.impl);
+    const t = newTest();
+    await connectThreads(t);
+    const topic = await insertTopic(t);
+    const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree");
+    const slot = await insertSlot(t, draft, Date.now() - MIN);
+
+    await t.action(internal.publish.tick, {});
+    const row = await t.run(async (ctx) => ctx.db.get(slot));
+    expect(row?.status).toBe("published");
+    expect(row?.lastError).toMatch(/Post 2 of 3 did not publish after 4 tries/);
+    expect(row?.lastError).toMatch(/code 24, subcode 4279009/);
+    expect(row?.lastError).toMatch(/Posts 1 to 1 are live/);
+    expect(fake.posts.map((p) => p.text)).toEqual(["One"]);
   });
 
   it("fails a claim that has been stuck too long instead of retrying it blind", async () => {

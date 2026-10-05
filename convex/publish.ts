@@ -6,6 +6,7 @@ import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hasPlaceholder, instagramCaption, splitPosts, stripBeatHeaders } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
+import { publishReplyWithRetry } from "./lib/threadReplies";
 import {
   publishInstagramPost,
   resumeInstagramContainer,
@@ -379,6 +380,14 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
 
 const THREADS_POST_LIMIT = 500;
 
+/** Test knob: REPLY_RETRY_DELAYS_MS="1,1,1" shortens the waits between reply attempts. Unset in production. */
+function retryDelaysFromEnv(): number[] | undefined {
+  const raw = process.env.REPLY_RETRY_DELAYS_MS;
+  if (!raw) return undefined;
+  const list = raw.split(",").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n) && n >= 0);
+  return list.length > 0 ? list : undefined;
+}
+
 /**
  * Publish posts 2..N of a thread as replies, each to the one before. The
  * first post is already live, so a failure here never retries the slot (that
@@ -396,15 +405,31 @@ async function publishThreadReplies(
   for (let i = 0; i < rest.length; i++) {
     const text = rest[i].trim();
     const number = i + 2;
-    const out = await publishThreadsPost({
-      userId: conn.platformUserId,
-      accessToken: conn.accessToken,
-      text,
-      mediaType: "TEXT",
-      replyToId: previous,
+    const { out, attempts } = await publishReplyWithRetry({
+      publish: () =>
+        publishThreadsPost({
+          userId: conn.platformUserId,
+          accessToken: conn.accessToken,
+          text,
+          mediaType: "TEXT",
+          replyToId: previous,
+        }),
+      resume: (containerId) =>
+        resumeThreadsContainer({
+          userId: conn.platformUserId,
+          accessToken: conn.accessToken,
+          containerId,
+          mediaType: "TEXT",
+        }),
+      sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+      delays: retryDelaysFromEnv(),
     });
+    if (attempts > 1) {
+      console.log(`publish.tick: thread reply ${number} of ${rest.length + 1} took ${attempts} attempts (${out.ok ? "published" : "gave up"}).`);
+    }
     if (!out.ok) {
-      const note = `Post ${number} of ${rest.length + 1} did not publish: ${out.message} Posts 1 to ${number - 1} are live.`;
+      const tried = attempts > 1 ? ` after ${attempts} tries` : "";
+      const note = `Post ${number} of ${rest.length + 1} did not publish${tried}: ${out.message} Posts 1 to ${number - 1} are live.`;
       await ctx.runMutation(internal.slotRecovery.setNote, { id: slotId, note });
       await ctx.runMutation(internal.publish.addReceipt, {
         slotId,

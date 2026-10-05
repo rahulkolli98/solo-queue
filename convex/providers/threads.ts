@@ -56,7 +56,14 @@ function errMessage(data: Json | null, status: number): string {
   const nested = data?.["error"];
   if (nested && typeof nested === "object") {
     const nm = (nested as Json)["message"];
-    if (typeof nm === "string" && nm) return nm;
+    if (typeof nm === "string" && nm) {
+      const code = (nested as Json)["code"];
+      const sub = (nested as Json)["error_subcode"];
+      const tag = [code !== undefined ? `code ${String(code)}` : "", sub !== undefined ? `subcode ${String(sub)}` : ""]
+        .filter(Boolean)
+        .join(", ");
+      return tag ? `${nm} (${tag})` : nm;
+    }
   }
   return `HTTP ${status}`;
 }
