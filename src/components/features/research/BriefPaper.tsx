@@ -4,6 +4,8 @@ import { useAction, useMutation } from "convex/react";
 import { useState } from "react";
 import FormField from "@/components/ui/FormField";
 import { refusalCode, refusalText } from "@/lib/refusalText";
+import { researchFailure, type ResearchFailure } from "@/lib/researchErrors";
+import ResearchStatus from "./ResearchStatus";
 import { briefParagraphs, wordCount } from "@/lib/researchBoard";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -30,10 +32,12 @@ export default function BriefPaper({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<null | "writing" | "saving">(null);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ResearchFailure | null>(null);
 
   async function generate(force: boolean) {
     setBusy("writing");
     setError(null);
+    setFailure(null);
     try {
       await writeBrief({ topicId, force });
       setMode("read");
@@ -43,7 +47,7 @@ export default function BriefPaper({
         setMode("confirm");
       } else {
         setMode("read");
-        setError(refusalText(err, "Could not write the brief. Try again."));
+        setFailure(researchFailure(err, "brief"));
       }
     } finally {
       setBusy(null);
@@ -53,6 +57,7 @@ export default function BriefPaper({
   async function save() {
     setBusy("saving");
     setError(null);
+    setFailure(null);
     try {
       await editBrief({ id: topicId, brief: draft });
       setMode("read");
@@ -66,6 +71,7 @@ export default function BriefPaper({
   function startEdit() {
     setDraft(brief ?? "");
     setError(null);
+    setFailure(null);
     setMode("edit");
   }
 
@@ -118,9 +124,11 @@ export default function BriefPaper({
         </div>
       )}
 
-      <p className="rs-status" aria-live="polite" data-bad={error ? true : undefined}>
-        {busy === "writing" ? "Writing the brief…" : (error ?? "")}
-      </p>
+      <ResearchStatus
+        busyText={busy === "writing" ? "Writing the brief…" : undefined}
+        failure={failure}
+        plainError={error}
+      />
 
       <div className="rs-brief-foot">
         {mode === "edit" ? (

@@ -3,13 +3,13 @@
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../../../convex/_generated/api";
 import FormField from "@/components/ui/FormField";
 import { studioErrorText } from "@/lib/studioErrors";
 
 /** Board 07c: the blue column with the new-topic form and the inbox picker. */
-export default function NewTopicColumn() {
+export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseInbox?: boolean }) {
   const router = useRouter();
   const create = useMutation(api.topics.create);
   const board = useQuery(api.topics.board);
@@ -18,6 +18,12 @@ export default function NewTopicColumn() {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const inboxRef = useRef<HTMLDivElement>(null);
+
+  // Arrived from an open slot: bring the inbox into view (it sits below the form on small screens).
+  useEffect(() => {
+    if (emphasiseInbox) inboxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [emphasiseInbox]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -75,36 +81,43 @@ export default function NewTopicColumn() {
         </button>
       </form>
 
-      <h3 className="t-eyebrow studio-inbox-title">Or draft from your inbox</h3>
-      {board === undefined ? (
-        <p className="t-meta" role="status">
-          LOADING YOUR INBOX…
-        </p>
-      ) : inbox.length === 0 ? (
-        <p className="studio-inbox-empty">
-          Nothing waiting. <Link href="/research">Capture a topic in Research</Link> and it shows up here.
-        </p>
-      ) : (
-        <ul className="studio-inbox">
-          {inbox.map((topic) => (
-            <li key={topic._id} className="studio-inbox-row">
-              <span
-                className="studio-swatch"
-                style={{ background: `var(--color-${colorOf(topic.pillar)})` }}
-                aria-hidden="true"
-              />
-              <span className="studio-inbox-name">{topic.title}</span>
-              <Link
-                href={`/studio/${topic._id}?draft=1`}
-                className="sq-btn sq-btn-sm"
-                aria-label={`Draft ${topic.title}`}
-              >
-                Draft
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="studio-inbox-box" data-emphasis={emphasiseInbox || undefined} ref={inboxRef}>
+        <h3 className="t-eyebrow studio-inbox-title">
+          {emphasiseInbox ? "Pick a topic from your inbox" : "Or draft from your inbox"}
+        </h3>
+        {emphasiseInbox && (
+          <p className="studio-inbox-lead">Press Draft next to a topic. It is written for both platforms.</p>
+        )}
+        {board === undefined ? (
+          <p className="t-meta" role="status">
+            LOADING YOUR INBOX…
+          </p>
+        ) : inbox.length === 0 ? (
+          <p className="studio-inbox-empty">
+            Nothing waiting. <Link href="/research">Capture a topic in Research</Link> and it shows up here.
+          </p>
+        ) : (
+          <ul className="studio-inbox">
+            {inbox.map((topic) => (
+              <li key={topic._id} className="studio-inbox-row">
+                <span
+                  className="studio-swatch"
+                  style={{ background: `var(--color-${colorOf(topic.pillar)})` }}
+                  aria-hidden="true"
+                />
+                <span className="studio-inbox-name">{topic.title}</span>
+                <Link
+                  href={`/studio/${topic._id}?draft=1`}
+                  className="sq-btn sq-btn-sm"
+                  aria-label={`Draft ${topic.title}`}
+                >
+                  Draft
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

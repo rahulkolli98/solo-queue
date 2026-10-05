@@ -131,7 +131,7 @@
   min-width: 0;
 }
 .sq-q-noslot {
-  flex: 1 1 0;
+  flex: 1 0 auto;
   min-height: 72px;
   border: 1.5px dashed var(--color-line);
   border-radius: var(--rounded-md);
@@ -303,7 +303,7 @@
 
 /* open slot: dashed rust */
 .sq-q-open {
-  flex: 1 1 0;
+  flex: 1 0 auto;
   min-height: 72px;
   box-sizing: border-box;
   display: flex;
@@ -683,6 +683,17 @@
   .sq-q-lead b {
     color: var(--color-on-surface);
   }
+}
+
+/*
+ * Tablets and small laptops (up to 1099px): seven day columns cannot hold the
+ * cards without overlapping, so the week is the day-pill agenda here too.
+ */
+@media (max-width: 1099px) {
+  .sq-q-rangectl,
+  .sq-q-desktop {
+    display: none;
+  }
   .sq-q-agenda {
     display: flex;
     flex-direction: column;
@@ -823,6 +834,34 @@
   .sq-q-d-row > * {
     min-height: 44px;
   }
+}
+
+/* laptops (1100px to 1279px): the same grid with a slim lane and tighter gutters */
+@media (min-width: 1100px) and (max-width: 1279px) {
+  .sq-q-grid {
+    grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+    column-gap: var(--space-8);
+  }
+  .sq-q-lane > span:not(.sq-glyph) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .sq-q-lane {
+    position: relative;
+  }
+}
+
+/* cards keep their content inside, whatever the column width */
+.sq-q-mini-top {
+  flex-wrap: wrap;
+}
+.sq-q-mini-text,
+.sq-q-open-text {
+  overflow-wrap: anywhere;
 }
 
 /* at-risk mark: a scheduled post whose connection is missing, failed or expiring */

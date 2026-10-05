@@ -44,7 +44,10 @@ const DEFAULT_FORMATS: Format[] = [
 ];
 
 const BASE_SYSTEM =
-  "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble.";
+  "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble. " +
+  "Use only facts, numbers, prices, dates, names and quotes that appear in the topic, notes or sources. " +
+  "Never invent them. Where a number or detail would help and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in. " +
+  "Do not write beat labels or character counts (such as HOOK · 117 / 500) into the posts.";
 
 /**
  * Store one generated draft. Regenerating replaces the previous draft for the

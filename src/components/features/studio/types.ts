@@ -15,6 +15,8 @@ export interface GenState {
   writing: boolean;
   /** The failure message when this format could not be written. */
   error: string | null;
+  /** Refusal code of that failure (LLM_PRIVACY, LLM_AUTH ...), when it has one. */
+  errorCode?: string | null;
   elapsed: string;
   onRetry: () => void;
   retrying: boolean;

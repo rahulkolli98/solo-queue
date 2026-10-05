@@ -4,12 +4,15 @@ import Link from "next/link";
 import Drawer from "@/components/ui/Drawer";
 import MediaThumb from "@/components/features/studio/MediaThumb";
 import type { MediaActions } from "@/components/features/studio/useMediaActions";
+import { describeMediaStatus, mediaHost, mediaTypeLabel, type MediaStatusKind } from "@/lib/mediaStatus";
 import { mediaState, type Asset } from "@/lib/studioModel";
 
-function when(ts: number | undefined): string {
-  if (!ts) return "";
-  return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short" }).toUpperCase();
-}
+/** The Studio's own state (none/missing aside) mapped onto the plain-language kinds. */
+const KIND_BY_STATE: Record<"ok" | "stale" | "unverified", MediaStatusKind> = {
+  ok: "ready",
+  stale: "recheck",
+  unverified: "unchecked",
+};
 
 /**
  * Studio's media picker: the library's assets as tiles with Use / Verify.
@@ -68,18 +71,24 @@ export default function AttachMediaDialog({
           {assets.map((asset) => {
             const state = mediaState(asset._id, asset, now);
             const current = asset._id === currentAssetId;
+            const kind: MediaStatusKind =
+              state === "ok" || state === "stale" ? KIND_BY_STATE[state] : asset.lastVerifyError ? "not_media" : "unchecked";
+            const status = describeMediaStatus(kind, asset, now);
+            const name = asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image");
             return (
               <li key={asset._id} className="studio-pick" data-current={current || undefined}>
-                <MediaThumb asset={asset} />
+                <MediaThumb asset={asset} name={name} broken={kind === "not_media"} />
                 <div className="studio-pick-body">
-                  <b>{asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image")}</b>
+                  <b>{name}</b>
                   <span className="t-meta">
-                    {asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE"} · {when(asset.createdAt)}
+                    {mediaTypeLabel(asset.mimeType)} · {mediaHost(asset)}
                   </span>
-                  {state === "ok" ? (
-                    <span className="sq-pill sq-pill-ok">VERIFIED · {when(asset.verifiedAt)}</span>
-                  ) : (
-                    <span className="sq-pill sq-pill-bad">{state === "stale" ? "STALE" : "UNVERIFIED"}</span>
+                  <span className={`sq-pill sq-pill-${status.tone}`}>{status.label}</span>
+                  {status.checked && <span className="t-meta">{status.checked}</span>}
+                  {status.reason && (
+                    <p className="studio-reason">
+                      {status.reason} <b>{status.next}</b>
+                    </p>
                   )}
                   <div className="studio-actions-row">
                     <button
@@ -90,16 +99,19 @@ export default function AttachMediaDialog({
                     >
                       {current ? "In use" : "Use"}
                     </button>
-                    {state !== "ok" && (
+                    {kind !== "ready" && (
                       <button
                         type="button"
                         className="sq-btn sq-btn-sm"
                         disabled={media.busy === asset._id}
                         onClick={() => void media.verify(asset._id)}
                       >
-                        {media.busy === asset._id ? "Verifying…" : "Verify"}
+                        {media.busy === asset._id ? "Checking…" : kind === "unchecked" ? "Check" : "Recheck"}
                       </button>
                     )}
+                    <a className="studio-open" href={asset.publicUrl} target="_blank" rel="noopener noreferrer">
+                      Open file<span className="sq-sr"> (opens in a new tab)</span>
+                    </a>
                   </div>
                 </div>
               </li>

@@ -21,7 +21,7 @@ function ThreadsCell({ day, onOpen }: { day: BoardDay; onOpen: (id: string) => v
         <ThreadsCard key={c._id} card={c} onOpen={onOpen} />
       ))}
       {day.open.threads.map((time) => (
-        <OpenSlot key={time} platform="threads" time={time} dayLabel={label} />
+        <OpenSlot key={time} platform="threads" time={time} dayLabel={label} dayKey={day.key} />
       ))}
       {empty && <span className="sq-q-noslot t-tag-sm">NO SLOT</span>}
     </div>
@@ -37,11 +37,11 @@ function InstagramCell({ day, column, onOpen }: { day: BoardDay; column: number;
         <IgTile key={c._id} card={c} index={column} onOpen={onOpen} />
       ))}
       {day.instagram.length === 0 && day.open.instagram.length > 0 && (
-        <OpenTile times={day.open.instagram} dayLabel={label} />
+        <OpenTile times={day.open.instagram} dayLabel={label} dayKey={day.key} />
       )}
       {day.instagram.length > 0 &&
         day.open.instagram.map((time) => (
-          <OpenSlot key={time} platform="instagram" time={time} dayLabel={label} variant="chip" />
+          <OpenSlot key={time} platform="instagram" time={time} dayLabel={label} dayKey={day.key} variant="chip" />
         ))}
       {empty && <span className="sq-q-noslot t-tag-sm">NO SLOT</span>}
     </div>

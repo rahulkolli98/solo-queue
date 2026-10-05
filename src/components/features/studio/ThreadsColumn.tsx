@@ -28,6 +28,8 @@ export default function ThreadsColumn({
   gen,
   placeholders,
   emptyCopy,
+  onManualText,
+  onSaveManual,
 }: {
   view?: DraftView;
   beats?: { label: string }[];
@@ -41,6 +43,10 @@ export default function ThreadsColumn({
   /** Dashed beat boxes shown before anything is written. */
   placeholders: string[];
   emptyCopy: string;
+  /** The "Write it myself" box has (true) or lost (false) text that is not saved to the topic. */
+  onManualText?: (hasText: boolean) => void;
+  /** Store the "Write it myself" text as the topic's thread draft. */
+  onSaveManual?: (text: string) => Promise<void>;
 }) {
   const [manual, setManual] = useState(false);
   const posts = view ? parseThread(view.body) : [];
@@ -82,13 +88,21 @@ export default function ThreadsColumn({
         ))}
       </div>
     );
-  } else if (gen.error && !view) {
+  } else if (!view && (gen.error || manual)) {
     body = manual ? (
-      <ManualDraft label="Threads post" limit={THREADS_POST_LIMIT} />
+      <ManualDraft
+        label="Threads post"
+        limit={THREADS_POST_LIMIT}
+        onText={(t) => onManualText?.(t.trim().length > 0)}
+        onSave={onSaveManual}
+        onRetry={gen.onRetry}
+        retrying={gen.retrying}
+      />
     ) : (
       <GenerationErrorCard
         title="Couldn't write the thread"
-        message={gen.error}
+        message={gen.error ?? ""}
+        code={gen.errorCode}
         onRetry={gen.onRetry}
         busy={gen.retrying}
         onWriteMyself={() => setManual(true)}
@@ -105,6 +119,9 @@ export default function ThreadsColumn({
           </div>
         ))}
         <p className="studio-empty-copy">{emptyCopy}</p>
+        <button type="button" className="sq-btn sq-btn-sm studio-write-myself" onClick={() => setManual(true)}>
+          Write it myself
+        </button>
       </>
     );
   } else {

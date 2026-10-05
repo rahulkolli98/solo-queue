@@ -11,6 +11,7 @@ import BlogPanel from "@/components/features/studio/BlogPanel";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
 import { GenerateButton, StudioToolbar, type Pane } from "@/components/features/studio/StudioActions";
 import StudioBottomBar from "@/components/features/studio/StudioBottomBar";
+import StudioGuideStrip from "@/components/features/studio/StudioGuideStrip";
 import ThreadsColumn from "@/components/features/studio/ThreadsColumn";
 import TopicColumn from "@/components/features/studio/TopicColumn";
 import type { DraftView } from "@/components/features/studio/types";
@@ -21,8 +22,9 @@ import { useQueueWeek } from "@/components/features/studio/useQueueWeek";
 import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
-import { parseThread } from "@/lib/draftText";
+import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
 import { studioErrorText } from "@/lib/studioErrors";
+import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, researchBanner } from "@/lib/studioHandoff";
 import { useDraftEditor } from "@/lib/useDraftEditor";
 import {
   KIND_META,
@@ -32,8 +34,10 @@ import {
   latestByKind,
   mediaState,
   openSlots,
+  pickFrameKey,
   readiness,
   saveLabel,
+  studioGuide,
   type Asset,
   type DraftKind,
   type MediaState,
@@ -57,6 +61,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const { board, chips, tz, browserTz, now } = useOpenSlots();
   const ensureDefaults = useMutation(api.frames.ensureDefaults);
   const saveDraft = useMutation(api.drafts.update);
+  const createManual = useMutation(api.drafts.createManual);
 
   const editor = useDraftEditor(
     (draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }),
@@ -70,6 +75,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const [blogOn, setBlogOn] = useState(false);
   const [attachKind, setAttachKind] = useState<"reel" | "caption" | null>(null);
   const [armed, setArmed] = useState(false);
+  const [manualText, setManualText] = useState<Record<string, boolean>>({});
+  const [researchDismissed, setResearchDismissed] = useState(false);
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const latest = useMemo(() => (drafts ? latestByKind(drafts) : {}), [drafts]);
@@ -107,7 +114,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   }, [frames, ensureDefaults]);
 
   const threadsFrameKey = latest.threads?.frameKey;
-  const frameValue = chosenFrame ?? threadsFrameKey ?? settings?.voice.defaultFrameKey ?? "";
+  const defaultFrameKey = settings?.voice.defaultFrameKey;
+  const frameValue = pickFrameKey({ chosen: chosenFrame, threadsFrameKey, defaultKey: defaultFrameKey, frames });
   const beatsFrame = useQuery(
     api.frames.getByKey,
     (threadsFrameKey ?? frameValue) ? { key: (threadsFrameKey ?? frameValue) as string } : "skip"
@@ -225,6 +233,18 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const igCount = (latest.caption ? 1 : 0) + (latest.reel ? 1 : 0);
   const beatLabels = (beatsFrame?.beats ?? pickedFrame?.beats ?? []).map((b) => b.label);
   const attachDraft = attachKind ? latest[attachKind] : undefined;
+  const threadBody = bodyOf("threads");
+  const firstOverPost = threadBody ? parseThread(threadBody).findIndex((p) => postLength(p) > THREADS_POST_LIMIT) + 1 : 0;
+  const guide = studioGuide({
+    generating: generation.running,
+    generationFailed: generation.failedKinds.length > 0 || Boolean(generation.failure && !hasDrafts),
+    states,
+    firstOverPost: firstOverPost > 0 ? firstOverPost : undefined,
+    manualText: Object.values(manualText).some(Boolean),
+    hasOpenSlot: board === undefined || slotsAll.length > 0,
+  });
+  const fromResearch = search.get(RESEARCH_HANDOFF_PARAM) === RESEARCH_HANDOFF_VALUE && !researchDismissed;
+  const research = researchBanner(hasDrafts);
 
   function openAttach(kind: "reel" | "caption") {
     setPane("instagram");
@@ -246,6 +266,12 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     save.failed.forEach((draftId) => void editor.flush(draftId));
   }
 
+  /** "Write it myself": store the text as the topic's draft; the editor takes over once it exists. */
+  async function saveManual(kind: DraftKind, text: string): Promise<void> {
+    await createManual({ topicId: id, kind, body: text });
+    setManualText((m) => ({ ...m, [kind]: false }));
+  }
+
   function igPanel(kind: "caption" | "reel") {
     return {
       kind,
@@ -258,6 +284,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       gen: gen(kind),
       target: igTarget(kind),
       queuedWhen: whenOf(kind),
+      onManualText: (has: boolean) => setManualText((m) => ({ ...m, [kind]: has })),
+      onSaveManual: (text: string) => saveManual(kind, text),
     };
   }
 
@@ -291,7 +319,18 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         pane={pane}
         onPane={setPane}
         counts={{ threads: threadPosts, instagram: igCount }}
+        saved={save.state === "saved"}
       />
+      <StudioGuideStrip steps={guide.steps} />
+
+      {fromResearch && (
+        <Banner
+          tone="blue"
+          title={research.title}
+          detail={research.detail}
+          actions={[{ label: "Got it", onClick: () => setResearchDismissed(true) }]}
+        />
+      )}
 
       {save.state === "error" && (
         <Banner
@@ -318,6 +357,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           pillarName={settings?.pillars.find((p) => p.key === topic.pillar)?.name ?? topic.pillar}
           frames={frames}
           frameValue={frameValue}
+          defaultFrameKey={defaultFrameKey}
           onFrame={setChosenFrame}
           beatLabels={beatLabels}
           voice={settings?.voice.description}
@@ -333,6 +373,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           gen={gen("threads")}
           placeholders={beatLabels.length ? beatLabels : FALLBACK_BEATS}
           emptyCopy="Generate and the thread lands here."
+          onManualText={(has) => setManualText((m) => ({ ...m, threads: has }))}
+          onSaveManual={(text) => saveManual("threads", text)}
         />
         <InstagramColumn
           tab={igTab}
@@ -354,6 +396,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           gen={gen("blog")}
           writing={generation.running}
           onWrite={() => void generation.start(["blog"], chosenFrame ?? undefined, existingIds)}
+          onSaveManual={(text) => saveManual("blog", text)}
         />
       </div>
 
@@ -366,6 +409,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         onBlog={setBlogOn}
         onQueue={() => void queueWeek.queue(latest)}
         queuing={queueWeek.queuing}
+        nextStep={guide.text}
+        nextTone={guide.tone}
+        savedText={save.state === "saved" ? saveLabel(save, tz) : undefined}
       />
 
       <AttachMediaDialog

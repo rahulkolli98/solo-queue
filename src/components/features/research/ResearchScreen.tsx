@@ -6,6 +6,7 @@ import { useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import ResearchSkeleton from "@/components/skeletons/ResearchSkeleton";
 import { useHydrated } from "@/lib/useHydrated";
+import { studioTopicHref } from "@/lib/studioHandoff";
 import { useNow } from "@/lib/useNow";
 import { pickSelected, researchHeadline, splitTopics } from "@/lib/researchBoard";
 import { api } from "../../../../convex/_generated/api";
@@ -108,7 +109,7 @@ export default function ResearchScreen() {
           onClose={() => setDrawer(null)}
           onSaved={(id: Id<"topics">, openStudio) => {
             setDrawer(null);
-            if (openStudio) router.push(`/studio/${id}`);
+            if (openStudio) router.push(studioTopicHref(id, "research"));
             else select(id);
           }}
           onGone={() => {
