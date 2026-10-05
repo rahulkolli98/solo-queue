@@ -17,17 +17,56 @@ export function fillSlots(template: string, vars: Record<string, string>): strin
   );
 }
 
+/** A research source as the model sees it. */
+export interface SourceInput {
+  kind: "link" | "quote" | "screenshot" | "note";
+  label: string;
+  url?: string;
+  text?: string;
+}
+
+const SOURCE_TEXT_MAX = 400;
+const SOURCES_MAX = 3000;
+
+/** The topic's sources as short lines: what each is and what it says. Bounded so a long list cannot swamp the prompt. */
+export function describeSources(sources: SourceInput[]): string {
+  const lines: string[] = [];
+  for (const s of sources) {
+    const text = s.text?.trim().slice(0, SOURCE_TEXT_MAX);
+    if (s.kind === "link") lines.push(`- link: ${s.label}${s.url ? ` (${s.url})` : ""}${text ? `: ${text}` : ""}`);
+    else if (s.kind === "quote") lines.push(`- quote: "${text ?? s.label}"`);
+    else if (s.kind === "note") lines.push(`- note: ${text ?? s.label}`);
+    else lines.push(`- screenshot: ${s.label}`);
+  }
+  return lines.join("\n").slice(0, SOURCES_MAX);
+}
+
+/**
+ * The values for the template's {{slots}}. When the founder wrote a research
+ * brief it goes into the notes slot as the main material (it was written
+ * from their sources), with their own notes after it; the sources go into the
+ * sources slot. With no brief the notes and the old single source link work
+ * exactly as before, and the model works from the topic alone.
+ */
 export function buildTopicVars(t: {
   title: string;
   pillar?: string;
   notes?: string;
   sourceUrl?: string;
+  brief?: string;
+  sources?: SourceInput[];
 }): Record<string, string> {
+  const notes = t.notes?.trim();
+  const brief = t.brief?.trim();
+  const notesSlot = brief
+    ? `Brief (written from the founder's sources; this is the main material, so stay within it):\n${brief}${notes ? `\n\nThe founder's own notes:\n${notes}` : ""}`
+    : notes || "(no notes — work from the topic alone)";
+  const sourcesSlot = t.sources && t.sources.length > 0 ? describeSources(t.sources) : t.sourceUrl?.trim() || "(no linked sources)";
   return {
     topic: t.title,
     pillar: t.pillar?.trim() ? t.pillar.trim() : "build in public",
-    notes: t.notes?.trim() ? t.notes.trim() : "(no notes — work from the topic alone)",
-    sources: t.sourceUrl?.trim() ? t.sourceUrl.trim() : "(no linked sources)",
+    notes: notesSlot,
+    sources: sourcesSlot,
   };
 }
 

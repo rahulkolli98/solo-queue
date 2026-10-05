@@ -98,7 +98,7 @@ export default function TopicBoard({
       </div>
 
       <p className="rs-sendnote" id="rs-send-note">
-        {sendToStudioNote(hasThread)}
+        {sendToStudioNote(hasThread, Boolean(topic.brief))}
       </p>
 
       <div className="rs-board-body">

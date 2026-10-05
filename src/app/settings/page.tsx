@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import CollapsibleSection from "@/components/features/CollapsibleSection";
 import ConnectionsPanel from "@/components/features/ConnectionsPanel";
 import SlotRulesForm from "@/components/features/SlotRulesForm";
-import ThreadLengthForm from "@/components/features/ThreadLengthForm";
 import { ERROR_COPY } from "@/lib/connectionErrors";
 
 export default async function SettingsPage({
@@ -63,13 +62,6 @@ export default async function SettingsPage({
           with these; any slot can still be moved.
         </p>
         <SlotRulesForm />
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Thread length" label="Thread length">
-        <p className="sq-muted" style={{ margin: 0 }}>
-          How many posts the model writes a thread in. Applies to AI-written threads only.
-        </p>
-        <ThreadLengthForm />
       </CollapsibleSection>
     </>
   );

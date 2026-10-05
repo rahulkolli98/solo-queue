@@ -303,7 +303,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     fromResearch: arrivedFromResearch,
   });
   const fromResearch = arrivedFromResearch && !researchDismissed;
-  const research = researchBanner(hasDrafts);
+  const research = researchBanner(hasDrafts, Boolean(topic?.brief));
 
   function openAttach(kind: "reel" | "caption") {
     setPane("instagram");

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTopicVars,
+  describeSources,
   captionConstraint,
   checkEditedBody,
   fillSlots,
@@ -36,6 +37,49 @@ describe("buildTopicVars", () => {
     expect(
       buildTopicVars({ title: "  T  ", pillar: " AI & tools ", notes: "n", sourceUrl: "https://x.test/a" })
     ).toEqual({ topic: "  T  ", pillar: "AI & tools", notes: "n", sources: "https://x.test/a" });
+  });
+
+  it("puts the research brief in as the main material, with the founder's own notes after it", () => {
+    const v = buildTopicVars({ title: "T", brief: "  Per-post fees tax consistency.  ", notes: "Tell it plainly." });
+    expect(v.notes).toContain("this is the main material, so stay within it");
+    expect(v.notes).toContain("Per-post fees tax consistency.");
+    expect(v.notes).toContain("The founder's own notes:\nTell it plainly.");
+    expect(v.notes.indexOf("Per-post fees")).toBeLessThan(v.notes.indexOf("Tell it plainly."));
+  });
+
+  it("uses the brief alone when there are no notes, and the old behaviour when there is no brief", () => {
+    const only = buildTopicVars({ title: "T", brief: "Just the brief." });
+    expect(only.notes).toContain("Just the brief.");
+    expect(only.notes).not.toContain("own notes");
+    expect(buildTopicVars({ title: "T", brief: "   ", notes: "n" }).notes).toBe("n");
+    expect(buildTopicVars({ title: "T" }).notes).toBe("(no notes — work from the topic alone)");
+  });
+
+  it("describes the topic's sources, so the model sees what each one says", () => {
+    const v = buildTopicVars({
+      title: "T",
+      sourceUrl: "https://old.test",
+      sources: [
+        { kind: "link", label: "developers.facebook.com", url: "https://developers.facebook.com/x" },
+        { kind: "quote", label: "Quote", text: "250 posts per 24 hours" },
+        { kind: "note", label: "Your note", text: "I measured it myself" },
+        { kind: "screenshot", label: "Screenshot" },
+      ],
+    });
+    expect(v.sources).toBe(
+      [
+        "- link: developers.facebook.com (https://developers.facebook.com/x)",
+        '- quote: "250 posts per 24 hours"',
+        "- note: I measured it myself",
+        "- screenshot: Screenshot",
+      ].join("\n")
+    );
+  });
+
+  it("falls back to the single source link when the topic has no sources, and bounds a long list", () => {
+    expect(buildTopicVars({ title: "T", sourceUrl: "https://x.test", sources: [] }).sources).toBe("https://x.test");
+    const many = Array.from({ length: 100 }, (_, i) => ({ kind: "note" as const, label: `n${i}`, text: "x".repeat(300) }));
+    expect(describeSources(many).length).toBeLessThanOrEqual(3000);
   });
 });
 

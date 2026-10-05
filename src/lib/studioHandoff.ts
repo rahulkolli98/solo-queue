@@ -69,7 +69,7 @@ export function studioTopicHref(topicId: string, from?: "research"): string {
   return from ? `/studio/${topicId}?${RESEARCH_HANDOFF_PARAM}=${RESEARCH_HANDOFF_VALUE}` : `/studio/${topicId}`;
 }
 
-export function researchBanner(hasDrafts: boolean): { title: string; detail: string } {
+export function researchBanner(hasDrafts: boolean, hasBrief = false): { title: string; detail: string } {
   return hasDrafts
     ? {
         title: "Sent from Research.",
@@ -79,6 +79,8 @@ export function researchBanner(hasDrafts: boolean): { title: string; detail: str
     : {
         title: "Sent from Research.",
         detail:
-          "Press Generate drafts and the thread, Instagram reel script and caption are written from this topic and its sources, or press Write it myself to write the thread yourself. Then you review, attach media and queue.",
+          hasBrief
+            ? "Press Generate drafts and your brief and sources are sent to the model, which writes the thread, Instagram reel script and caption from them. Or press Write it myself to write the thread yourself. Then you review, attach media and queue."
+            : "Press Generate drafts and the thread, Instagram reel script and caption are written from this topic and its sources, or press Write it myself to write the thread yourself. Then you review, attach media and queue.",
       };
 }
