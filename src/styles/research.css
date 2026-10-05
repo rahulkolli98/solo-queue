@@ -918,3 +918,79 @@
   font-weight: 400;
   color: var(--color-on-surface);
 }
+
+/* ---------- your thread: write it post by post, shared with Studio ---------- */
+.rs-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-16) var(--space-20) var(--space-20);
+  box-sizing: border-box;
+  border-radius: var(--rounded-xl);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+.rs-thread-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+.rs-thread-state[data-state="unsaved"] {
+  color: var(--color-primary-deep);
+  font-weight: 600;
+}
+.rs-thread-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-muted-on-surface);
+  overflow-wrap: anywhere;
+}
+.rs-thread-note[data-bad="true"] {
+  color: var(--color-primary-deep);
+  font-weight: 500;
+}
+.rs-thread-stale {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  flex-wrap: wrap;
+}
+.rs-thread-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.rs-thread-actions .sq-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.rs-thread-why {
+  color: var(--color-muted-on-surface);
+}
+.rs-thread-queued {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-on-surface);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rs-thread-skel-row {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+  .rs-thread {
+    padding: var(--space-14) var(--space-12) var(--space-16);
+  }
+  .rs-thread-actions .sq-btn {
+    flex: 1 1 140px;
+    min-height: 44px;
+    justify-content: center;
+  }
+}

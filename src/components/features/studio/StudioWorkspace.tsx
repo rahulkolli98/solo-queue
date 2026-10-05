@@ -9,7 +9,8 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
 import BlogPanel from "@/components/features/studio/BlogPanel";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
-import { GenerateButton, StudioToolbar, type Pane } from "@/components/features/studio/StudioActions";
+import ReplaceConfirm from "@/components/features/studio/ReplaceConfirm";
+import { GenerateControls, StudioToolbar, type Pane } from "@/components/features/studio/StudioActions";
 import StudioBottomBar from "@/components/features/studio/StudioBottomBar";
 import StudioGuideStrip from "@/components/features/studio/StudioGuideStrip";
 import ThreadsColumn from "@/components/features/studio/ThreadsColumn";
@@ -23,6 +24,7 @@ import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
 import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
+import { defaultPostCount, kindsAtRisk, postCountToSend, replaceQuestion, studioEntry } from "@/lib/studioCompose";
 import { studioErrorText } from "@/lib/studioErrors";
 import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, researchBanner } from "@/lib/studioHandoff";
 import { useDraftEditor } from "@/lib/useDraftEditor";
@@ -74,10 +76,15 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const [chosenFrame, setChosenFrame] = useState<string | null>(null);
   const [blogOn, setBlogOn] = useState(false);
   const [attachKind, setAttachKind] = useState<"reel" | "caption" | null>(null);
-  const [armed, setArmed] = useState(false);
   const [manualText, setManualText] = useState<Record<string, boolean>>({});
   const [researchDismissed, setResearchDismissed] = useState(false);
-  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // `?write=1` opens the Threads column straight into the writer; nothing is generated.
+  const [writerOpen, setWriterOpen] = useState(() => studioEntry(search, 1).write);
+  // How many posts to ask for; null = the story frame's own count (nothing is sent).
+  const [postsChosen, setPostsChosen] = useState<number | null>(null);
+  // "This replaces the thread you have written. Replace it?" while it waits for an answer.
+  const [confirm, setConfirm] = useState<{ message: string; run: () => void } | null>(null);
+  const confirmFrom = useRef<HTMLElement | null>(null);
 
   const latest = useMemo(() => (drafts ? latestByKind(drafts) : {}), [drafts]);
   // `media.list` is only the newest assets; look the attached ones up by id.
@@ -123,26 +130,51 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const pickedFrame = useQuery(api.frames.getByKey, frameValue ? { key: frameValue } : "skip");
 
   const blogKinds: DraftKind[] = blogOn || latest.blog ? ["blog"] : [];
+  const frameSteps = (beatsFrame?.beats ?? pickedFrame?.beats)?.length;
+  const frameDefaultPosts = defaultPostCount(frameSteps);
+  const postsShown = postsChosen ?? frameDefaultPosts;
+
+  /** Run now, or first ask once when it would replace text the founder already has. */
+  function askThenRun(kinds: DraftKind[], run: () => void) {
+    const atRisk = kindsAtRisk(kinds, latest, Boolean(manualText.threads));
+    if (atRisk.length === 0) {
+      run();
+      return;
+    }
+    confirmFrom.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setConfirm({ message: replaceQuestion(atRisk), run });
+  }
+
+  function closeConfirm() {
+    setConfirm(null);
+    const back = confirmFrom.current;
+    confirmFrom.current = null;
+    if (back?.isConnected) back.focus();
+  }
+
   const generateAll = () => {
-    setArmed(false);
-    void generation.start([...QUEUE_KINDS, ...blogKinds], chosenFrame ?? (frameValue || undefined), existingIds);
+    const kinds = [...QUEUE_KINDS, ...blogKinds];
+    askThenRun(kinds, () => {
+      void generation.start(
+        kinds,
+        chosenFrame ?? (frameValue || undefined),
+        existingIds,
+        postCountToSend(postsChosen, frameDefaultPosts)
+      );
+    });
   };
 
-  // "Save and draft both" / inbox "Draft" arrive with ?draft=1: write the first batch once.
-  const autoStarted = useRef(false);
+  // Only `?draft=1` ("Save and draft both", inbox "Draft") writes the first batch, once, and only
+  // for a topic with no drafts. `?write=1` and `?from=research` never start the model.
+  const entryHandled = useRef(false);
   useEffect(() => {
-    if (autoStarted.current || !topic || !drafts || search.get("draft") !== "1") return;
-    autoStarted.current = true;
+    if (entryHandled.current || !topic || !drafts) return;
+    if (search.get("draft") !== "1" && search.get("write") !== "1") return;
+    entryHandled.current = true;
+    const entry = studioEntry(search, drafts.length);
     router.replace(`/studio/${topicId}`);
-    if (drafts.length === 0) void generation.start([...QUEUE_KINDS], undefined, []);
+    if (entry.generate) void generation.start([...QUEUE_KINDS], undefined, []);
   }, [topic, drafts, search, router, topicId, generation]);
-
-  useEffect(
-    () => () => {
-      if (armTimer.current) clearTimeout(armTimer.current);
-    },
-    []
-  );
 
   if (topic === undefined || drafts === undefined) return <StudioSkeleton />;
   if (topic === null) {
@@ -234,6 +266,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const beatLabels = (beatsFrame?.beats ?? pickedFrame?.beats ?? []).map((b) => b.label);
   const attachDraft = attachKind ? latest[attachKind] : undefined;
   const threadBody = bodyOf("threads");
+  const arrivedFromResearch = search.get(RESEARCH_HANDOFF_PARAM) === RESEARCH_HANDOFF_VALUE;
   const firstOverPost = threadBody ? parseThread(threadBody).findIndex((p) => postLength(p) > THREADS_POST_LIMIT) + 1 : 0;
   const guide = studioGuide({
     generating: generation.running,
@@ -242,8 +275,10 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     firstOverPost: firstOverPost > 0 ? firstOverPost : undefined,
     manualText: Object.values(manualText).some(Boolean),
     hasOpenSlot: board === undefined || slotsAll.length > 0,
+    writerOpen,
+    fromResearch: arrivedFromResearch,
   });
-  const fromResearch = search.get(RESEARCH_HANDOFF_PARAM) === RESEARCH_HANDOFF_VALUE && !researchDismissed;
+  const fromResearch = arrivedFromResearch && !researchDismissed;
   const research = researchBanner(hasDrafts);
 
   function openAttach(kind: "reel" | "caption") {
@@ -251,15 +286,6 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     setIgTab(kind);
     media.clearError();
     setAttachKind(kind);
-  }
-
-  function onGenerateTap() {
-    if (!hasDrafts || armed) {
-      generateAll();
-      return;
-    }
-    setArmed(true);
-    armTimer.current = setTimeout(() => setArmed(false), 4000);
   }
 
   function retrySave() {
@@ -303,7 +329,16 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     </>
   );
   const generateButton = (
-    <GenerateButton hasDrafts={hasDrafts} running={generation.running} armed={armed} onGenerate={onGenerateTap} />
+    <GenerateControls
+      hasDrafts={hasDrafts}
+      running={generation.running}
+      onGenerate={generateAll}
+      posts={{
+        value: postsShown,
+        steps: frameSteps,
+        onChange: (n) => setPostsChosen(n === frameDefaultPosts ? null : n),
+      }}
+    />
   );
 
   return (
@@ -322,6 +357,19 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         saved={save.state === "saved"}
       />
       <StudioGuideStrip steps={guide.steps} />
+
+      {confirm && (
+        <ReplaceConfirm
+          message={confirm.message}
+          onReplace={() => {
+            const run = confirm.run;
+            setConfirm(null);
+            confirmFrom.current = null;
+            run();
+          }}
+          onKeep={closeConfirm}
+        />
+      )}
 
       {fromResearch && (
         <Banner
@@ -346,7 +394,13 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           tone="coral"
           title="Couldn't write new drafts."
           detail={`${generation.failure} Your earlier ${staleKinds.length === 1 ? KIND_META[staleKinds[0]].noun : "drafts"} ${staleKinds.length === 1 ? "stays" : "stay"} as ${staleKinds.length === 1 ? "it was" : "they were"}.`}
-          actions={[{ label: "Retry", onClick: () => void generation.retryFailed(existingIds), variant: "primary" }]}
+          actions={[
+            {
+              label: "Retry",
+              onClick: () => askThenRun(staleKinds, () => void generation.retryFailed(existingIds)),
+              variant: "primary",
+            },
+          ]}
         />
       )}
 
@@ -372,9 +426,12 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           queuedWhen={whenOf("threads")}
           gen={gen("threads")}
           placeholders={beatLabels.length ? beatLabels : FALLBACK_BEATS}
-          emptyCopy="Generate and the thread lands here."
+          emptyCopy="Press Generate drafts and the thread lands here, or write it yourself."
           onManualText={(has) => setManualText((m) => ({ ...m, threads: has }))}
           onSaveManual={(text) => saveManual("threads", text)}
+          writing={writerOpen}
+          onWriting={setWriterOpen}
+          expectedPosts={generation.running ? generation.postCount : undefined}
         />
         <InstagramColumn
           tab={igTab}

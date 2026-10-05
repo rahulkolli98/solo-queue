@@ -17,7 +17,7 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"draft" | "write" | null>(null);
   const inboxRef = useRef<HTMLDivElement>(null);
 
   // Arrived from an open slot: bring the inbox into view (it sits below the form on small screens).
@@ -25,21 +25,27 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
     if (emphasiseInbox) inboxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [emphasiseInbox]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  /** Save the topic, then open it: the model writes the first batch, or the founder writes the thread. */
+  async function save(mode: "draft" | "write") {
+    if (busy) return;
     if (!title.trim()) {
       setError("Give the topic a title.");
       return;
     }
-    setBusy(true);
+    setBusy(mode);
     setError(null);
     try {
       const id = await create({ title: title.trim(), notes: notes.trim() || undefined });
-      router.push(`/studio/${id}?draft=1`);
+      router.push(`/studio/${id}?${mode === "write" ? "write=1" : "draft=1"}`);
     } catch (err) {
       setError(studioErrorText(err, "Couldn't save the topic."));
-      setBusy(false);
+      setBusy(null);
     }
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    void save("draft");
   }
 
   const inbox = (board ?? []).filter((t) => t.status === "drafting" || t.status === "ready").slice(0, 6);
@@ -52,7 +58,7 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
         <h2 className="t-eyebrow">The topic</h2>
         <span className="t-meta">NEW</span>
       </div>
-      <form className="studio-note studio-note-form" onSubmit={(e) => void submit(e)} aria-label="New topic" noValidate>
+      <form className="studio-note studio-note-form" onSubmit={submit} aria-label="New topic" noValidate>
         <span className="sq-tape" aria-hidden="true" />
         <FormField label="Title" error={error}>
           <input
@@ -76,9 +82,14 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
             onChange={(e) => setNotes(e.target.value)}
           />
         </FormField>
-        <button type="submit" className="sq-btn sq-btn-dark" disabled={busy}>
-          {busy ? "Saving…" : "Save and draft both"}
-        </button>
+        <div className="studio-form-actions">
+          <button type="submit" className="sq-btn sq-btn-dark" disabled={busy !== null}>
+            {busy === "draft" ? "Saving…" : "Save and draft both"}
+          </button>
+          <button type="button" className="sq-btn studio-secondary" disabled={busy !== null} onClick={() => void save("write")}>
+            {busy === "write" ? "Saving…" : "Save and write it myself"}
+          </button>
+        </div>
       </form>
 
       <div className="studio-inbox-box" data-emphasis={emphasiseInbox || undefined} ref={inboxRef}>
@@ -86,7 +97,9 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
           {emphasiseInbox ? "Pick a topic from your inbox" : "Or draft from your inbox"}
         </h3>
         {emphasiseInbox && (
-          <p className="studio-inbox-lead">Press Draft next to a topic. It is written for both platforms.</p>
+          <p className="studio-inbox-lead">
+            Press Draft next to a topic and it is written for both platforms, or press Write to write the thread yourself.
+          </p>
         )}
         {board === undefined ? (
           <p className="t-meta" role="status">
@@ -106,13 +119,22 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
                   aria-hidden="true"
                 />
                 <span className="studio-inbox-name">{topic.title}</span>
-                <Link
-                  href={`/studio/${topic._id}?draft=1`}
-                  className="sq-btn sq-btn-sm"
-                  aria-label={`Draft ${topic.title}`}
-                >
-                  Draft
-                </Link>
+                <span className="studio-inbox-actions">
+                  <Link
+                    href={`/studio/${topic._id}?draft=1`}
+                    className="sq-btn sq-btn-sm"
+                    aria-label={`Draft ${topic.title}`}
+                  >
+                    Draft
+                  </Link>
+                  <Link
+                    href={`/studio/${topic._id}?write=1`}
+                    className="sq-btn sq-btn-sm studio-secondary"
+                    aria-label={`Write ${topic.title} yourself`}
+                  >
+                    Write
+                  </Link>
+                </span>
               </li>
             ))}
           </ul>

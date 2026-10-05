@@ -40,6 +40,30 @@ export function parseThread(body: string): string[] {
   return posts;
 }
 
+/** The most posts one thread may have (matches the server). */
+export const MAX_THREAD_POSTS = 25;
+
+/** A new empty post at the end, or the same list when the thread is already at the limit. */
+export function addPost(posts: string[]): string[] {
+  return posts.length >= MAX_THREAD_POSTS ? posts : [...posts, ""];
+}
+
+/** Remove one post; a thread always keeps at least one (the last one is emptied instead). */
+export function removePost(posts: string[], index: number): string[] {
+  if (index < 0 || index >= posts.length) return posts;
+  if (posts.length === 1) return [""];
+  return posts.filter((_, i) => i !== index);
+}
+
+/** Move one post up (-1) or down (+1); out-of-range moves leave the list as it is. */
+export function movePost(posts: string[], index: number, direction: -1 | 1): string[] {
+  const to = index + direction;
+  if (index < 0 || index >= posts.length || to < 0 || to >= posts.length) return posts;
+  const next = [...posts];
+  [next[index], next[to]] = [next[to], next[index]];
+  return next;
+}
+
 /** Posts back to the stored form: plain posts joined by `\n---\n`. */
 export function serializeThread(posts: string[]): string {
   return posts.join("\n---\n");

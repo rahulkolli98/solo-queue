@@ -489,6 +489,10 @@ export interface GuideInput {
   manualText: boolean;
   /** Any open slot in the next two weeks. */
   hasOpenSlot: boolean;
+  /** The Threads column is showing the "Write it myself" boxes (nothing saved yet). */
+  writerOpen?: boolean;
+  /** The founder arrived from Research (`?from=research`), where the thread may already be written. */
+  fromResearch?: boolean;
 }
 
 const IG_KINDS = ["reel", "caption"] as const;
@@ -550,13 +554,33 @@ export function studioGuide(input: GuideInput): StudioGuide {
     if (input.generationFailed) {
       return made("Drafting failed: the reason is shown above. Fix it and press Retry, or press Write it myself.", "fix");
     }
-    return made(
-      "Press Generate drafts and the thread, the Instagram reel script and the caption are written from this topic.",
-      "info"
-    );
+    if (input.writerOpen) {
+      return made(
+        "Write your thread in the boxes, then press Save draft. Or press Generate drafts and the model writes it.",
+        "info"
+      );
+    }
+    return made("Press Generate drafts, or press Write it myself to write the thread yourself.", "info");
   }
   if (queueDone) {
     return made("All queued. See the dates in the Queue; there is nothing left to do here.", "done");
+  }
+
+  // A thread that came from Research is already written: say so instead of asking for drafts.
+  if (input.fromResearch && at("threads") === "ready") {
+    const igNone = IG_KINDS.every((k) => at(k) === "missing");
+    if (igNone) {
+      return made(
+        "Your thread from Research is here. Press Queue 1 post to queue it. To add Instagram too, press Generate drafts: it asks before it replaces your thread.",
+        "go"
+      );
+    }
+    if (draftsDone && mediaNeed.length > 0 && at("caption") !== "over") {
+      return made(
+        "Your thread from Research is here. Add media for Instagram if you want it, then press Queue posts.",
+        "go"
+      );
+    }
   }
 
   // Problems, most urgent first.
@@ -589,7 +613,7 @@ export function studioGuide(input: GuideInput): StudioGuide {
   const missing = QUEUE_KINDS.filter((k) => at(k) === "missing");
   const missingLine =
     missing.length > 0
-      ? `The ${listNames(missing.map((k) => KIND_META[k].noun))} ${missing.length === 1 ? "is" : "are"} not written: press Generate drafts, or Retry on it.`
+      ? `The ${listNames(missing.map((k) => KIND_META[k].noun))} ${missing.length === 1 ? "is" : "are"} not written: press Generate drafts or Retry, or write ${missing.length === 1 ? "it" : "them"} yourself.`
       : "";
 
   if (fixes.length > 0 || mediaLines.length > 0 || missingLine) {
@@ -598,8 +622,8 @@ export function studioGuide(input: GuideInput): StudioGuide {
     const mediaText = media ? media.charAt(0).toUpperCase() + media.slice(1) : "";
     const tail = readyN > 0 ? ` Or press ${queueWord} now to queue only what is ready.` : "";
     const finish = !tail && mediaText && fixes.length === 0 && !missingLine ? " Then press Queue posts." : "";
-    const text = `${lead}${[...fixes, mediaText].filter(Boolean).join(" ")}${finish}${missingLine ? ` ${missingLine}` : ""}${tail}`;
-    return made(text.trim(), "fix");
+    const text = [lead.trim(), ...fixes, mediaText, finish.trim(), missingLine, tail.trim()].filter(Boolean).join(" ");
+    return made(text, "fix");
   }
 
   // Everything written is ready or already queued.
@@ -646,8 +670,8 @@ export function studioHomeGuide(hasInbox: boolean): StudioGuide {
   return {
     steps: labels.map(([key, label], i) => ({ key, number: i + 1, label, state: i === 0 ? "current" : "todo" })),
     text: hasInbox
-      ? "Type what the post is about and press Save and draft both, or pick a topic from your inbox and press Draft."
-      : "Type what the post is about and press Save and draft both. Nothing is posted until you queue it.",
+      ? "Type what the post is about, then press Save and draft both or Save and write it myself. Or pick a topic from your inbox and press Draft or Write."
+      : "Type what the post is about, then press Save and draft both or Save and write it myself. Nothing is posted until you queue it.",
     tone: "info",
   };
 }

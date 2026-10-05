@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent } from "react";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
-import ManualDraft from "@/components/features/studio/ManualDraft";
+import ManualThread from "@/components/features/studio/ManualThread";
 import { ThreadsAvatar } from "@/components/features/studio/glyphs";
 import ThreadPostRow from "@/components/features/studio/ThreadPostRow";
 import type { DraftView, GenState } from "@/components/features/studio/types";
 import {
+  MAX_THREAD_POSTS,
   THREADS_POST_LIMIT,
   cleanThread,
   overPostCount,
@@ -15,6 +16,7 @@ import {
   splitInTwo,
   trimToFit,
 } from "@/lib/draftText";
+import { addToThread, moveInThread, postsLabel, removeFromThread } from "@/lib/studioCompose";
 import { beatLabel, type Readiness } from "@/lib/studioModel";
 
 /** Board 02 / 07c-07e: the ink Threads column. */
@@ -30,6 +32,9 @@ export default function ThreadsColumn({
   emptyCopy,
   onManualText,
   onSaveManual,
+  writing,
+  onWriting,
+  expectedPosts,
 }: {
   view?: DraftView;
   beats?: { label: string }[];
@@ -47,9 +52,67 @@ export default function ThreadsColumn({
   onManualText?: (hasText: boolean) => void;
   /** Store the "Write it myself" text as the topic's thread draft. */
   onSaveManual?: (text: string) => Promise<void>;
+  /** The writer is open (Studio opens it for `?write=1`). Omit to let this column keep track itself. */
+  writing?: boolean;
+  onWriting?: (open: boolean) => void;
+  /** How many posts the running generation was asked for (the skeleton shows that many). */
+  expectedPosts?: number;
 }) {
-  const [manual, setManual] = useState(false);
+  const [localManual, setLocalManual] = useState(false);
+  const manual = writing ?? localManual;
+  const setManual = (open: boolean) => {
+    setLocalManual(open);
+    onWriting?.(open);
+  };
   const posts = view ? parseThread(view.body) : [];
+  const atMax = posts.length >= MAX_THREAD_POSTS;
+  const bodyText = view?.body;
+
+  // After Add / Move / Remove, put focus where the founder is working (the ids are the first usable one).
+  const focusNext = useRef<string[] | null>(null);
+  useEffect(() => {
+    const ids = focusNext.current;
+    if (!ids) return;
+    focusNext.current = null;
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && !(el as HTMLButtonElement).disabled) {
+        el.focus();
+        break;
+      }
+    }
+  }, [bodyText]);
+
+  function commit(next: string, focus: string[]) {
+    if (!view || next === view.body) return;
+    focusNext.current = focus;
+    view.onChange(next);
+  }
+
+  function move(index: number, direction: -1 | 1) {
+    if (!view) return;
+    const to = index + direction;
+    commit(moveInThread(view.body, index, direction), [
+      `studio-post-${to}-${direction === -1 ? "up" : "down"}`,
+      `studio-post-${to}`,
+    ]);
+  }
+
+  function remove(index: number) {
+    if (!view) return;
+    commit(removeFromThread(view.body, index), [`studio-post-${Math.min(index, posts.length - 2)}`]);
+  }
+
+  function add() {
+    if (!view) return;
+    commit(addToThread(view.body), [`studio-post-${posts.length}`]);
+  }
+
+  /** Leaving the whole thread (not moving between its posts and buttons) tidies blanks and saves now. */
+  function leave(e: FocusEvent<HTMLDivElement>) {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+    tidy();
+  }
 
   function replace(index: number, next: string[]) {
     if (!view) return;
@@ -66,7 +129,7 @@ export default function ThreadsColumn({
   }
 
   const overCount = overPostCount(posts);
-  const count = beats?.length || placeholders.length || 4;
+  const count = expectedPosts ?? (beats?.length || placeholders.length || 4);
 
   let body;
   if (gen.writing) {
@@ -90,10 +153,8 @@ export default function ThreadsColumn({
     );
   } else if (!view && (gen.error || manual)) {
     body = manual ? (
-      <ManualDraft
-        label="Threads post"
-        limit={THREADS_POST_LIMIT}
-        onText={(t) => onManualText?.(t.trim().length > 0)}
+      <ManualThread
+        onText={onManualText}
         onSave={onSaveManual}
         onRetry={gen.onRetry}
         retrying={gen.retrying}
@@ -126,7 +187,7 @@ export default function ThreadsColumn({
     );
   } else {
     body = (
-      <div className="studio-posts">
+      <div className="studio-posts" onBlur={leave}>
         {posts.map((text, i) => (
           <ThreadPostRow
             key={i}
@@ -134,12 +195,30 @@ export default function ThreadsColumn({
             text={text}
             beat={beatLabel(beats, i)}
             last={i === posts.length - 1}
+            canRemove={posts.length > 1}
             onChange={(next) => replace(i, [next])}
-            onBlur={tidy}
             onTrim={() => replace(i, [trimToFit(text, THREADS_POST_LIMIT)])}
             onSplit={() => replace(i, splitInTwo(text))}
+            onMove={(direction) => move(i, direction)}
+            onRemove={() => remove(i)}
           />
         ))}
+        <div className="studio-post-add">
+          <button
+            type="button"
+            id="studio-add-post"
+            className="sq-btn sq-btn-sm sq-btn-light"
+            onClick={add}
+            disabled={atMax}
+            aria-describedby="studio-post-count"
+          >
+            + Add post
+          </button>
+          <span className="t-meta studio-post-count" id="studio-post-count" data-full={atMax || undefined}>
+            {postsLabel(posts.length)}
+            {atMax ? " · THE MOST ONE THREAD CAN HAVE" : ""}
+          </span>
+        </div>
       </div>
     );
   }

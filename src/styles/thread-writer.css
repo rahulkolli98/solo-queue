@@ -1,0 +1,73 @@
+/* Post-by-post thread writer (Studio "Write it myself" and the Research topic board) */
+.sq-tw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.sq-tw-post {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--rounded-md);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+.sq-tw[data-tone="dark"] .sq-tw-post {
+  background: var(--color-slot-empty);
+  color: var(--color-on-chrome-strong);
+  box-shadow: inset 0 0 0 1px var(--color-chrome-hover);
+}
+.sq-tw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.sq-tw-label {
+  opacity: 0.75;
+}
+.sq-tw-tools {
+  display: inline-flex;
+  gap: var(--space-8);
+}
+/* Hover never changes the colour or background: only weight of emphasis. */
+.sq-tw-tool {
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: inherit;
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.sq-tw-tool:hover:not(:disabled) {
+  opacity: 1;
+  text-decoration: underline;
+}
+.sq-tw-tool:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.sq-tw-field {
+  color: inherit;
+}
+.sq-tw-count {
+  align-self: flex-end;
+  opacity: 0.75;
+}
+.sq-tw-count[data-over] {
+  opacity: 1;
+  font-weight: 600;
+}
+.sq-tw-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}

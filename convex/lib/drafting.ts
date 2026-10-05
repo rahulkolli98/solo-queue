@@ -82,6 +82,9 @@ export function instagramCaption(templateKey: string, body: string): string {
   return /^CAPTION\s*·/i.test(last) ? parts.slice(0, -1).join("\n---\n").trim() : body.trim();
 }
 
+/** The most posts one thread may have. Threads allows long chains; this keeps a mistake from posting dozens. */
+export const MAX_THREAD_POSTS = 25;
+
 export function threadsConstraint(body: string): {
   charCount: number;
   constraintOk: boolean;
@@ -92,7 +95,7 @@ export function threadsConstraint(body: string): {
     charCount: posts.length > 0 ? longest : body.trim().length,
     constraintOk:
       posts.length > 0
-        ? posts.every((p) => p.length <= 500)
+        ? posts.length <= MAX_THREAD_POSTS && posts.every((p) => p.length <= 500)
         : body.trim().length <= 500,
   };
 }

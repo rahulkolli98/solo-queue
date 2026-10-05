@@ -37,7 +37,7 @@ describe("open slot -> Studio hand-off", () => {
     expect(fillSlotLabel(slot)).toBe("Sat 3 Oct, 09:30 on Threads");
     const banner = fillBanner(slot);
     expect(banner.title).toBe("Filling Sat 3 Oct, 09:30 on Threads.");
-    expect(banner.detail).toContain("Pick a topic from your inbox below and press Draft, or write a new one.");
+    expect(banner.detail).toContain("Pick a topic from your inbox below and press Draft or Write, or add a new one.");
     // queueing is not promised to land in this exact slot
     expect(banner.detail).toContain("next free slots in order");
   });
@@ -55,6 +55,7 @@ describe("Research -> Studio hand-off", () => {
 
   it("explains what happens next, with and without drafts", () => {
     expect(researchBanner(false).detail).toContain("Press Generate drafts");
-    expect(researchBanner(true).detail).toContain("already has drafts");
+    expect(researchBanner(true).detail).toContain("Your thread is here as the Threads draft");
+    expect(researchBanner(false).detail).toContain("press Write it myself");
   });
 });

@@ -1295,3 +1295,176 @@ body:has(.studio-bar) {
   width: 13px;
   height: 13px;
 }
+
+/* ---------- write it yourself / post count / replace question ---------- */
+
+/* Posts control beside Generate drafts / Regenerate */
+.studio-gen {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+.studio-posts-ctl {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: start;
+  column-gap: var(--space-8);
+  row-gap: var(--space-4);
+  max-width: 260px;
+}
+.studio-posts-label {
+  color: var(--color-on-surface);
+}
+.studio-posts-select.sq-input {
+  width: auto;
+  min-width: 68px;
+  min-height: 44px;
+  padding: 0 var(--space-10);
+}
+.studio-posts-hint {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--color-muted-on-surface);
+}
+
+/* "This replaces the thread you have written. Replace it?" */
+.studio-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--rounded-xl);
+  background: var(--color-warning);
+  color: var(--color-on-surface);
+  box-sizing: border-box;
+}
+.studio-confirm-text {
+  margin: 0;
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.studio-confirm .sq-btn {
+  border-color: var(--color-on-surface);
+  color: var(--color-on-surface);
+}
+.studio-confirm .sq-btn-primary {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+
+/* new-topic form: the two ways in, and the inbox row's two actions */
+.studio-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.studio-secondary {
+  background: transparent;
+}
+.studio-inbox-actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-6);
+}
+
+/* per-post tools and the Add post row inside the saved thread */
+.studio-post-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+}
+.studio-post-tool {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  cursor: pointer;
+}
+.studio-post-tool:hover:not(:disabled) {
+  opacity: 1;
+  text-decoration: underline;
+}
+.studio-post-tool:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--color-threads);
+  outline-offset: 2px;
+}
+.studio-post-tool:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.studio-post-tool[data-confirming] {
+  opacity: 1;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.studio-post-add {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  padding-top: var(--space-4);
+}
+.studio-post-count {
+  color: var(--color-muted-on-chrome);
+}
+.studio-post-count[data-full] {
+  color: var(--color-on-chrome-strong);
+  font-weight: 600;
+}
+.studio-manual-thread .sq-tw-tool:focus-visible,
+.studio-manual-thread .sq-btn:focus-visible {
+  outline: 2px solid var(--color-threads);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .studio-gen {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .studio-posts-ctl {
+    max-width: none;
+  }
+  .studio-posts-hint {
+    grid-column: 1 / -1;
+  }
+  .studio-post-tool {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .studio-post-add .sq-btn,
+  .studio-confirm .sq-btn,
+  .studio-form-actions .sq-btn {
+    min-height: 44px;
+  }
+  .studio-inbox-actions .sq-btn {
+    min-height: 44px;
+  }
+  .studio-manual-thread .sq-tw-tool {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .studio-confirm .studio-actions-row {
+    width: 100%;
+  }
+  .studio-confirm .studio-actions-row .sq-btn {
+    flex: 1;
+  }
+}

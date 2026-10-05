@@ -27,6 +27,7 @@ import type * as lib_settingsDb from "../lib/settingsDb.js";
 import type * as lib_settingsModel from "../lib/settingsModel.js";
 import type * as lib_slotPlanning from "../lib/slotPlanning.js";
 import type * as lib_slots from "../lib/slots.js";
+import type * as lib_threadReplies from "../lib/threadReplies.js";
 import type * as lib_topicOrder from "../lib/topicOrder.js";
 import type * as lib_zoned from "../lib/zoned.js";
 import type * as library from "../library.js";
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   "lib/settingsModel": typeof lib_settingsModel;
   "lib/slotPlanning": typeof lib_slotPlanning;
   "lib/slots": typeof lib_slots;
+  "lib/threadReplies": typeof lib_threadReplies;
   "lib/topicOrder": typeof lib_topicOrder;
   "lib/zoned": typeof lib_zoned;
   library: typeof library;
