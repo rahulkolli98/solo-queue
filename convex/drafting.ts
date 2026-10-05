@@ -124,8 +124,13 @@ export const generate = operatorAction({
     topicId: v.id("topics"),
     formats: v.optional(v.array(formatArg)),
     frameKey: v.optional(v.string()),
+    /** How many posts the thread should have (2 to 12). Default: what the story frame has. */
+    postCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    if (args.postCount !== undefined && (!Number.isInteger(args.postCount) || args.postCount < 2 || args.postCount > 12)) {
+      throw refusal("BAD_POST_COUNT", "A thread can have 2 to 12 posts when it is written for you.");
+    }
     const formats = (args.formats?.length ? args.formats : DEFAULT_FORMATS) as Format[];
 
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
@@ -174,7 +179,11 @@ export const generate = operatorAction({
       // The frame steers every format except the blog draft, and only where it fits.
       const useFrame = frame && frame.isActive && fit !== null && frame.fits.includes(fit);
       const basePrompt = fillSlots(template.body, vars);
-      const prompt = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
+      const withFrame = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
+      const prompt =
+        format === "threads" && args.postCount
+          ? `${withFrame}\n\nWrite exactly ${args.postCount} posts, separated by --- lines. Ignore any other number of posts mentioned above, and spread the story across all ${args.postCount} posts.`
+          : withFrame;
 
       const body: string = await withLlmErrors(async () => {
       let body: string;
@@ -191,7 +200,7 @@ export const generate = operatorAction({
               posts: z
                 .array(z.object({ beat: z.string(), text: z.string() }))
                 .min(1)
-                .max(6),
+                .max(12),
             }),
           });
           body = object.posts.map((p) => p.text.trim()).join("\n---\n");

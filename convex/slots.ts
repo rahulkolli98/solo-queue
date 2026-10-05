@@ -3,7 +3,7 @@ import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { checkEditedBody, hasPlaceholder } from "./lib/drafting";
+import { checkEditedBody, hasPlaceholder, MAX_THREAD_POSTS, splitPosts } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
   enqueuePayloadSchema,
@@ -271,6 +271,12 @@ async function doEnqueue(
         "Blog drafts don't queue — publishing runs per platform."
       );
 
+    if (platform === "threads" && splitPosts(draft.body).length > MAX_THREAD_POSTS) {
+      throw refusal(
+        "TOO_MANY_POSTS",
+        `This thread has ${splitPosts(draft.body).length} posts. The most one thread can have is ${MAX_THREAD_POSTS}.`
+      );
+    }
     const check = checkEditedBody(platform, draft.templateKey, draft.body);
     if (!check.constraintOk) {
       if (platform === "threads")
