@@ -7,12 +7,15 @@ import { useToast } from "@/components/ui/Toast";
 import { readinessLabel } from "../../../../convex/lib/research";
 import { refusalText } from "@/lib/refusalText";
 import { sourceSummary } from "@/lib/researchBoard";
+import { postsOf, sendToStudioNote } from "@/lib/researchThread";
 import { studioTopicHref } from "@/lib/studioHandoff";
+import { latestByKind } from "@/lib/studioModel";
 import { api } from "../../../../convex/_generated/api";
 import AddSource from "./AddSource";
 import AnglesRow from "./AnglesRow";
 import BriefPaper from "./BriefPaper";
 import SourceCards from "./SourceCards";
+import YourThread from "./YourThread";
 import type { BoardTopic, Frame, Pillar } from "./types";
 import { pillarOf } from "./types";
 
@@ -24,14 +27,20 @@ export default function TopicBoard({
   topic,
   frames,
   pillars,
+  timezone,
   onEdit,
 }: {
   topic: BoardTopic;
   frames: Frame[];
   pillars: Pillar[];
+  /** The saved time zone setting ("auto" or an IANA name), for slot times. */
+  timezone?: string;
   onEdit: () => void;
 }) {
   const sources = useQuery(api.sources.listByTopic, { topicId: topic._id });
+  const drafts = useQuery(api.drafts.listByTopic, { topicId: topic._id });
+  const threadDraft = drafts ? latestByKind(drafts).threads : undefined;
+  const hasThread = Boolean(threadDraft && postsOf(threadDraft.body).some((p) => p.trim()));
   const needsImages = (sources ?? []).some((s) => s.kind === "screenshot" && s.mediaAssetId);
   const media = useQuery(api.media.list, needsImages ? {} : "skip");
   const archive = useMutation(api.topics.archive);
@@ -89,8 +98,7 @@ export default function TopicBoard({
       </div>
 
       <p className="rs-sendnote" id="rs-send-note">
-        Send to Studio opens this topic there. You press Generate drafts and the thread, reel script and caption are written
-        from it.
+        {sendToStudioNote(hasThread)}
       </p>
 
       <div className="rs-board-body">
@@ -106,6 +114,8 @@ export default function TopicBoard({
       </div>
 
       <AnglesRow topicId={topic._id} angles={topic.angles} frames={frames} />
+
+      <YourThread topicId={topic._id} timezone={timezone} />
     </section>
   );
 }

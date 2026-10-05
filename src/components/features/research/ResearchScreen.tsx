@@ -94,6 +94,7 @@ export default function ResearchScreen() {
               topic={selected}
               frames={frames ?? []}
               pillars={settings.pillars}
+              timezone={settings.timezone}
               onEdit={() => setDrawer({ mode: "edit", id: selected._id })}
             />
           ) : (

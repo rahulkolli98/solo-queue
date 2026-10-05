@@ -1,40 +1,97 @@
 "use client";
 
+import { useId } from "react";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { CheckIcon } from "@/components/ui/icons";
+import { POSTS_MAX, POSTS_MIN, postsHelper } from "@/lib/studioCompose";
 
 export type Pane = "threads" | "instagram" | "blog";
 
-/** Generate / Regenerate: Regenerate is two-tap because it replaces the unqueued drafts. */
+/** Generate / Regenerate. Replacing drafts the founder already has is confirmed by <ReplaceConfirm />. */
 export function GenerateButton({
   hasDrafts,
   running,
-  armed,
   onGenerate,
 }: {
   hasDrafts: boolean;
   running: boolean;
-  /** First tap of a two-tap Regenerate. */
-  armed: boolean;
   onGenerate: () => void;
 }) {
-  const label = running
-    ? "Generating…"
-    : armed
-      ? "Tap again to replace"
-      : hasDrafts
-        ? "Regenerate all"
-        : "Generate drafts";
+  const label = running ? "Generating…" : hasDrafts ? "Regenerate all" : "Generate drafts";
   return (
     <button
       type="button"
-      className={`sq-btn${hasDrafts ? "" : " sq-btn-primary"}${armed ? " studio-armed" : ""}`}
+      className={`sq-btn${hasDrafts ? "" : " sq-btn-primary"}`}
       disabled={running}
-      title={armed ? "Replaces the drafts that are not queued yet" : undefined}
       onClick={onGenerate}
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * "Posts": how many posts the model writes the thread in (2 to 12). It starts
+ * on the story frame's own step count; only a count the founder changes is
+ * sent to the model.
+ */
+export function PostsControl({
+  value,
+  steps,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  /** The story frame's step count, for the helper line. */
+  steps?: number;
+  disabled: boolean;
+  onChange: (count: number) => void;
+}) {
+  const id = useId();
+  const options = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
+  return (
+    <div className="studio-posts-ctl">
+      <label htmlFor={id} className="t-meta studio-posts-label">
+        Posts
+      </label>
+      <select
+        id={id}
+        className="sq-input studio-posts-select"
+        value={value}
+        disabled={disabled}
+        aria-describedby={`${id}-hint`}
+        onChange={(e) => onChange(Number(e.target.value))}
+      >
+        {options.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <span id={`${id}-hint`} className="studio-posts-hint">
+        {postsHelper(steps)}
+      </span>
+    </div>
+  );
+}
+
+/** The Posts control beside the Generate / Regenerate button. */
+export function GenerateControls({
+  hasDrafts,
+  running,
+  onGenerate,
+  posts,
+}: {
+  hasDrafts: boolean;
+  running: boolean;
+  onGenerate: () => void;
+  posts: { value: number; steps?: number; onChange: (count: number) => void };
+}) {
+  return (
+    <div className="studio-gen">
+      <PostsControl value={posts.value} steps={posts.steps} disabled={running} onChange={posts.onChange} />
+      <GenerateButton hasDrafts={hasDrafts} running={running} onGenerate={onGenerate} />
+    </div>
   );
 }
 

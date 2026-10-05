@@ -337,12 +337,12 @@ describe("BlogPanel", () => {
 });
 
 describe("Studio toolbar and generate button", () => {
-  it("labels Generate, Regenerate, the armed second tap and running", () => {
+  it("labels Generate, Regenerate and running (replacing is confirmed separately, not by a second tap)", () => {
     const base = { onGenerate: vi.fn() };
-    expect(html(<GenerateButton {...base} hasDrafts={false} running={false} armed={false} />)).toContain("Generate drafts");
-    expect(html(<GenerateButton {...base} hasDrafts running={false} armed={false} />)).toContain("Regenerate all");
-    expect(html(<GenerateButton {...base} hasDrafts running={false} armed />)).toContain("Tap again to replace");
-    expect(html(<GenerateButton {...base} hasDrafts running armed={false} />)).toContain("Generating…");
+    expect(html(<GenerateButton {...base} hasDrafts={false} running={false} />)).toContain("Generate drafts");
+    expect(html(<GenerateButton {...base} hasDrafts running={false} />)).toContain("Regenerate all");
+    expect(html(<GenerateButton {...base} hasDrafts running />)).toContain("Generating…");
+    expect(html(<GenerateButton {...base} hasDrafts running={false} />)).not.toContain("Tap again");
   });
 
   it("has a polite save status and both view switches", () => {

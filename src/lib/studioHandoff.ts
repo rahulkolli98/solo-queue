@@ -57,7 +57,7 @@ export function fillBanner(slot: FillSlot): { title: string; detail: string } {
   return {
     title: slot.time ? `Filling ${fillSlotLabel(slot)}.` : `Filling an open slot on ${shortDay(slot.dayKey)}.`,
     detail:
-      "Pick a topic from your inbox below and press Draft, or write a new one. When you queue, posts take the next free slots in order.",
+      "Pick a topic from your inbox below and press Draft or Write, or add a new one. When you queue, posts take the next free slots in order.",
   };
 }
 
@@ -73,11 +73,12 @@ export function researchBanner(hasDrafts: boolean): { title: string; detail: str
   return hasDrafts
     ? {
         title: "Sent from Research.",
-        detail: "This topic already has drafts. Edit them here, attach media for Instagram, then press Queue posts.",
+        detail:
+          "Your thread is here as the Threads draft. Edit it here, attach media for Instagram if you want it, then press Queue posts.",
       }
     : {
         title: "Sent from Research.",
         detail:
-          "Press Generate drafts and the thread, Instagram reel script and caption are written from this topic and its sources. Then you review, attach media and queue.",
+          "Press Generate drafts and the thread, Instagram reel script and caption are written from this topic and its sources, or press Write it myself to write the thread yourself. Then you review, attach media and queue.",
       };
 }

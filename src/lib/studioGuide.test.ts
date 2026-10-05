@@ -64,13 +64,53 @@ describe("studioGuide: the 4-step strip", () => {
     const g = studioHomeGuide(true);
     expect(stepStates(g)).toBe("1:current 2:todo 3:todo 4:todo");
     expect(g.text).toMatch(/Save and draft both/);
+    expect(g.text).toMatch(/Save and write it myself/);
     expect(g.text).toMatch(/inbox/);
   });
 });
 
 describe("studioGuide: the one sentence of what to do next", () => {
-  it("before any draft: press Generate drafts", () => {
-    expect(guide({}).text).toMatch(/^Press Generate drafts/);
+  it("before any draft: both routes are offered, generate or write it yourself", () => {
+    const g = guide({});
+    expect(g.text).toBe("Press Generate drafts, or press Write it myself to write the thread yourself.");
+    expect(g.tone).toBe("info");
+  });
+
+  it("with the writer open: save the thread, or let the model write it", () => {
+    const g = guide({ writerOpen: true });
+    expect(g.text).toMatch(/^Write your thread in the boxes, then press Save draft\./);
+    expect(g.text).toMatch(/Generate drafts/);
+  });
+
+  it("a hand-written thread with no Instagram drafts offers Queue, Generate, or writing them yourself", () => {
+    const g = guide({ s: { threads: "ready" } });
+    expect(g.text).toContain("Your thread is ready.");
+    expect(g.text).toContain("press Generate drafts or Retry, or write them yourself.");
+    expect(g.text).toContain("Queue 1 post");
+  });
+
+  it("from Research with the thread written and Instagram drafts waiting on media: thread is here, add media, Queue", () => {
+    const g = guide({
+      fromResearch: true,
+      s: { threads: "ready", caption: "media_required", reel: "media_required" },
+    });
+    expect(g.text).toBe(
+      "Your thread from Research is here. Add media for Instagram if you want it, then press Queue posts."
+    );
+    expect(g.tone).toBe("go");
+  });
+
+  it("from Research with only the thread: it can be queued, and Generate asks before replacing it", () => {
+    const g = guide({ fromResearch: true, s: { threads: "ready" } });
+    expect(g.text).toContain("Your thread from Research is here.");
+    expect(g.text).toContain("Press Queue 1 post");
+    expect(g.text).toContain("it asks before it replaces your thread");
+  });
+
+  it("from Research, an over-long thread is still fixed first", () => {
+    const g = guide({ fromResearch: true, s: { threads: "over" } });
+    expect(g.text).not.toContain("from Research");
+    expect(g.text).toContain("Trim to fit");
   });
 
   it("while writing: wait", () => {
