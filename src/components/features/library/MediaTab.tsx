@@ -3,6 +3,7 @@
 import { ConvexError } from "convex/values";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRef, useState } from "react";
+import { UploadIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { checkUploadFile, matchesSearch, mediaName, mimeFromUrl, tiltFor } from "@/lib/libraryBoard";
 import { mediaHost, mediaStatus, mediaTypeLabel } from "@/lib/mediaStatus";
@@ -27,14 +28,6 @@ interface Uploading {
   name: string;
   percent: number;
   cancel: () => void;
-}
-
-function UploadIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-      <path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4" />
-    </svg>
-  );
 }
 
 function UploadingTile({ item, index }: { item: Uploading; index: number }) {

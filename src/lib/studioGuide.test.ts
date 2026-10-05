@@ -136,7 +136,7 @@ describe("studioGuide: the one sentence of what to do next", () => {
     const g = guide({ s: { threads: "ready", caption: "media_required", reel: "media_required" } });
     expect(g.text).toContain("Your thread is ready.");
     expect(g.text).toContain("Instagram needs media: attach a photo or video to the reel and caption");
-    expect(g.text).toContain("Library > Media or the Attach button");
+    expect(g.text).toContain("press Attach media and upload one right there");
     expect(g.text).toContain("Queue 1 post");
     expect(g.tone).toBe("fix");
   });

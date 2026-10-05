@@ -59,6 +59,12 @@ export const SettingsIcon = () => (
   </Icon>
 );
 
+export const UploadIcon = () => (
+  <Icon>
+    <path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4" />
+  </Icon>
+);
+
 export const PlusIcon = () => (
   <Icon strokeWidth="2">
     <path d="M12 5v14M5 12h14" />

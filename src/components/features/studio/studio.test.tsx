@@ -1,5 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+
+// The attach dialog can upload, which needs a Convex client; these are render-only tests.
+vi.mock("convex/react", () => ({ useMutation: () => vi.fn(), useQuery: () => undefined, useAction: () => vi.fn() }));
+
 import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
 import MediaPanel from "@/components/features/studio/MediaPanel";
 import BlogPanel from "@/components/features/studio/BlogPanel";
@@ -418,6 +422,25 @@ describe("media on a card (Studio panel and attach dialog)", () => {
     const stale = panel(img({ verifiedAt: Date.now() - 30 * HOUR }), "stale");
     expect(stale).toContain("CHECK AGAIN SOON");
     expect(stale).toContain("Recheck");
+  });
+
+  it("dialog: offers an upload area first, so a file can be added without leaving Studio", () => {
+    const out = dialog([]);
+    expect(out).toContain("Upload a photo or video");
+    expect(out).toContain("It goes straight onto this draft");
+    expect(out).toContain("Choose a file");
+    expect(out).toContain('accept="image/*,video/*"');
+    expect(out).toContain("Nothing in the library yet. Upload a photo or video above.");
+    expect(out).toContain("Manage all files in Library");
+    expect(out).not.toContain("Upload in Library");
+  });
+
+  it("dialog: with no draft open the upload is disabled and says to write or generate one first", () => {
+    const out = html(
+      <AttachMediaDialog open onClose={vi.fn()} assets={[]} draftId={null} currentAssetId={undefined} forLabel="Caption" now={NOW} media={media} />
+    );
+    expect(out).toContain("Write or generate this draft first, then upload.");
+    expect(out).toMatch(/<button[^>]*disabled[^>]*>Choose a file/);
   });
 
   it("dialog: every card shows preview, name, host, type and a worded state", () => {

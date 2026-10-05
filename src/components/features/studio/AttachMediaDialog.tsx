@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Drawer from "@/components/ui/Drawer";
 import MediaThumb from "@/components/features/studio/MediaThumb";
+import UploadAndAttach from "@/components/features/studio/UploadAndAttach";
 import type { MediaActions } from "@/components/features/studio/useMediaActions";
 import { describeMediaStatus, mediaHost, mediaTypeLabel, type MediaStatusKind } from "@/lib/mediaStatus";
 import { mediaState, type Asset } from "@/lib/studioModel";
@@ -15,8 +16,9 @@ const KIND_BY_STATE: Record<"ok" | "stale" | "unverified", MediaStatusKind> = {
 };
 
 /**
- * Studio's media picker: the library's assets as tiles with Use / Verify.
- * (Uploading and URL registration live in Library > Media.)
+ * Studio's media picker: upload a new photo or video right here (it is checked and
+ * attached in one go), or pick one already in the library with Use / Verify.
+ * Registering a link and managing every file live in Library > Media.
  */
 export default function AttachMediaDialog({
   open,
@@ -50,11 +52,12 @@ export default function AttachMediaDialog({
       title="Attach media"
       eyebrow={`Instagram · ${forLabel}`}
       footer={
-        <Link href="/library" className="sq-btn">
-          Upload in Library
+        <Link href="/library/media" className="sq-btn">
+          Manage all files in Library
         </Link>
       }
     >
+      <UploadAndAttach draftId={draftId} media={media} onAttached={onClose} />
       {media.error && (
         <p className="studio-inline-error" role="alert">
           {media.error}
@@ -65,7 +68,7 @@ export default function AttachMediaDialog({
           Loading the library…
         </p>
       ) : assets.length === 0 ? (
-        <p className="sq-muted">The library is empty. Upload a photo or video in Library, then come back.</p>
+        <p className="sq-muted">Nothing in the library yet. Upload a photo or video above.</p>
       ) : (
         <ul className="studio-picker">
           {assets.map((asset) => {

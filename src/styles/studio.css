@@ -1489,3 +1489,52 @@ body:has(.studio-bar) {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Upload straight from the attach dialog */
+.studio-upload {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-14);
+  margin-bottom: var(--space-16);
+  border: 2px dashed var(--color-line);
+  border-radius: var(--rounded-md);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+}
+.studio-upload svg {
+  width: 28px;
+  height: 28px;
+}
+.studio-upload[data-over] {
+  border-color: var(--color-primary);
+  border-style: solid;
+}
+.studio-upload[data-busy] {
+  opacity: 0.85;
+}
+.studio-upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.studio-upload-text span {
+  font-size: 13px;
+  opacity: 0.75;
+}
+.studio-upload-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-primary-deep);
+}
+@media (max-width: 520px) {
+  .studio-upload {
+    grid-template-columns: auto 1fr;
+  }
+  .studio-upload .sq-btn {
+    grid-column: 1 / -1;
+  }
+}
