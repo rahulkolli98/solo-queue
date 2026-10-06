@@ -1,11 +1,12 @@
 import type { Id } from "./_generated/dataModel";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
-import { refusal } from "./lib/slots";
+import { assertFileNotRemoved, refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { slotRisk } from "./lib/connectionRisk";
 import { readSettings } from "./lib/settingsDb";
-import { hasOpenSlot, planNextSlot, takenTimes } from "./lib/slotPlanning";
+import { isReelTemplate } from "./lib/queueRules";
+import { assertOneReelPerDay, effectiveTz, hasOpenSlot, planNextSlot, reelDays, takenTimes } from "./lib/slotPlanning";
 import { dayKey, resolveTz, zonedParts, zonedWallToUtc } from "./lib/zoned";
 
 /**
@@ -183,6 +184,7 @@ export const detail = operatorQuery({
             mimeType: asset.mimeType,
             verifiedAt: asset.verifiedAt ?? null,
             lastVerifyError: asset.lastVerifyError ?? null,
+            fileRemoved: asset.fileDeletedAt !== undefined,
           }
         : null,
       receipts: receipts.map((r) => ({
@@ -209,12 +211,20 @@ export const retry = operatorMutation({
     const now = Date.now();
     let at = args.scheduledAt;
     if (at !== undefined && at <= now) throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    // "One reel a day" holds for a retried reel too, at the time picked or the next free one.
+    const settings = await readSettings(ctx);
+    const draft = await ctx.db.get(slot.draftId);
+    const reel = draft !== null && isReelTemplate(draft.templateKey) && settings.rules.oneReelPerDay;
     if (at === undefined) {
       try {
-        at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now);
+        at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now, {
+          rejectDays: reel ? await reelDays(ctx, effectiveTz(settings, args.tz), now, new Set([args.id])) : undefined,
+        });
       } catch (err) {
         throw refusal("NO_FREE_SLOT", err instanceof Error ? err.message : "No free slot.");
       }
+    } else if (draft) {
+      await assertOneReelPerDay(ctx, settings, draft.templateKey, at, args.tz, now, args.id);
     }
     await ctx.db.patch(args.id, {
       status: "scheduled",
@@ -273,12 +283,19 @@ export const requeue = operatorMutation({
     if (await hasOpenSlot(ctx, slot.draftId)) {
       throw refusal("ALREADY_QUEUED", "This post is already queued again.");
     }
-    if (slot.platform === "instagram" && !(draft.mediaAssetId && (await ctx.db.get(draft.mediaAssetId)))) {
-      throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
+    if (slot.platform === "instagram") {
+      const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+      if (!asset) throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
+      assertFileNotRemoved(asset);
     }
     let at: number;
     try {
-      at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now);
+      at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now, {
+        rejectDays:
+          settings.rules.oneReelPerDay && isReelTemplate(draft.templateKey)
+            ? await reelDays(ctx, effectiveTz(settings, args.tz), now)
+            : undefined,
+      });
     } catch (err) {
       throw refusal("NO_FREE_SLOT", err instanceof Error ? err.message : "No free slot.");
     }

@@ -6,6 +6,9 @@ import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hasPlaceholder, instagramCaption, splitPosts, stripBeatHeaders } from "./lib/drafting";
 import { isLivePublishing } from "./lib/safety";
+import { isHeldByNaturalTiming, type HoldReason } from "./lib/queueHold";
+import { readHold } from "./lib/queueHoldDb";
+import { readSettings } from "./lib/settingsDb";
 import { publishReplyWithRetry } from "./lib/threadReplies";
 import {
   publishInstagramPost,
@@ -120,11 +123,25 @@ export const successCounts24h = internalQuery({
   },
 });
 
-/** Due slots without claiming (dry-run reader — never writes). */
+/**
+ * Why the queue is holding right now ("vacation", "failure") or null. Read by
+ * the tick for its dry run and logs; `slots.claimDue` makes the same check
+ * itself, inside its own transaction.
+ */
+export const currentHold = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, args): Promise<{ reason: HoldReason; vacationUntil: number | null }> => {
+    const { reason, vacationUntil } = await readHold(ctx, args.now);
+    return { reason, vacationUntil };
+  },
+});
+
+/** Due slots without claiming (dry-run reader — never writes). Honors natural timing, as a claim would. */
 export const listDue = internalQuery({
   args: { now: v.number(), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const cap = Math.min(Math.max(args.limit ?? 10, 1), 25);
+    const naturalTiming = (await readSettings(ctx)).naturalTiming;
     const due: { _id: string; platform: string; scheduledAt: number }[] = [];
     for (const platform of ["threads", "instagram"] as const) {
       const rows = await ctx.db
@@ -133,7 +150,10 @@ export const listDue = internalQuery({
           q.eq("platform", platform).eq("status", "scheduled").lte("scheduledAt", args.now)
         )
         .take(cap);
-      for (const r of rows) due.push({ _id: r._id, platform, scheduledAt: r.scheduledAt });
+      for (const r of rows) {
+        if (isHeldByNaturalTiming(r, naturalTiming, args.now)) continue;
+        due.push({ _id: r._id, platform, scheduledAt: r.scheduledAt });
+      }
     }
     due.sort((a, b) => a.scheduledAt - b.scheduledAt);
     return due.slice(0, cap);
@@ -180,6 +200,15 @@ interface TickResult {
   limited: number;
   paused: boolean;
   dryRun: boolean;
+  /** Set when a vacation or an unresolved failure kept the queue from claiming anything this tick. */
+  hold?: "vacation" | "failure";
+}
+
+function holdMessage(hold: { reason: HoldReason; vacationUntil: number | null }): string {
+  if (hold.reason === "vacation") {
+    return `holding for vacation${hold.vacationUntil ? ` until ${new Date(hold.vacationUntil).toISOString()}` : ""}`;
+  }
+  return "holding because a post failed (retry or cancel it)";
 }
 
 /**
@@ -209,9 +238,14 @@ export const tick = internalAction({
       return { claimed: 0, published: 0, failed: 0, limited: 0, paused: true, dryRun: isDryRun() };
     }
 
+    const hold = await ctx.runQuery(internal.publish.currentHold, { now });
+
     if (isDryRun()) {
-      const due = await ctx.runQuery(internal.publish.listDue, { now, limit: 10 });
+      const due = hold.reason ? [] : await ctx.runQuery(internal.publish.listDue, { now, limit: 10 });
       const counts = await ctx.runQuery(internal.publish.successCounts24h, { now });
+      if (hold.reason) {
+        console.log(`publish.tick DRY RUN: ${holdMessage(hold)} — nothing would be claimed.`);
+      }
       for (const s of due) {
         console.log(
           `publish.tick DRY RUN: would claim ${s._id} (${s.platform}, due ${new Date(s.scheduledAt).toISOString()}); 24h successes threads=${counts.threads} instagram=${counts.instagram}.`
@@ -232,12 +266,15 @@ export const tick = internalAction({
         limited: 0,
         paused: false,
         dryRun: true,
+        ...(hold.reason ? { hold: hold.reason } : {}),
       };
     }
 
     // A claim that never finished (crash, timeout) is failed loudly, never retried blind.
     await ctx.runMutation(internal.slotRecovery.reapStaleClaims, { now });
 
+    if (hold.reason) console.log(`publish.tick: ${holdMessage(hold)} — claiming nothing.`);
+    // claimDue re-checks the hold in its own transaction, so this read is only for the log and result.
     const ids = await ctx.runMutation(internal.slots.claimDue, { now, limit: 10 });
     let published = 0;
     let failed = 0;
@@ -278,7 +315,15 @@ export const tick = internalAction({
       published,
       failed,
     });
-    return { claimed: ids.length, published, failed, limited, paused: false, dryRun: false };
+    return {
+      claimed: ids.length,
+      published,
+      failed,
+      limited,
+      paused: false,
+      dryRun: false,
+      ...(hold.reason ? { hold: hold.reason } : {}),
+    };
   },
 });
 

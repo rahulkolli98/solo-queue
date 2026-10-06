@@ -95,7 +95,7 @@ export function MetaCard({
           </span>
         </div>
       ))}
-      <Link href="/settings" className="sq-btn sq-btn-sm">
+      <Link href="/settings/connections" className="sq-btn sq-btn-sm">
         Manage connections
       </Link>
     </section>

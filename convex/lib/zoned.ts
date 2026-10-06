@@ -99,6 +99,8 @@ export interface SlotPlan {
   maxPerDay?: number;
   /** Candidates inside this window are skipped (vacation mode). */
   vacation?: { from: number; to: number };
+  /** Extra veto: a candidate for which this returns true is skipped (queue rules such as "one reel a day"). */
+  reject?: (ts: number) => boolean;
   /** How many local days ahead to look. */
   horizonDays?: number;
 }
@@ -139,6 +141,7 @@ export function nextFreeSlot(plan: SlotPlan): number {
       if (ts <= plan.afterMs) continue;
       if (busy.has(Math.floor(ts / 60000))) continue;
       if (plan.vacation && ts >= plan.vacation.from && ts <= plan.vacation.to) continue;
+      if (plan.reject?.(ts)) continue;
       return ts;
     }
   }

@@ -10,12 +10,14 @@ import {
   checkEditedBody,
   fillSlots,
   plainConstraint,
+  splitPosts,
   stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
 import { refusal } from "./lib/slots";
+import { applySignOff, limitHashtags } from "./lib/voiceRules";
 
 const FORMATS = {
   threads: { templateKey: "threads-hook-story", platform: "threads", draftFormat: "thread", fit: "thread" },
@@ -48,6 +50,20 @@ const BASE_SYSTEM =
   "Use only facts, numbers, prices, dates, names and quotes that appear in the topic, notes or sources. " +
   "Never invent them. Prefer writing without a number at all. Only when one specific fact is essential and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in, and use at most two placeholders in the whole thread. " +
   "Do not write beat labels or character counts (such as HOOK · 117 / 500) into the posts.";
+
+/** The prompt line that tells the model the founder's hashtag cap, so it does not spend them. */
+function hashtagInstruction(max: number): string {
+  // The template asks for a hashtag count of its own; this line comes last so it wins.
+  if (max <= 0) return "Do not use any hashtags (this overrides any hashtag count above).";
+  return `Use at most ${max} ${max === 1 ? "hashtag" : "hashtags"} (this overrides any hashtag count above).`;
+}
+
+/** A reel draft is the timed script, a `---` line, then the one-line caption: only the caption carries hashtags. */
+function limitReelHashtags(body: string, max: number): string {
+  const parts = body.split(/^[ \t]*---[ \t]*$/m);
+  if (parts.length < 2) return body;
+  return [parts[0].trimEnd(), limitHashtags(parts.slice(1).join("\n---\n"), max)].join("\n---\n");
+}
 
 /**
  * Store one generated draft. Regenerating replaces the previous draft for the
@@ -87,6 +103,11 @@ export const storeDraft = internalMutation({
         carriedMedia = row.mediaAssetId ?? carriedMedia;
         await ctx.db.delete(row._id);
       }
+    }
+    // A file the post-publish cleanup removed is not carried over to the new draft.
+    if (carriedMedia) {
+      const carried = await ctx.db.get(carriedMedia);
+      if (!carried || carried.fileDeletedAt !== undefined) carriedMedia = undefined;
     }
     // Normalize line endings (model output may carry CRLF) and recompute
     // counts on the stored text, so display/counts/exports always agree.
@@ -187,12 +208,14 @@ export const generate = operatorAction({
       const useFrame = frame && frame.isActive && fit !== null && frame.fits.includes(fit);
       const basePrompt = fillSlots(template.body, vars);
       const withFrame = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
-      const prompt =
+      const withCount =
         format === "threads" && postCount
           ? `${withFrame}\n\nWrite exactly ${postCount} posts, separated by --- lines. Ignore any other number of posts mentioned above, and spread the story across all ${postCount} posts.`
           : withFrame;
+      const prompt =
+        platform === "instagram" ? `${withCount}\n\n${hashtagInstruction(settings.voice.igHashtagMax)}` : withCount;
 
-      const body: string = await withLlmErrors(async () => {
+      const modelBody: string = await withLlmErrors(async () => {
       let body: string;
       if (format === "threads") {
         // Prefer structured output (exact beats); fall back to plain text
@@ -222,6 +245,17 @@ export const generate = operatorAction({
       }
       return body;
       });
+
+      // The founder's sign-off and hashtag cap are applied to what the model wrote,
+      // so they hold even when the model ignores the prompt.
+      const body =
+        format === "threads"
+          ? applySignOff(splitPosts(modelBody), settings.voice.signOff).join("\n---\n")
+          : format === "instagram-caption"
+            ? limitHashtags(modelBody, settings.voice.igHashtagMax)
+            : format === "instagram-reel"
+              ? limitReelHashtags(modelBody, settings.voice.igHashtagMax)
+              : modelBody;
 
       const check =
         format === "threads"

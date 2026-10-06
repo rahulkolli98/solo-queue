@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AutoTextarea from "@/components/features/studio/AutoTextarea";
 import { THREADS_POST_LIMIT, charLen } from "@/lib/draftText";
+import { bannedWordsFlag } from "@/lib/studioModel";
 
 /**
  * One numbered post of the thread: editable text, beat label, N / 500 counter,
@@ -14,6 +15,7 @@ export default function ThreadPostRow({
   text,
   beat,
   last,
+  bannedWords,
   canRemove = true,
   onChange,
   onTrim,
@@ -25,6 +27,8 @@ export default function ThreadPostRow({
   text: string;
   beat: string;
   last: boolean;
+  /** The founder's never-use words: a post that uses one is flagged. */
+  bannedWords?: readonly string[];
   /** False for the only post left: a thread keeps at least one. */
   canRemove?: boolean;
   onChange: (text: string) => void;
@@ -37,6 +41,7 @@ export default function ThreadPostRow({
   const [confirming, setConfirming] = useState(false);
   const length = charLen(text.trim());
   const over = length - THREADS_POST_LIMIT;
+  const banned = bannedWordsFlag(text, bannedWords);
   const n = index + 1;
   const id = `studio-post-${index}`;
 
@@ -81,6 +86,11 @@ export default function ThreadPostRow({
           <span className="t-meta studio-post-meta">
             {beat} · {length} / {THREADS_POST_LIMIT}
           </span>
+        )}
+        {banned && (
+          <div className="studio-over">
+            <span className="sq-pill sq-pill-ok">{banned}</span>
+          </div>
         )}
         {(onMove || onRemove) && (
           <span className="studio-post-tools" role="group" aria-label={`Post ${n} actions`}>

@@ -108,6 +108,9 @@ export default defineSchema({
     filename: v.optional(v.string()),
     source: v.optional(v.union(v.literal("upload"), v.literal("external"))),
     lastVerifyError: v.optional(v.string()), // shown as "not reachable" in Library > Media
+    // Set when the opt-in cleanup removed the stored file after publishing. The row stays
+    // (history), storageId/publicUrl are left as they were and now point at nothing.
+    fileDeletedAt: v.optional(v.number()),
     createdAt: v.number(),
   }),
 

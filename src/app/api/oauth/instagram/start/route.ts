@@ -8,7 +8,7 @@ import {
 
 function fail(code: string) {
   return NextResponse.redirect(
-    new URL(`/settings?error=${code}&platform=instagram`, process.env.APP_BASE_URL ?? "http://localhost:3000")
+    new URL(`/settings/connections?error=${code}&platform=instagram`, process.env.APP_BASE_URL ?? "http://localhost:3000")
   );
 }
 

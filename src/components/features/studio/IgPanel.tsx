@@ -8,7 +8,7 @@ import MediaPanel from "@/components/features/studio/MediaPanel";
 import type { DraftView, GenState } from "@/components/features/studio/types";
 import type { MediaActions } from "@/components/features/studio/useMediaActions";
 import { CAPTION_LIMIT, charLen, parseReelScript, trimToFit, wordCount } from "@/lib/draftText";
-import type { Asset, DraftKind, MediaState, Readiness } from "@/lib/studioModel";
+import { bannedWordsFlag, type Asset, type DraftKind, type MediaState, type Readiness } from "@/lib/studioModel";
 
 const REEL_GHOSTS = ["0:00 · On screen", "0:02 · Voice-over", "0:08 · B-roll", "0:25 · Call to action"];
 const CAPTION_GHOSTS = ["Hook line", "Beats", "Call to action"];
@@ -29,6 +29,8 @@ export interface IgPanelProps {
   onManualText?: (hasText: boolean) => void;
   /** Store the "Write it myself" text as this kind's draft. */
   onSaveManual?: (text: string) => Promise<void>;
+  /** The founder's never-use words (Settings, Voice): a caption that uses one is flagged. */
+  bannedWords?: readonly string[];
 }
 
 function SceneSkeleton() {
@@ -105,8 +107,17 @@ function ReelBody({ view }: { view: DraftView }) {
   );
 }
 
-function CaptionBody({ view, readiness }: { view: DraftView; readiness: Readiness }) {
+function CaptionBody({
+  view,
+  readiness,
+  bannedWords,
+}: {
+  view: DraftView;
+  readiness: Readiness;
+  bannedWords?: readonly string[];
+}) {
   const length = charLen(view.body.trim());
+  const banned = bannedWordsFlag(view.body, bannedWords);
   const over = length - CAPTION_LIMIT;
   return (
     <div className="studio-caption">
@@ -114,6 +125,7 @@ function CaptionBody({ view, readiness }: { view: DraftView; readiness: Readines
         <span className="t-meta">
           CAPTION · {length.toLocaleString("en-GB")} / {CAPTION_LIMIT.toLocaleString("en-GB")}
         </span>
+        {banned && <span className="sq-pill sq-pill-ok">{banned}</span>}
         {over > 0 && (
           <>
             <span className="sq-pill sq-pill-bad">OVER BY {over}</span>
@@ -153,6 +165,7 @@ export default function IgPanel({
   queuedWhen,
   onManualText,
   onSaveManual,
+  bannedWords,
 }: IgPanelProps) {
   const [manual, setManual] = useState(false);
   const label = kind === "reel" ? "reel script" : "caption";
@@ -212,7 +225,7 @@ export default function IgPanel({
   const queued = readiness.state === "queued";
   return (
     <>
-      {kind === "reel" ? <ReelBody view={view} /> : <CaptionBody view={view} readiness={readiness} />}
+      {kind === "reel" ? <ReelBody view={view} /> : <CaptionBody view={view} readiness={readiness} bannedWords={bannedWords} />}
       {!queued && (
         <MediaPanel
           kind={kind}

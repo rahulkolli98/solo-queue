@@ -66,6 +66,26 @@ describe("media library", () => {
   });
 });
 
+describe("storageSummary", () => {
+  it("counts hosted files and their bytes; external assets and missing files count 0", async () => {
+    const t = newTest();
+    expect(await t.query(api.media.storageSummary, {})).toEqual({ files: 0, bytes: 0 });
+    const [a, b] = await t.run(async (ctx) => [
+      await ctx.storage.store(new Blob(["12345"], { type: "image/png" })),
+      await ctx.storage.store(new Blob(["1234567"], { type: "image/png" })),
+    ]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("mediaAssets", { storageId: a, publicUrl: "u1", mimeType: "image/png", createdAt: 1 });
+      await ctx.db.insert("mediaAssets", { storageId: b, publicUrl: "u2", mimeType: "image/png", createdAt: 2 });
+      // Row whose file is already gone, and one the cleanup removed.
+      await ctx.db.insert("mediaAssets", { storageId: "kg2gone", publicUrl: "u3", mimeType: "image/png", createdAt: 3 });
+      await ctx.db.insert("mediaAssets", { storageId: a, publicUrl: "u4", mimeType: "image/png", fileDeletedAt: 4, createdAt: 4 });
+    });
+    await t.mutation(api.media.registerExternal, { url: "https://cdn.example.com/a.jpg", mimeType: "image/jpeg" });
+    expect(await t.query(api.media.storageSummary, {})).toEqual({ files: 2, bytes: 12 });
+  });
+});
+
 describe("filenameFromUrl", () => {
   it("uses the last path segment, else the host", () => {
     expect(filenameFromUrl("https://a.test/x/y/photo.png?x=1")).toBe("photo.png");

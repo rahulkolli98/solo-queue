@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { checkEditedBody } from "./lib/drafting";
-import { refusal } from "./lib/slots";
+import { assertFileNotRemoved, refusal } from "./lib/slots";
 
 /**
  * Drafts for one topic, oldest first. Powers the composer tabs (Phase 2)
@@ -123,6 +123,7 @@ export const attachMedia = operatorMutation({
     if (args.mediaAssetId !== null) {
       const asset = await ctx.db.get(args.mediaAssetId);
       if (!asset) throw new Error("Media not found — it may have been deleted.");
+      assertFileNotRemoved(asset);
     }
     await ctx.db.patch(args.id, { mediaAssetId: args.mediaAssetId ?? undefined });
     return null;

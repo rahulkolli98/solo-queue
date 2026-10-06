@@ -35,6 +35,7 @@ export default function ThreadsColumn({
   writing,
   onWriting,
   expectedPosts,
+  bannedWords,
 }: {
   view?: DraftView;
   beats?: { label: string }[];
@@ -57,6 +58,8 @@ export default function ThreadsColumn({
   onWriting?: (open: boolean) => void;
   /** How many posts the running generation was asked for (the skeleton shows that many). */
   expectedPosts?: number;
+  /** The founder's never-use words (Settings, Voice): posts that use one are flagged. */
+  bannedWords?: readonly string[];
 }) {
   const [localManual, setLocalManual] = useState(false);
   const manual = writing ?? localManual;
@@ -195,6 +198,7 @@ export default function ThreadsColumn({
             text={text}
             beat={beatLabel(beats, i)}
             last={i === posts.length - 1}
+            bannedWords={bannedWords}
             canRemove={posts.length > 1}
             onChange={(next) => replace(i, [next])}
             onTrim={() => replace(i, [trimToFit(text, THREADS_POST_LIMIT)])}

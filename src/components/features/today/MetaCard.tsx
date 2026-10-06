@@ -46,7 +46,7 @@ export default function MetaCard({ meta }: { meta: TodaySummary["meta"] }) {
         <Link href="/log" className="sq-btn">
           Publishing log
         </Link>
-        <Link href="/settings" className="sq-btn sq-btn-dark">
+        <Link href="/settings/connections" className="sq-btn sq-btn-dark">
           {fix ? `Reconnect ${PLATFORM_NAME[fix]}` : state === "none" ? "Connect Threads" : "Manage connections"}
         </Link>
       </div>

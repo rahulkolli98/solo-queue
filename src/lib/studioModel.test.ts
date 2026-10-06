@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bannedWordsFlag,
   barSummary,
   beatLabel,
   formatClock,
@@ -292,5 +293,27 @@ describe("formatWhen and saveLabel", () => {
     expect(saveLabel({ state: "dirty" })).toBe("Unsaved changes…");
     expect(saveLabel({ state: "error" })).toBe("Couldn't save");
     expect(saveLabel({ state: "idle" })).toBe("");
+  });
+});
+
+describe("bannedWordsFlag", () => {
+  const banned = ["game-changer", "crush it", "unlock", "delve"];
+
+  it("lists the never-use words a draft uses, in the order of the settings list", () => {
+    expect(bannedWordsFlag("We DELVE in, then unlock it.", banned)).toBe("NEVER-USE: unlock, delve");
+    expect(bannedWordsFlag("Crush it!", banned)).toBe("NEVER-USE: crush it");
+  });
+
+  it("has no flag for a clean draft, an empty list or no list yet", () => {
+    expect(bannedWordsFlag("It unlocked a door.", banned)).toBeNull();
+    expect(bannedWordsFlag("unlock", [])).toBeNull();
+    expect(bannedWordsFlag("unlock", undefined)).toBeNull();
+    expect(bannedWordsFlag("", banned)).toBeNull();
+  });
+
+  it("follows the list and the text as they are edited", () => {
+    expect(bannedWordsFlag("A bold move", banned)).toBeNull();
+    expect(bannedWordsFlag("A bold move", [...banned, "bold"])).toBe("NEVER-USE: bold");
+    expect(bannedWordsFlag("A timid move", [...banned, "bold"])).toBeNull();
   });
 });

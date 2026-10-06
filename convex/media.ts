@@ -5,7 +5,8 @@ import type { QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { judgeMedia, probeUrl } from "./lib/http";
-import { refusal } from "./lib/slots";
+import { assertFileNotRemoved, refusal } from "./lib/slots";
+import { readSettings } from "./lib/settingsDb";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
@@ -156,8 +157,10 @@ export const verify = operatorAction({
   handler: async (ctx, args): Promise<{ status: number }> => {
     const asset: {
       publicUrl: string;
+      fileDeletedAt?: number;
     } | null = await ctx.runQuery(internal.media.getForVerify, { id: args.id });
     if (!asset) throw refusal("MEDIA_NOT_FOUND", "Media not found — it may have been deleted.");
+    assertFileNotRemoved(asset);
     try {
       const probe = await probeUrl(asset.publicUrl);
       const verdict = judgeMedia(asset.publicUrl, probe);
@@ -178,7 +181,7 @@ export const getForVerify = internalQuery({
   handler: async (ctx, args) => {
     const doc = await ctx.db.get(args.id);
     if (!doc) return null;
-    return { publicUrl: doc.publicUrl };
+    return { publicUrl: doc.publicUrl, fileDeletedAt: doc.fileDeletedAt };
   },
 });
 
@@ -207,5 +210,102 @@ export const remove = operatorMutation({
     }
     await ctx.db.delete(args.id);
     return null;
+  },
+});
+
+/**
+ * How much hosted (uploaded) media is stored: file count and total bytes, read
+ * from Convex's file metadata. External-URL assets, assets whose file the
+ * cleanup removed, and rows whose file is gone count 0.
+ */
+export const storageSummary = operatorQuery({
+  args: {},
+  handler: async (ctx): Promise<{ files: number; bytes: number }> => {
+    let files = 0;
+    let bytes = 0;
+    for await (const asset of ctx.db.query("mediaAssets")) {
+      if (asset.fileDeletedAt !== undefined || asset.storageId.startsWith("external:")) continue;
+      const storageId = ctx.db.system.normalizeId("_storage", asset.storageId);
+      const meta = storageId ? await ctx.db.system.get("_storage", storageId) : null;
+      if (!meta) continue;
+      files += 1;
+      bytes += meta.size;
+    }
+    return { files, bytes };
+  },
+});
+
+const DAY_MS = 86_400_000;
+/** Cleanup reads every draft so it knows each asset's full use; past this it does nothing rather than guess. */
+const CLEANUP_MAX_DRAFTS = 3000;
+
+export type CleanupResult =
+  | { status: "off" }
+  | { status: "skipped"; reason: "too_many_drafts" }
+  | { status: "done"; deleted: number };
+
+/**
+ * Opt-in cleanup of hosted files after publishing (daily cron). Does nothing
+ * unless settings.media.cleanupAfterDays is a number N. Then it removes the
+ * stored FILE of an uploaded asset (the row stays, stamped fileDeletedAt) only
+ * when all of these hold:
+ *  - at least one draft uses it, and every draft that uses it has at least one slot;
+ *  - every slot of those drafts is `published` (a scheduled, claimed or failed slot keeps it);
+ *  - the newest publish is more than N days old;
+ *  - no source (research screenshot) uses it.
+ * `now` is optional so tests can pin the clock.
+ */
+export const cleanupPublished = internalMutation({
+  args: { now: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<CleanupResult> => {
+    const days = (await readSettings(ctx)).media.cleanupAfterDays;
+    if (typeof days !== "number" || !Number.isFinite(days) || days <= 0) return { status: "off" };
+    const cutoff = (args.now ?? Date.now()) - days * DAY_MS;
+
+    const drafts = await ctx.db.query("drafts").take(CLEANUP_MAX_DRAFTS + 1);
+    if (drafts.length > CLEANUP_MAX_DRAFTS) return { status: "skipped", reason: "too_many_drafts" };
+    const byAsset = new Map<Id<"mediaAssets">, Doc<"drafts">[]>();
+    for (const d of drafts) {
+      if (!d.mediaAssetId) continue;
+      byAsset.set(d.mediaAssetId, [...(byAsset.get(d.mediaAssetId) ?? []), d]);
+    }
+    if (byAsset.size === 0) return { status: "done", deleted: 0 };
+
+    const sourceAssets = new Set<string>();
+    for await (const s of ctx.db.query("sources")) {
+      if (s.mediaAssetId) sourceAssets.add(s.mediaAssetId);
+    }
+
+    let deleted = 0;
+    for (const [assetId, users] of byAsset) {
+      if (sourceAssets.has(assetId)) continue;
+      const asset = await ctx.db.get(assetId);
+      if (!asset || asset.fileDeletedAt !== undefined || asset.storageId.startsWith("external:")) continue;
+
+      let newestPublish = 0;
+      let safe = true;
+      for (const draft of users) {
+        const slots = await ctx.db
+          .query("slots")
+          .withIndex("by_draft", (q) => q.eq("draftId", draft._id))
+          .take(101);
+        // No slot, an unfinished slot, or too many slots to be sure: keep the file.
+        if (slots.length === 0 || slots.length > 100 || slots.some((s) => s.status !== "published")) {
+          safe = false;
+          break;
+        }
+        for (const s of slots) newestPublish = Math.max(newestPublish, s.publishedAt ?? s.scheduledAt);
+      }
+      if (!safe || newestPublish === 0 || newestPublish > cutoff) continue;
+
+      try {
+        await ctx.storage.delete(asset.storageId as Id<"_storage">);
+      } catch {
+        // File already gone: still record it so the Library shows "removed".
+      }
+      await ctx.db.patch(assetId, { fileDeletedAt: args.now ?? Date.now() });
+      deleted += 1;
+    }
+    return { status: "done", deleted };
   },
 });

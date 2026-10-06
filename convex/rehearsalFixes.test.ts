@@ -183,7 +183,7 @@ describe("placeholders must be filled in before anything is queued or posted", (
 describe("publishLog.mode", () => {
   it("reports dry run unless PUBLISH_DRY_RUN is exactly 0", async () => {
     const t = newTest();
-    expect(await t.query(api.publishLog.mode, {})).toEqual({ mode: "dry-run", paused: false });
+    expect(await t.query(api.publishLog.mode, {})).toEqual({ mode: "dry-run", paused: false, hold: null, tz: "UTC" });
     vi.stubEnv("PUBLISH_DRY_RUN", "true");
     expect((await t.query(api.publishLog.mode, {})).mode).toBe("dry-run");
     vi.stubEnv("PUBLISH_DRY_RUN", "0");

@@ -353,7 +353,7 @@
   color: var(--color-muted-on-surface);
 }
 
-/* publisher status: dry run / live / paused, links to the publishing log */
+/* publisher status: dry run / live / paused / on hold, links to the publishing log */
 .sq-publisher {
   display: flex;
   flex-direction: column;
@@ -387,7 +387,8 @@
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
-.sq-publisher[data-tone="paused"] .sq-publisher-pill {
+.sq-publisher[data-tone="paused"] .sq-publisher-pill,
+.sq-publisher[data-tone="hold"] .sq-publisher-pill {
   background: var(--color-error-tint);
   color: var(--color-on-surface);
 }

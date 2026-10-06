@@ -65,7 +65,7 @@ export default function AlertStack({ alerts }: { alerts: TodaySummary["alerts"] 
               tone="yellow"
               title={alert.title}
               detail={alert.detail}
-              actions={[{ label: `Reconnect ${PLATFORM_NAME[alert.platform]}`, href: "/settings", variant: "primary" }]}
+              actions={[{ label: `Reconnect ${PLATFORM_NAME[alert.platform]}`, href: "/settings/connections", variant: "primary" }]}
             />
           );
         }
