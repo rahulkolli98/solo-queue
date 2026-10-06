@@ -71,3 +71,11 @@
   align-items: center;
   gap: var(--space-12);
 }
+/* In the dark Threads column the Add post button reads light on dark, not ink on ink. */
+.sq-tw[data-tone="dark"] .sq-tw-foot .sq-btn {
+  border-color: var(--color-on-chrome-strong);
+  color: var(--color-on-chrome-strong);
+}
+.sq-tw[data-tone="dark"] .sq-tw-foot .sq-btn:disabled {
+  opacity: 0.45;
+}

@@ -357,6 +357,7 @@
   font-size: 18px;
   font-style: italic;
   line-height: 1.38;
+  overflow-wrap: anywhere;
 }
 .rs-brief-text p:first-child::first-letter {
   float: left;
@@ -675,6 +676,7 @@
 
 /* ---------- edit drawer ---------- */
 .rs-form-pair {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 150px;
   gap: var(--space-12);
@@ -682,6 +684,7 @@
 .rs-pillar-group {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: var(--space-8);
 }
 .rs-pillar-group > span {
@@ -844,6 +847,66 @@
     display: flex;
     align-items: center;
   }
+
+  /* board MResearch: a long placeholder is cut with an ellipsis, not mid-letter */
+  .rs-capture-input {
+    text-overflow: ellipsis;
+  }
+  /* board MResearch: mono eyebrow at 11px, primary action 48px tall */
+  .rs-board-titles .t-eyebrow {
+    font-size: 11px;
+  }
+  .rs-board-actions .sq-btn-primary {
+    height: 48px;
+  }
+  /* the big drop cap is a desktop flourish: the phone brief is plain italic like the board */
+  .rs-brief-text p:first-child::first-letter {
+    float: none;
+    padding: 0;
+    font: inherit;
+    line-height: inherit;
+  }
+  /* every small button inside the board and the thread is 44px to tap */
+  .rs-board .sq-btn,
+  .rs-thread .sq-btn {
+    min-height: 44px;
+  }
+  .rs-thread .sq-tw-tool {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .rs-thread .sq-tw-field {
+    min-height: 44px;
+  }
+  /* topic rows follow the board card: 6px rhythm, 22px pillar tag, 10px mono meta */
+  .rs-item {
+    gap: var(--space-6);
+  }
+  .rs-tag {
+    height: 22px;
+    font-size: 10px;
+  }
+  .rs-ready,
+  .rs-item-meta {
+    font-size: 10px;
+  }
+  /* edit sheet (board MStatesResearchEdit): Save grows beside Delete, the Studio shortcut sits under */
+  .rs-drawer-spacer {
+    display: none;
+  }
+  .rs-self-start {
+    min-height: 44px;
+  }
+  .rs-drawer-save {
+    flex: 1 1 0;
+  }
+  .rs-drawer-delete {
+    order: 1;
+  }
+  .rs-drawer-studio {
+    order: 2;
+    flex: 1 1 100%;
+  }
 }
 
 .rs-short {
@@ -866,6 +929,7 @@
 }
 .rs-self-start {
   align-self: flex-start;
+  flex-shrink: 0;
 }
 
 /* laptops and tablets: a slimmer rail and a one-column board, so nothing spills out of the yellow */
@@ -904,6 +968,7 @@
 /* what "Send to Studio" does, in one line */
 .rs-sendnote {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 1.4;
   color: var(--color-muted-on-surface);

@@ -1195,12 +1195,13 @@ body:has(.studio-bar) {
   }
   .studio-col {
     min-height: 0;
-    padding: 18px;
-    border-radius: 22px;
+    padding: var(--space-16);
+    border-radius: var(--rounded-control);
   }
   .studio-col-topic {
-    padding: 14px 16px;
-    gap: var(--space-10);
+    padding: 14px var(--space-16);
+    gap: var(--space-6);
+    border-radius: var(--rounded-xl);
   }
   .studio-grid[data-pane="threads"] .studio-col-ig,
   .studio-grid[data-pane="instagram"] .studio-col-threads {
@@ -1536,5 +1537,226 @@ body:has(.studio-bar) {
   }
   .studio-upload .sq-btn {
     grid-column: 1 / -1;
+  }
+}
+
+/* ---------- phones: mobile parity pass (board MStudio) ---------- */
+/* On wide screens the whole next-step sentence shows; the toggle only exists on phones. */
+.studio-bar-more {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* guide: one row; only the step you are on keeps its name */
+  .studio-guide {
+    flex-wrap: nowrap;
+  }
+  .studio-guide-step {
+    position: relative;
+  }
+  .studio-guide-step:not([data-state="current"]) {
+    padding: 0 var(--space-4);
+  }
+  .studio-guide-step:not([data-state="current"]) .studio-guide-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* topic: the title sits straight on the blue card, the pillar is a tag */
+  .studio-note-title {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+  .studio-note-title .sq-tape {
+    display: none;
+  }
+  .studio-note-title .t-title-lg {
+    font-size: 20px;
+  }
+  .studio-note-title .studio-muted {
+    align-self: flex-start;
+    height: 22px;
+    padding: 0 var(--space-10);
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--rounded-md);
+    background: var(--color-chrome);
+    color: var(--color-on-chrome-strong);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  /* posts + Regenerate share a row; the helper line and default link follow */
+  .studio-actions-phone .studio-gen {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-8);
+    row-gap: var(--space-4);
+  }
+  .studio-actions-phone .studio-posts-ctl {
+    display: contents;
+  }
+  .studio-actions-phone .studio-posts-label {
+    grid-area: 1 / 1;
+  }
+  .studio-actions-phone .studio-posts-select {
+    grid-area: 1 / 2;
+  }
+  .studio-actions-phone .studio-gen > .sq-btn {
+    grid-area: 1 / 3;
+    width: 100%;
+    min-width: 0;
+    padding: 0 var(--space-12);
+  }
+  .studio-actions-phone .studio-posts-hint {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+  .studio-actions-phone .studio-posts-link {
+    grid-column: 1 / -1;
+  }
+
+  /* touch targets: 44px */
+  .studio-dashed {
+    height: 44px;
+  }
+  .studio-col .sq-btn-sm,
+  .studio-col .studio-open,
+  .studio-col .studio-tabs .sq-seg,
+  .studio-actions-phone .studio-posts-link {
+    min-height: 44px;
+  }
+  .studio-actions-phone .studio-posts-link {
+    display: inline-flex;
+    align-items: center;
+  }
+  .studio-col .studio-open {
+    min-width: 44px;
+    justify-content: center;
+  }
+  /* "Write it myself": the whole post box is easy to hit */
+  .studio-manual-thread .sq-tw-field {
+    min-height: 44px;
+  }
+  /* the attach-media sheet */
+  .sq-drawer .studio-pick .sq-btn-sm,
+  .sq-drawer .studio-upload .sq-btn-sm,
+  .sq-drawer .studio-pick .studio-open {
+    min-height: 44px;
+  }
+  .sq-drawer .studio-pick .studio-open {
+    min-width: 44px;
+    justify-content: center;
+  }
+  .studio-col .studio-tabs {
+    align-self: stretch;
+    display: flex;
+    border-radius: var(--rounded-pill);
+  }
+  .studio-col .studio-tabs .sq-seg {
+    flex: 1;
+    justify-content: center;
+  }
+  .studio-seg-mobile .sq-segs {
+    border-radius: var(--rounded-pill);
+  }
+  /* four blog tabs share the row on a 360px phone without overflowing */
+  .studio-col-blog .studio-tabs .sq-seg {
+    min-width: 0;
+    padding: 0 var(--space-8);
+  }
+
+  /* Threads card */
+  .studio-post {
+    gap: var(--space-12);
+  }
+  .studio-num {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+  }
+
+  /* queue bar: two lines of the next step, then the count and the one primary action */
+  .studio-bar-next {
+    padding: var(--space-2) var(--space-32) var(--space-8) 0;
+    font-size: 12px;
+  }
+  .studio-bar-next:not([data-open]) .studio-bar-next-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .studio-bar-next[data-open] .studio-bar-next-text {
+    max-height: 40dvh;
+    overflow-y: auto;
+  }
+  .studio-bar-more {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--rounded-md);
+    background: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .studio-bar-more svg {
+    width: 16px;
+    height: 16px;
+  }
+  .studio-bar-more[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+  .studio-bar-more:focus-visible {
+    outline: 2px solid var(--color-threads);
+    outline-offset: -2px;
+  }
+  .studio-bar-count .t-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* "This replaces the thread you wrote. Replace it?" is a bottom sheet over a scrim */
+  .studio-confirm {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 60;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    padding: var(--space-24) var(--space-16) var(--space-24);
+    border-radius: var(--rounded-card) var(--rounded-card) 0 0;
+    box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--color-chrome) 45%, transparent);
+  }
+  .studio-confirm::before {
+    content: "";
+    position: absolute;
+    top: var(--space-8);
+    left: 50%;
+    width: 44px;
+    height: 5px;
+    margin-left: -22px;
+    border-radius: var(--rounded-pill);
+    background: var(--color-on-surface);
+    opacity: 0.35;
+  }
+  .studio-confirm-text {
+    flex: 0 1 auto;
   }
 }

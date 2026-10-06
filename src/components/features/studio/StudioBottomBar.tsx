@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDownIcon } from "@/components/features/studio/glyphs";
 import { ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 import { slotChipText, type BarSummary, type OpenSlot } from "@/lib/studioModel";
 
@@ -38,10 +40,12 @@ export default function StudioBottomBar({
   savedText?: string;
 }) {
   const disabled = !summary.canQueue || queuing;
+  // Phones show two lines of the next step; this opens the whole sentence (no effect on wide screens).
+  const [nextOpen, setNextOpen] = useState(false);
   return (
     <div className="studio-bar" role="region" aria-label="Queue">
       {nextStep && (
-        <p className="studio-bar-next" data-tone={nextTone} id="studio-next-step">
+        <p className="studio-bar-next" data-tone={nextTone} data-open={nextOpen || undefined} id="studio-next-step">
           <span className="studio-bar-next-label t-meta">NEXT</span>
           <span className="studio-bar-next-text" aria-live="polite">
             {nextStep}
@@ -53,6 +57,18 @@ export default function StudioBottomBar({
             </span>
           )}
         </p>
+      )}
+      {nextStep && (
+        <button
+          type="button"
+          className="studio-bar-more"
+          aria-expanded={nextOpen}
+          aria-controls="studio-next-step"
+          aria-label={nextOpen ? "Show less of the next step" : "Show the whole next step"}
+          onClick={() => setNextOpen((v) => !v)}
+        >
+          <ChevronDownIcon />
+        </button>
       )}
       <div className="studio-bar-count" aria-live="polite">
         <span className="t-title-sm">{summary.headline}</span>

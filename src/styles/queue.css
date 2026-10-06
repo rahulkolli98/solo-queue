@@ -683,6 +683,61 @@
   .sq-q-lead b {
     color: var(--color-on-surface);
   }
+  /* platform switch: segments are 36px tall, so reach 44px with an invisible hit area */
+  .sq-q-toolbar .sq-seg {
+    position: relative;
+  }
+  .sq-q-toolbar .sq-seg::after {
+    content: "";
+    position: absolute;
+    inset: -4px 0;
+  }
+  /* Threads cards: the board's 14px body copy */
+  .sq-q-agenda .sq-q-mini-text {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  /* Instagram tiles: the board's phone tile (no tape or dot, one blob, 21px title; the time sits in the left column) */
+  .sq-q-agenda .sq-q-tile {
+    padding: var(--space-14);
+  }
+  .sq-q-agenda .sq-q-tile-tape,
+  .sq-q-agenda .sq-q-tile-dot,
+  .sq-q-agenda .sq-q-tile-bottom .t-meta {
+    display: none;
+  }
+  .sq-q-agenda .sq-q-tile-blob {
+    right: -24px;
+    top: 20px;
+    bottom: auto;
+    width: 110px;
+    height: 110px;
+  }
+  .sq-q-agenda .sq-q-tile-format {
+    height: 20px;
+    padding: 0 var(--space-8);
+    border-radius: 10px;
+  }
+  .sq-q-agenda .sq-q-tile-title {
+    font-size: 21px;
+    line-height: 1.05;
+    letter-spacing: -0.4px;
+    -webkit-line-clamp: 3;
+  }
+  /* sheet receipts (board MStatesQueueDrawer): time, outcome, message on one line each; the try count drops out */
+  .sq-q-rtable th,
+  .sq-q-rtable td {
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
+  .sq-q-rtable th:nth-child(2),
+  .sq-q-rtable td:nth-child(2) {
+    display: none;
+  }
+  .sq-q-rtable td:first-child {
+    white-space: nowrap;
+    font-size: 11px;
+  }
 }
 
 /*

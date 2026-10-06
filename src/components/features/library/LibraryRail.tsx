@@ -5,7 +5,7 @@ import { beatsLine, tiltFor } from "@/lib/libraryBoard";
 import type { Frame } from "./types";
 
 /** One story frame in the rail: its colour, name, beat chain and use count. */
-function RailFrame({ frame, index }: { frame: Frame; index: number }) {
+function RailFrame({ frame, index, compact }: { frame: Frame; index: number; compact?: boolean }) {
   return (
     <Link
       href={`/library/frames?frame=${encodeURIComponent(frame.key)}`}
@@ -13,7 +13,9 @@ function RailFrame({ frame, index }: { frame: Frame; index: number }) {
       style={{ background: `var(--color-${frame.color})`, transform: `rotate(${tiltFor(index)}deg)` }}
     >
       <span className="lb-frame-name">{frame.name}</span>
-      <span className="t-meta">{beatsLine(frame.beats, frame.usedCount)}</span>
+      <span className="t-meta">
+        {compact ? `${frame.beats.length} BEATS · USED ${frame.usedCount}×` : beatsLine(frame.beats, frame.usedCount)}
+      </span>
     </Link>
   );
 }
@@ -85,7 +87,7 @@ export function FramesStrip({ frames }: { frames: Frame[] | undefined }) {
       </div>
       <div className="lb-strip-row">
         {frames.map((f, i) => (
-          <RailFrame key={f.key} frame={f} index={i} />
+          <RailFrame key={f.key} frame={f} index={i} compact />
         ))}
       </div>
     </div>

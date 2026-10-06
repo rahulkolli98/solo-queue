@@ -48,11 +48,15 @@ function FrameCard({
         {selected && <span className="lb-pill lb-pill-ink">EDITING</span>}
       </span>
       <span className="lb-fc-name">{frame.name}</span>
+      <span className="t-mono lb-fc-chain">{frame.beats.map((b) => b.label.toUpperCase()).join(" → ")}</span>
       <span className="lb-beats">
         {frame.beats.map((b, i) => (
           <span key={i} className="lb-beat">
             <i>{i + 1}</i>
-            {b.label}
+            <span>
+              <b className="lb-beat-label">{b.label}</b>
+              <span className="lb-beat-hint"> {b.hint}</span>
+            </span>
           </span>
         ))}
       </span>

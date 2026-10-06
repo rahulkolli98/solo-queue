@@ -65,7 +65,7 @@ function CoverageSentence({ summary }: { summary: TodaySummary }) {
 function Populated({ summary, now }: { summary: TodaySummary; now: number }) {
   const headline = todayHeadline(summary);
   return (
-    <div className="sq-t-page">
+    <div className="sq-t-page sq-t-populated">
       <TopBar summary={summary} now={now} />
       <PageHeader
         headline={
