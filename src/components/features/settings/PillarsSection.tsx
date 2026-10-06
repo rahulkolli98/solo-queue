@@ -47,6 +47,12 @@ export default function PillarsSection() {
         {statusText(status, message)}
       </p>
 
+      <div className="st-pillars">
+        {pillars.map((p) => (
+          <PillarCard key={p.key} pillar={p} onChange={(patch) => change(p.key, patch)} />
+        ))}
+      </div>
+
       <section className="sq-card" aria-label="Target mix">
         <div className="st-card-head">
           <h3 className="st-eyebrow">Target mix</h3>
@@ -83,12 +89,6 @@ export default function PillarsSection() {
           </p>
         )}
       </section>
-
-      <div className="st-pillars">
-        {pillars.map((p) => (
-          <PillarCard key={p.key} pillar={p} onChange={(patch) => change(p.key, patch)} />
-        ))}
-      </div>
     </div>
   );
 }
@@ -200,7 +200,6 @@ function PillarCard({
       style={{ "--st-pillar": pillarColorVar(pillar.color) } as CSSProperties}
     >
       <div className="st-pillar-head">
-        <span className="st-swatch st-swatch-lg" aria-hidden="true" />
         <div className="st-pillar-name">
           <label className="st-field-label" htmlFor={`${id}-name`}>
             Name

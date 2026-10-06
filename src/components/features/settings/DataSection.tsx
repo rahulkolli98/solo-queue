@@ -103,7 +103,7 @@ export default function DataSection() {
 
   return (
     <div className="st-stack">
-      <section className="sq-card" aria-label="Export">
+      <section className="sq-card st-export" aria-label="Export">
         <div className="st-card-head">
           <h3 className="st-eyebrow">Export</h3>
         </div>
@@ -142,65 +142,75 @@ export default function DataSection() {
         )}
       </section>
 
-      <section className="sq-card" aria-label="Disconnect accounts">
-        <div className="st-card-head">
-          <h3 className="st-eyebrow">Disconnect accounts</h3>
-        </div>
-        <p className="sq-muted st-hint">
-          Removes the saved Threads and Instagram sign-ins. Your drafts, queue and media stay.
-        </p>
-        <div className="st-btn-row">
-          <button
-            type="button"
-            className="sq-btn"
-            ref={disconnectTrigger}
-            onClick={() => {
-              setDisconnect(IDLE);
-              setDisconnectOpen(true);
-            }}
-          >
-            Disconnect all accounts
-          </button>
-        </div>
-        <p className="st-live sq-muted" role="status" aria-live="polite">
-          {disconnect.phase === "done" ? disconnect.message : ""}
-        </p>
-        {disconnect.phase === "error" && !disconnectOpen && (
-          <p className="st-error" role="alert">
-            {disconnect.message}
+      <section className="sq-card st-rows st-danger" aria-label="Disconnect and delete">
+        <div className="st-action">
+          <div className="st-setting">
+            <div className="st-setting-text">
+              <span id="disconnect-label" className="st-setting-title">
+                Disconnect all accounts
+              </span>
+              <small id="disconnect-help">
+                Removes the saved Threads and Instagram sign-ins. Your drafts, queue and media stay.
+              </small>
+            </div>
+            <button
+              type="button"
+              className="sq-btn sq-btn-sm st-btn-outline-danger"
+              ref={disconnectTrigger}
+              aria-labelledby="disconnect-label"
+              aria-describedby="disconnect-help"
+              onClick={() => {
+                setDisconnect(IDLE);
+                setDisconnectOpen(true);
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+          <p className="st-live sq-muted" role="status" aria-live="polite">
+            {disconnect.phase === "done" ? disconnect.message : ""}
           </p>
-        )}
-      </section>
+          {disconnect.phase === "error" && !disconnectOpen && (
+            <p className="st-error" role="alert">
+              {disconnect.message}
+            </p>
+          )}
+        </div>
 
-      <section className="sq-card st-danger" aria-label="Delete everything">
-        <div className="st-card-head">
-          <h3 className="st-eyebrow">Delete everything</h3>
-        </div>
-        <p className="sq-muted st-hint">
-          Permanently deletes your topics, sources, drafts, queue, media files, frames, templates, settings and
-          connections. This cannot be undone.
-        </p>
-        <div className="st-btn-row">
-          <button
-            type="button"
-            className="sq-btn st-btn-danger"
-            ref={deleteTrigger}
-            onClick={() => {
-              setWipe(IDLE);
-              setDeleteOpen(true);
-            }}
-          >
-            Delete everything
-          </button>
-        </div>
-        <p className="st-live sq-muted" role="status" aria-live="polite">
-          {wipe.phase === "busy" && !deleteOpen ? "Deleting…" : wipe.phase === "done" ? wipe.message : ""}
-        </p>
-        {wipe.phase === "error" && !deleteOpen && (
-          <p className="st-error" role="alert">
-            {wipe.message}
+        <div className="st-action">
+          <div className="st-setting">
+            <div className="st-setting-text">
+              <span id="delete-label" className="st-setting-title">
+                Delete everything
+              </span>
+              <small id="delete-help">
+                Permanently deletes your topics, sources, drafts, queue, media files, frames, templates, settings
+                and connections. This cannot be undone.
+              </small>
+            </div>
+            <button
+              type="button"
+              className="sq-btn sq-btn-sm st-btn-danger"
+              ref={deleteTrigger}
+              aria-labelledby="delete-label"
+              aria-describedby="delete-help"
+              onClick={() => {
+                setWipe(IDLE);
+                setDeleteOpen(true);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+          <p className="st-live sq-muted" role="status" aria-live="polite">
+            {wipe.phase === "busy" && !deleteOpen ? "Deleting…" : wipe.phase === "done" ? wipe.message : ""}
           </p>
-        )}
+          {wipe.phase === "error" && !deleteOpen && (
+            <p className="st-error" role="alert">
+              {wipe.message}
+            </p>
+          )}
+        </div>
       </section>
 
       {disconnectOpen && (

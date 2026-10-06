@@ -16,6 +16,9 @@ export function agoLabel(seconds: number): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
+/** Minutes of silence before the heartbeat card raises the alarm (PRD, board 07l). convex/publishLog.ts HEARTBEAT_STALE_MS must equal this; a convex test checks it. */
+export const HEARTBEAT_ALARM_MINUTES = 5;
+
 export type HeartbeatView =
   | { kind: "never"; label: string; tag: string }
   | { kind: "running" | "dry-run" | "stale"; label: string; tag: string };

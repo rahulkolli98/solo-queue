@@ -9,21 +9,24 @@ import { PlusIcon, SettingsIcon } from "@/components/ui/icons";
 /**
  * Compact phone header (shown below 768px by shell.css): Today shows the
  * wordmark; every other screen shows its own name as the heading, as on the
- * mobile boards (the tab bar links home).
+ * mobile boards (the tab bar links home). A route with no name of its own
+ * (the 404 page) keeps the wordmark, as board M07m does.
  * Then Settings (the sidebar's Settings link has no phone equivalent) and
  * "New from topic".
  */
 export default function MobileHeader() {
   const pathname = usePathname();
   const title = pageTitle(pathname);
+  // shell.css hides the wordmark when data-home is "false"; a header with no title has nothing else to show.
+  const showWordmark = pathname === "/" || !title;
 
   return (
-    <header className="sq-mobile-header" data-home={pathname === "/" ? "true" : "false"}>
+    <header className="sq-mobile-header" data-home={showWordmark ? "true" : "false"}>
       <Link href="/" className="sq-mobile-brand">
         <span className="sq-mobile-wordmark">solo queue</span>
         <i aria-hidden="true" />
       </Link>
-      {title && pathname !== "/" && <span className="sq-mobile-title">{title}</span>}
+      {!showWordmark && <span className="sq-mobile-title">{title}</span>}
       <div className="sq-mobile-actions">
         <PublisherStatus compact />
         <Link href="/settings" className="sq-icon-btn" aria-label="Settings">

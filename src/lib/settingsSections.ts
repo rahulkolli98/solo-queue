@@ -1,7 +1,9 @@
 /**
- * The Settings sections, in board order (docs/design boards 06, 06a-06h).
- * `key` is the URL slug: /settings/<key>. The groups are the phone list's
- * headings (MSettings): Accounts / Posting / Writing / You.
+ * The Settings sections, in desktop board order (docs/design boards 06,
+ * 06a-06h). `key` is the URL slug: /settings/<key>. The groups are the phone
+ * list's headings (MSettings): Accounts / Posting / Writing / You. The phone
+ * list gathers each group's sections together, so a group's members need not
+ * sit side by side here.
  */
 export type SettingsGroup = "Accounts" | "Posting" | "Writing" | "You";
 
@@ -35,7 +37,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     key: "notifications",
     label: "Notifications",
-    group: "Posting",
+    group: "You",
     blurb: "Only the things worth interrupting you for.",
   },
   {
@@ -47,14 +49,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     key: "pillars",
     label: "Content pillars",
-    group: "Writing",
-    blurb: "The themes your posts rotate through.",
+    group: "Posting",
+    blurb: "The four things you post about, and how often.",
   },
   {
     key: "media",
     label: "Media hosting",
-    group: "You",
-    blurb: "Where your images and videos live until they post.",
+    group: "Accounts",
+    blurb: "Instagram publishes from a public link, so images and videos need a home.",
   },
   {
     key: "billing",
@@ -82,15 +84,46 @@ export function sectionFromPath(pathname: string): string | null {
   return m && findSection(m[1]) ? m[1] : null;
 }
 
-/** Sections grouped for the phone list, in order, empty groups dropped. */
+const GROUP_ORDER: readonly SettingsGroup[] = ["Accounts", "Posting", "Writing", "You"];
+
+/**
+ * Sections grouped for the phone list (Accounts, Posting, Writing, You), each
+ * group collecting its sections wherever they sit in the flat desktop order.
+ * Empty groups are dropped.
+ */
 export function groupedSections(): { group: SettingsGroup; items: SettingsSection[] }[] {
-  const out: { group: SettingsGroup; items: SettingsSection[] }[] = [];
-  for (const s of SETTINGS_SECTIONS) {
-    const last = out[out.length - 1];
-    if (last && last.group === s.group) last.items.push(s);
-    else out.push({ group: s.group, items: [s] });
-  }
-  return out;
+  return GROUP_ORDER.map((group) => ({
+    group,
+    items: SETTINGS_SECTIONS.filter((s) => s.group === group),
+  })).filter((g) => g.items.length > 0);
+}
+
+/** What the phone list's "Posting as" card needs from a connection row. */
+export interface PostingAsConnection {
+  platform: "threads" | "instagram";
+  handle?: string;
+  status?: "healthy" | "expiring" | "failed";
+}
+
+/**
+ * The phone list's "Posting as" card, from the connections already loaded:
+ * one line per connected platform, and one word for how healthy they are.
+ * Null when nothing is connected, so the card is left out.
+ */
+export function postingAsSummary(
+  connections: readonly PostingAsConnection[] | undefined
+): { rows: { platform: "threads" | "instagram"; handle: string }[]; health: "healthy" | "expiring" | "failed"; label: string } | null {
+  if (!connections || connections.length === 0) return null;
+  const ordered = (["threads", "instagram"] as const)
+    .map((p) => connections.find((c) => c.platform === p))
+    .filter((c): c is PostingAsConnection => c !== undefined);
+  const health = ordered.some((c) => c.status === "failed")
+    ? "failed"
+    : ordered.some((c) => c.status === "expiring")
+      ? "expiring"
+      : "healthy";
+  const label = health === "healthy" ? "ALL HEALTHY" : health === "expiring" ? "EXPIRING SOON" : "NEEDS ATTENTION";
+  return { rows: ordered.map((c) => ({ platform: c.platform, handle: c.handle ?? "" })), health, label };
 }
 
 /**

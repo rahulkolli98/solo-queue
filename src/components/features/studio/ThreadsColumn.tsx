@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from "react";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
 import ManualThread from "@/components/features/studio/ManualThread";
 import { ThreadsAvatar } from "@/components/features/studio/glyphs";
@@ -36,6 +36,7 @@ export default function ThreadsColumn({
   onWriting,
   expectedPosts,
   bannedWords,
+  notice,
 }: {
   view?: DraftView;
   beats?: { label: string }[];
@@ -60,6 +61,8 @@ export default function ThreadsColumn({
   expectedPosts?: number;
   /** The founder's never-use words (Settings, Voice): posts that use one are flagged. */
   bannedWords?: readonly string[];
+  /** Phone only: the other platform needs the founder ("Instagram: 2 drafts need you"). */
+  notice?: ReactNode;
 }) {
   const [localManual, setLocalManual] = useState(false);
   const manual = writing ?? localManual;
@@ -241,6 +244,7 @@ export default function ThreadsColumn({
           </span>
         )}
       </div>
+      {notice}
       {body}
       <div className="studio-colfoot">
         {gen.writing ? (

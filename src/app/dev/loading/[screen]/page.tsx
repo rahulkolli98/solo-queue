@@ -6,7 +6,7 @@ import SettingsSkeleton from "@/components/skeletons/SettingsSkeleton";
 import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import TodaySkeleton from "@/components/skeletons/TodaySkeleton";
 
-const SCREENS: Record<string, () => React.JSX.Element> = {
+const SCREENS: Record<string, React.ComponentType> = {
   today: TodaySkeleton,
   studio: StudioSkeleton,
   queue: QueueSkeleton,

@@ -9,6 +9,19 @@
   justify-content: space-between;
   gap: var(--space-32);
 }
+/* the board sets the Settings headline at 54px, with a plain mono SETTINGS label instead of the dark pill */
+@media (min-width: 768px) {
+  .st-head .sq-headline {
+    font-size: 54px;
+    letter-spacing: -0.04em;
+  }
+  .st-head .sq-tag {
+    height: auto;
+    padding: 0;
+    background: transparent;
+    color: var(--color-muted-on-surface);
+  }
+}
 
 .st-frame {
   display: flex;
@@ -23,10 +36,9 @@
   flex-direction: column;
   gap: var(--space-2);
 }
-.st-group {
-  display: contents;
-}
-.st-group-title {
+/* The phone list (grouped) and its "Posting as" card only show on a phone. */
+.st-nav-groups,
+.st-posting-as {
   display: none;
 }
 .st-link {
@@ -43,7 +55,7 @@
   text-decoration: none;
 }
 .st-link:hover {
-  background: rgba(43, 26, 20, 0.06);
+  background: color-mix(in srgb, var(--color-on-surface) 6%, transparent);
 }
 .st-link[aria-current="page"] {
   background: var(--color-chrome);
@@ -107,73 +119,191 @@
   font-size: 18px;
   color: var(--color-muted-on-surface);
 }
+/* Text a provider or the founder supplies must break rather than widen the page. */
+.st-section .sq-banner {
+  overflow-wrap: anywhere;
+}
 
 @media (max-width: 767px) {
-  .st-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-8);
-  }
-  .st-head .sq-headline {
-    font-size: 40px;
+  /* The board has no hero on a phone: the app header already says "Settings". */
+  .st-head,
+  .st-nav-flat {
+    display: none;
   }
   .st-frame {
     flex-direction: column;
-    gap: var(--space-16);
+    gap: var(--space-14);
     margin-top: var(--space-16);
     align-items: stretch;
   }
-  .st-frame[data-view="section"] .st-nav,
+  .st-nav {
+    width: auto;
+  }
+  .st-nav-groups {
+    display: flex;
+    gap: var(--space-14);
+  }
+  .st-posting-as {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    padding: var(--space-16);
+    border-radius: var(--rounded-xl);
+    background: var(--color-chrome);
+    color: var(--color-on-chrome-strong);
+  }
+  .st-frame[data-view="section"] .st-nav-groups,
+  .st-frame[data-view="section"] .st-posting-as,
   .st-frame[data-view="index"] .st-body {
     display: none;
   }
-  .st-nav {
-    width: auto;
-    gap: var(--space-16);
+  .st-posting-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+  .st-posting-as .st-eyebrow {
+    color: var(--color-threads);
+  }
+  .st-posting-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 var(--space-10);
+    border-radius: var(--rounded-pill);
+    background: var(--color-threads);
+    color: var(--color-on-surface);
+    font: 500 10.5px var(--font-mono), "DM Mono", monospace;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .st-posting-pill[data-health="expiring"] {
+    background: var(--color-instagram);
+  }
+  .st-posting-pill[data-health="failed"] {
+    background: var(--color-error);
+    color: var(--color-on-primary);
+  }
+  .st-posting-rows {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-12);
+    font-size: 14px;
+  }
+  .st-posting-row {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .st-posting-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    color: var(--color-on-surface);
+    font: 700 12px var(--font-body), "DM Sans", sans-serif;
+  }
+  .st-posting-threads {
+    border-radius: 50%;
+    background: var(--color-on-chrome-strong);
+  }
+  .st-posting-instagram {
+    border-radius: var(--rounded-sm);
+    background: var(--color-instagram);
+  }
+  .st-posting-instagram svg {
+    width: 13px;
+    height: 13px;
   }
   .st-group {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-6);
   }
   .st-group-title {
-    display: block;
-    margin: 0 0 var(--space-4);
-    font: 500 11px var(--font-mono), "DM Mono", monospace;
+    margin: 0;
+    padding-left: var(--space-4);
+    font: 500 12px var(--font-mono), "DM Mono", monospace;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--color-muted-on-surface);
   }
-  .st-link {
-    height: 52px;
+  /* One card per group, 56px rows split by 1px lines. */
+  .st-group-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--color-surface-raised);
     border: 1.5px solid var(--color-line-soft);
+    border-radius: var(--rounded-xl);
+  }
+  .st-group-card .st-link {
+    height: 56px;
+    gap: var(--space-12);
+    padding: 0 var(--space-16);
+    border-top: 1px solid var(--color-line-soft);
+    border-radius: 0;
+    background: transparent;
     color: var(--color-on-surface);
+    font: 600 16px var(--font-body), "DM Sans", sans-serif;
   }
-  .st-link[aria-current="page"] {
-    background: var(--color-surface-raised);
-    color: var(--color-on-surface);
-    font-weight: 400;
+  .st-group-card .st-link:first-child {
+    border-top: 0;
   }
-  .st-link-meta {
-    margin-left: auto;
+  .st-group-card .st-link:focus-visible {
+    outline-offset: -3px;
   }
-  .st-link-chev {
-    display: inline;
+  .st-group-card .st-link > span:first-child {
+    flex-grow: 1;
+  }
+  .st-group-card .st-link-meta {
+    margin-left: 0;
+    font-size: 11px;
+    font-weight: 500;
     color: var(--color-muted-on-surface);
   }
-  .st-plan {
-    margin-top: 0;
+  .st-group-card .st-link-chev {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--color-on-surface);
+  }
+  .st-link-chev svg {
+    width: 18px;
+    height: 18px;
   }
   .st-back {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-6);
+    gap: var(--space-10);
     align-self: flex-start;
-    height: 44px;
-    font: 600 15px var(--font-body), "DM Sans", sans-serif;
+    min-height: 44px;
     color: var(--color-on-surface);
     text-decoration: none;
+  }
+  .st-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-on-surface);
+  }
+  .st-back-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  .st-back-word {
+    font: 500 11px var(--font-mono), "DM Mono", monospace;
+    letter-spacing: 0.1em;
+    color: var(--color-muted-on-surface);
   }
   .st-section-title {
     font-size: 28px;
@@ -215,9 +345,32 @@
   font-weight: 600;
   color: var(--color-on-surface);
 }
-.st-voice-card {
+/*
+ * `.sq-card` (globals.css) loads after this file, so a rule that sets a card's
+ * background, border or padding must be doubled up with `.sq-card.` to win.
+ */
+.sq-card.st-voice-card {
   background: var(--color-threads);
   border-color: var(--color-threads);
+}
+/* Cards filled with a colour: muted grey text would lose its contrast there. */
+.sq-card.st-voice-card .sq-muted,
+.sq-card.st-pillar .sq-muted,
+.sq-card.st-platform .sq-muted,
+.sq-card.st-notes .sq-muted,
+.sq-card.st-export .sq-muted,
+.sq-card.st-notes .st-setting-text small {
+  color: var(--color-on-surface);
+}
+.st-voice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+  align-items: start;
+}
+.st-voice-grid .st-signoff {
+  width: 100%;
+  max-width: 200px;
 }
 .st-textarea {
   width: 100%;
@@ -267,10 +420,9 @@
   margin: 0;
   font-size: 13px;
 }
-.st-rows {
+.sq-card.st-rows {
   gap: 0;
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-8);
+  padding: var(--space-10) var(--space-24);
 }
 .st-setting {
   display: flex;
@@ -278,7 +430,7 @@
   justify-content: space-between;
   gap: var(--space-16);
   padding: var(--space-12) 0;
-  border-top: 1.5px solid var(--color-line-soft);
+  border-top: 1px solid color-mix(in srgb, var(--color-on-surface) 14%, transparent);
 }
 .st-setting:first-child {
   border-top: 0;
@@ -392,12 +544,6 @@
   border: 1.5px solid var(--color-on-surface);
   box-sizing: border-box;
 }
-.st-swatch-lg {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--rounded-sm);
-  margin-top: var(--space-20);
-}
 .st-warn {
   margin: 0;
   padding: var(--space-10) var(--space-14);
@@ -412,8 +558,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-16);
 }
-.st-pillar {
-  border-top: 8px solid var(--st-pillar);
+/* Each pillar card is filled with its own pillar colour (board 06e). */
+.sq-card.st-pillar {
+  background: var(--st-pillar);
+  border-color: var(--st-pillar);
   min-width: 0;
 }
 .st-pillar-head {
@@ -476,10 +624,13 @@
     flex-wrap: wrap;
   }
   .st-pillar-name {
-    flex-basis: calc(100% - 40px);
+    flex-basis: 100%;
   }
-  .st-pillar-share {
-    margin-left: 40px;
+  .st-voice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .st-voice-grid .st-signoff {
+    max-width: none;
   }
 }
 
@@ -542,16 +693,80 @@
   background: var(--color-threads);
 }
 
-/* platform card: time chips, add row, day toggles */
-.st-platform {
-  display: flex;
-  flex-direction: column;
+/* Notifications events card is sky blue (board 06c) */
+.sq-card.st-notes {
+  background: var(--color-info);
+  border-color: var(--color-info);
+}
+
+/* platform cards: Threads yellow and Instagram coral, side by side (board 06a) */
+.st-platforms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+  align-items: start;
+}
+.sq-card.st-platform {
   gap: var(--space-12);
   min-width: 0;
 }
+.sq-card.st-platform[data-platform="threads"] {
+  background: var(--color-threads);
+  border-color: var(--color-threads);
+}
+.sq-card.st-platform[data-platform="instagram"] {
+  background: var(--color-instagram);
+  border-color: var(--color-instagram);
+}
+.st-platform-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.st-platform-head .st-mono {
+  margin-left: auto;
+}
+.st-platform-name {
+  margin: 0;
+  font: 700 16px var(--font-body), "DM Sans", sans-serif;
+}
+.st-platform-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  background: var(--color-chrome);
+  font: 700 12px var(--font-body), "DM Sans", sans-serif;
+}
+.st-platform-glyph svg {
+  width: 14px;
+  height: 14px;
+}
+.st-platform-glyph-threads {
+  border-radius: 50%;
+  color: var(--color-on-chrome-strong);
+}
+.st-platform-glyph-instagram {
+  border-radius: var(--rounded-sm);
+  color: var(--color-instagram);
+}
+/* Time chips are cream with a dark outline on the coloured card. */
 .st-time-chip {
   min-height: 44px;
   padding-left: var(--space-14);
+  border: 1.5px solid var(--color-on-surface);
+  border-radius: var(--rounded-md);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+}
+.st-time-chip .st-chip-x:focus-visible {
+  outline-color: var(--color-on-surface);
+}
+.st-platform .sq-btn:focus-visible,
+.st-platform .st-day:focus-visible {
+  outline-color: var(--color-on-surface);
 }
 .st-time-chip .st-chip-x {
   width: 44px;
@@ -617,6 +832,13 @@
 }
 
 /* daily caps */
+.st-setting-caps {
+  align-items: flex-start;
+}
+.st-setting-caps .st-caps {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
 .st-caps {
   display: flex;
   gap: var(--space-16);
@@ -641,11 +863,17 @@
 .st-setting-later {
   opacity: 0.6;
 }
+.sq-card.st-notes .st-setting-later {
+  opacity: 0.75;
+}
 .st-switch:disabled {
   cursor: not-allowed;
 }
 
 @media (max-width: 767px) {
+  .st-platforms {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .st-setting.st-setting-switch {
     flex-direction: row;
     align-items: center;
@@ -683,24 +911,27 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-12);
 }
+/* The two hosting options sit directly on the page as cards (board 06f). */
 .st-choice {
   display: flex;
   align-items: flex-start;
   gap: var(--space-12);
   min-height: 44px;
-  padding: var(--space-14) var(--space-16);
+  padding: var(--space-20) var(--space-24);
   box-sizing: border-box;
-  border-radius: var(--rounded-md);
-  border: 1.5px solid var(--color-line);
-  background: var(--color-surface);
+  border-radius: var(--rounded-card);
+  border: 1.5px solid var(--color-line-soft);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  cursor: pointer;
   min-width: 0;
 }
 .st-choice[data-selected="true"] {
-  border-color: var(--color-on-surface);
-  background: var(--color-surface-raised);
+  border-color: var(--color-chrome);
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
 }
 .st-choice[data-disabled="true"] {
-  opacity: 0.6;
   cursor: not-allowed;
 }
 .st-choice:focus-within {
@@ -717,15 +948,49 @@
 .st-choice-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  flex: 1 1 auto;
+  gap: var(--space-8);
   min-width: 0;
 }
+.st-choice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.st-choice-title {
+  font: 700 19px var(--font-display), "Bricolage Grotesque", sans-serif;
+}
 .st-choice-text small {
-  font-size: 12.5px;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: var(--color-muted-on-surface);
 }
+.st-choice[data-selected="true"] .st-choice-text small {
+  color: var(--color-muted-on-chrome);
+}
 .st-choice-text .sq-tag {
-  margin-left: var(--space-4);
+  align-self: flex-start;
+}
+.st-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-10);
+  box-sizing: border-box;
+  border-radius: var(--rounded-pill);
+  font: 500 10.5px var(--font-mono), "DM Mono", monospace;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.st-pill-use {
+  background: var(--color-threads);
+  color: var(--color-on-surface);
+}
+.st-pill-outline {
+  border: 1.5px solid var(--color-on-surface);
+  color: var(--color-on-surface);
 }
 
 .st-meter-text {
@@ -752,15 +1017,35 @@
   flex-wrap: wrap;
   gap: var(--space-12);
 }
-.st-danger {
-  border-color: var(--color-error);
+.sq-card.st-export {
+  background: var(--color-threads);
+  border-color: var(--color-threads);
 }
-.st-danger .st-eyebrow {
+/* Disconnect and Delete share one card with an error-coloured border (board 06h). */
+.sq-card.st-danger {
+  border: 1.5px solid var(--color-error);
+}
+.st-action {
+  display: flex;
+  flex-direction: column;
+}
+.st-action + .st-action {
+  border-top: 1px solid color-mix(in srgb, var(--color-on-surface) 14%, transparent);
+}
+.st-action .st-setting {
+  border-top: 0;
+}
+.st-action .st-live,
+.st-action .st-error {
+  margin-bottom: var(--space-8);
+}
+.st-btn-outline-danger {
+  border-color: var(--color-error);
   color: var(--color-primary-deep);
 }
 .st-btn-danger {
-  background: var(--color-primary-deep);
-  border-color: var(--color-primary-deep);
+  background: var(--color-error);
+  border-color: var(--color-error);
   color: var(--color-on-primary);
 }
 .st-btn-danger:disabled {
@@ -795,6 +1080,11 @@
   .st-btn-row {
     flex-direction: column;
   }
+  .st-action .st-setting {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .st-action .sq-btn,
   .st-btn-row .sq-btn {
     width: 100%;
     min-height: 44px;
@@ -811,4 +1101,77 @@
     min-height: 44px;
     white-space: normal;
   }
+}
+
+/* ---------- Connections (06, 06g) ---------- */
+/* Text from Meta or the founder (handles, errors, test results) breaks instead of widening the page. */
+.sq-conn-card .sq-error-box {
+  overflow-wrap: anywhere;
+}
+.sq-conn-card .sq-muted,
+.sq-conn-card .sq-kv-mono,
+.sq-conn-card .sq-chip {
+  overflow-wrap: anywhere;
+}
+.sq-conn-card .sq-kv-mono {
+  min-width: 0;
+  text-align: right;
+}
+.sq-conn-card .sq-card-h {
+  min-width: 0;
+}
+.sq-conn-tag {
+  margin-left: auto;
+}
+
+/* A connected card is espresso with cream text and a yellow status pill (board 06). */
+.sq-card.sq-conn-card[data-connected="true"] {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.sq-conn-card[data-connected="true"] .sq-muted {
+  color: var(--color-muted-on-chrome);
+}
+.sq-conn-card[data-connected="true"] .sq-error-box {
+  color: var(--color-on-surface);
+}
+.sq-conn-card[data-connected="true"] .sq-tag {
+  background: var(--color-threads);
+  color: var(--color-on-surface);
+}
+.sq-conn-card[data-connected="true"] .sq-tag[data-status="expiring"] {
+  background: var(--color-instagram);
+}
+.sq-conn-card[data-connected="true"] .sq-tag[data-status="failed"] {
+  background: var(--color-error);
+  color: var(--color-on-primary);
+}
+.sq-conn-card[data-connected="true"] .sq-btn:not(.sq-btn-primary) {
+  border-color: var(--color-on-chrome-strong);
+  color: var(--color-on-chrome-strong);
+}
+.sq-conn-card[data-connected="true"] .sq-btn:focus-visible {
+  outline-color: var(--color-threads);
+}
+
+.st-scopes {
+  margin: 0;
+  font: 500 10.5px/1.6 var(--font-mono), "DM Mono", monospace;
+  color: var(--color-muted-on-surface);
+  overflow-wrap: anywhere;
+}
+.st-ghost {
+  min-height: 48px;
+  padding: 0 var(--space-16);
+  border-radius: var(--rounded-lg);
+  border: 1.5px dashed var(--color-line);
+  background: transparent;
+  color: var(--color-muted-on-surface);
+  font: 600 14px var(--font-body), "DM Sans", sans-serif;
+  cursor: not-allowed;
+}
+.st-banner-detail {
+  display: block;
+  margin-top: var(--space-8);
 }

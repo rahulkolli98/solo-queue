@@ -30,15 +30,17 @@ export default function StudioHome({ slot = null }: { slot?: FillSlot | null }) 
 
   return (
     <>
-      <PageHeader
-        eyebrow="Studio / new batch"
-        kicker="One topic in —"
-        headline={
-          <>
-            pick a topic to <em>start.</em>
-          </>
-        }
-      />
+      <div className="studio-head">
+        <PageHeader
+          eyebrow="Studio / new batch"
+          kicker="One topic in —"
+          headline={
+            <>
+              pick a topic to <em>start.</em>
+            </>
+          }
+        />
+      </div>
       <StudioGuideStrip steps={guide.steps} />
       {fill && (
         <Banner

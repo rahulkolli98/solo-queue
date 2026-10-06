@@ -2,7 +2,7 @@
 
 import FilterChip from "@/components/ui/FilterChip";
 import { readinessLabel } from "../../../../convex/lib/research";
-import { topicMetaLine } from "@/lib/researchBoard";
+import { sourceCountLabel, topicAgeLabel } from "@/lib/researchBoard";
 import { pillarOf, type BoardTopic, type Pillar } from "./types";
 
 function TopicRow({
@@ -35,7 +35,11 @@ function TopicRow({
         </span>
       </span>
       <b className="rs-item-title">{topic.title}</b>
-      <span className="rs-item-meta">{topicMetaLine(topic.sourceCount, topic.createdAt, now)}</span>
+      <span className="rs-item-meta">
+        {`${sourceCountLabel(topic.sourceCount)} · `}
+        <span className="rs-long">SAVED </span>
+        {topicAgeLabel(topic.createdAt, now)}
+      </span>
     </button>
   );
 }

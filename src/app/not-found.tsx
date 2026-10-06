@@ -20,7 +20,7 @@ export default function NotFound() {
           The page you asked for isn&rsquo;t in the queue. It may have moved,
           or the link was mistyped.
         </p>
-        <div className="sq-row">
+        <div className="sq-row sq-404-actions">
           <Link href="/" className="sq-btn sq-btn-primary">
             Back to Today
             <ArrowRightIcon />

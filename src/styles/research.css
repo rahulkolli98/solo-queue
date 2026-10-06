@@ -128,8 +128,8 @@
 }
 .rs-item-title {
   overflow-wrap: anywhere;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.25;
 }
 .rs-ready {
@@ -1057,5 +1057,101 @@
     flex: 1 1 140px;
     min-height: 44px;
     justify-content: center;
+  }
+}
+
+/* ---------- empty inbox wrapper: the yellow board plus the paste hint ---------- */
+.rs-empty {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.rs-empty > .rs-board {
+  flex-grow: 1;
+}
+.rs-empty-hint {
+  display: none;
+  color: var(--color-muted-on-surface);
+}
+
+/* ---------- phone: the empty inbox fits one screen (board MStatesResearchEmpty) ---------- */
+@media (max-width: 767px) {
+  .rs-empty .rs-board-titles .t-eyebrow {
+    font-size: 10px;
+  }
+  .rs-empty .rs-board-title {
+    font-size: 26px;
+    line-height: 1.02;
+    letter-spacing: -0.027em;
+  }
+  .rs-empty .rs-board-title em {
+    font-style: normal;
+    color: var(--color-primary);
+  }
+  .rs-empty .rs-examples {
+    gap: var(--space-12);
+    padding-top: 0;
+  }
+  .rs-empty .rs-example {
+    padding: var(--space-14) var(--space-16);
+  }
+  .rs-example-copy,
+  .rs-empty .rs-angles-empty,
+  .rs-emptylist {
+    display: none;
+  }
+  .rs-empty-hint {
+    display: block;
+  }
+  /* the Save button stays espresso even while the empty bar is lit */
+  .rs-capture-row .sq-btn-primary {
+    background: var(--color-chrome);
+    border-color: var(--color-chrome);
+    color: var(--color-on-chrome-strong);
+  }
+}
+
+/* ---------- topic board header: the phone card shows a pillar tag and "● READY · 3 SOURCES" (board MResearch) ---------- */
+.rs-phonehead {
+  display: none;
+}
+@media (max-width: 767px) {
+  .rs-phonehead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+  .rs-phonehead-ready {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .rs-item-title {
+    font-size: 15px;
+  }
+}
+
+/* ---------- topic edit panel (board StatesResearchEdit / MStatesResearchEdit) ---------- */
+.sq-drawer-edit:has(.rs-drawer-save) .sq-drawer-body {
+  padding: 22px var(--space-24);
+}
+.sq-drawer-edit:has(.rs-drawer-save) .sq-drawer-titles h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 767px) {
+  .sq-drawer-edit:has(.rs-drawer-save),
+  .sq-drawer-edit:has(.rs-drawer-save) .sq-drawer-body {
+    max-height: min(88dvh, 690px);
+  }
+  .sq-drawer-edit:has(.rs-drawer-save) .sq-drawer-body {
+    padding: 12px 18px 24px;
+  }
+  .sq-drawer-edit:has(.rs-drawer-save) .sq-drawer-titles h2 {
+    font-size: 24px;
+    letter-spacing: normal;
   }
 }

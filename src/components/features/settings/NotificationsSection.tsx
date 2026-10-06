@@ -56,7 +56,7 @@ export default function NotificationsSection() {
         {statusText(status, message)}
       </p>
 
-      <section className="sq-card st-rows" aria-label="Notifications">
+      <section className="sq-card st-rows st-notes" aria-label="Notifications">
         {LIVE_ROWS.map((r) => (
           <div key={r.key} className="st-setting st-setting-switch">
             <div className="st-setting-text">

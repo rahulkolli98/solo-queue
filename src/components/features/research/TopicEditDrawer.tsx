@@ -11,6 +11,7 @@ import { useTwoTap } from "@/lib/useTwoTap";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { BoardTopic, Pillar } from "./types";
+import { usePhone } from "./usePhone";
 
 type Status = "drafting" | "ready" | "queued" | "done";
 
@@ -22,6 +23,8 @@ const STATUSES: { value: Status; label: string }[] = [
 ];
 
 export const TITLE_ERROR = "Give it a title, even a rough one. Everything else is optional.";
+/** The phone sheet (board MStatesResearchEdit) is short on room, so it drops the second sentence. */
+export const TITLE_ERROR_PHONE = "Give it a title, even a rough one.";
 
 /**
  * The edit panel (board 07i): a title (required), notes, source link, status
@@ -57,13 +60,15 @@ export default function TopicEditDrawer({
   const [sourceUrl, setSourceUrl] = useState(topic?.sourceUrl ?? "");
   const [status, setStatus] = useState<Status>(topic?.status ?? "drafting");
   const [pillar, setPillar] = useState(topic?.pillar ?? "");
-  const [titleError, setTitleError] = useState<string | null>(null);
+  const phone = usePhone();
+  const [titleMissing, setTitleMissing] = useState(false);
+  const titleError = titleMissing ? (phone ? TITLE_ERROR_PHONE : TITLE_ERROR) : null;
   const [failure, setFailure] = useState<{ text: string; offerArchive: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function save(openStudio: boolean) {
     if (!title.trim()) {
-      setTitleError(TITLE_ERROR);
+      setTitleMissing(true);
       return;
     }
     setBusy(true);
@@ -168,7 +173,7 @@ export default function TopicEditDrawer({
           maxLength={200}
           onChange={(e) => {
             setTitle(e.target.value);
-            if (titleError) setTitleError(null);
+            if (titleMissing) setTitleMissing(false);
           }}
         />
       </FormField>

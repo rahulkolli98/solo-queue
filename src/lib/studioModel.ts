@@ -243,6 +243,58 @@ export function barSummary(input: {
   };
 }
 
+// ---------- drafts that need a fix ----------
+
+/** States that stop a draft being queued until the founder acts. ("missing" is not written yet, not a fault.) */
+const BLOCKING: readonly ReadyState[] = [
+  "over",
+  "media_required",
+  "media_missing",
+  "media_unverified",
+  "media_stale",
+];
+
+/**
+ * The queueable drafts that need the founder before they can go: over the
+ * limit, media missing / unchecked / stale, or a failed write (`errored` lists
+ * the kinds whose generation failed and which have no draft to show).
+ */
+export function draftsNeedingFix(
+  states: Partial<Record<DraftKind, Readiness>>,
+  errored: readonly DraftKind[] = []
+): DraftKind[] {
+  return QUEUE_KINDS.filter((kind) => {
+    const state = states[kind]?.state;
+    if (state && BLOCKING.includes(state)) return true;
+    return errored.includes(kind) && (state === undefined || state === "missing");
+  });
+}
+
+const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+
+/** "two" up to ten, the digit after that. */
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+/** The Studio headline when drafts need a fix: "two drafts need a" + "fix." (the accent). */
+export function fixHeadline(count: number): { lead: string; accent: string } {
+  return {
+    lead: count === 1 ? "one draft needs a" : `${countWord(count)} drafts need a`,
+    accent: "fix.",
+  };
+}
+
+/** "Instagram: 2 drafts need you" on a phone (the other pane has the problem). */
+export function platformNeedsText(platform: "Threads" | "Instagram", count: number): string {
+  return `${platform}: ${count} ${count === 1 ? "draft needs" : "drafts need"} you`;
+}
+
+/** The Instagram column footer: "2 INSTAGRAM DRAFTS NEED YOU". */
+export function instagramFooter(count: number): string {
+  return `${count} INSTAGRAM ${count === 1 ? "DRAFT NEEDS" : "DRAFTS NEED"} YOU`;
+}
+
 // ---------- open slots ----------
 
 export interface DayColumn {

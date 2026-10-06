@@ -275,7 +275,7 @@ export default function MediaTab({
             <button type="submit" className="sq-btn sq-btn-sm" disabled={addingUrl}>
               {addingUrl ? "Adding…" : "Add link"}
             </button>
-            <p id="lb-url-help" className="lb-url-help">
+            <p id="lb-url-help" className="lb-url-help" title={URL_HELP}>
               {URL_HELP}
             </p>
           </form>

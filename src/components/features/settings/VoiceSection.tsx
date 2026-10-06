@@ -155,134 +155,137 @@ export default function VoiceSection() {
         {statusText(status, message)}
       </p>
 
-      <section className="sq-card st-voice-card" aria-label="Your voice">
-        <div className="st-card-head">
-          <h3 className="st-eyebrow">Your voice</h3>
-          <span className="st-mono">{learnedFromText(voice.learnedFromCount)}</span>
-        </div>
-        <label className="st-field-label" htmlFor="voice-description">
-          Voice description
-        </label>
-        <textarea
-          id="voice-description"
-          className="sq-input st-textarea"
-          rows={4}
-          maxLength={VOICE_DESCRIPTION_MAX}
-          value={description}
-          aria-invalid={descError ? true : undefined}
-          aria-describedby="voice-description-count"
-          onChange={(e) => setDescDraft(e.target.value)}
-          onBlur={commitDescription}
-        />
-        <div className="st-count-row">
-          <span id="voice-description-count" className="st-mono">
-            {description.length}/{VOICE_DESCRIPTION_MAX}
-          </span>
-          {descError && (
-            <span className="sq-formfield-error" role="alert">
-              {descError}
-            </span>
-          )}
-        </div>
-        <div className="sq-row">
-          <button type="button" className="sq-btn sq-btn-sm st-retrain" onClick={retrain} disabled={running}>
-            {running ? "Reading your published posts…" : "Retrain from my published posts"}
-          </button>
-        </div>
-        <p className="st-live" role="status" aria-live="polite">
-          {running ? "Reading your published posts and writing a suggestion. Nothing is saved yet." : ""}
-        </p>
-        {retrainError && (
-          <p className="st-error" role="alert">
-            {retrainError}
-          </p>
-        )}
-        {suggestion && (
-          <div className="st-suggestion" role="group" aria-label="Suggested voice description">
-            <span className="st-mono">
-              Suggested from {suggestion.basedOn} published {suggestion.basedOn === 1 ? "post" : "posts"}
-            </span>
-            <p className="st-suggestion-text">{suggestion.description}</p>
-            <p className="sq-muted st-suggestion-note">Not saved yet. Your current description stays until you choose.</p>
-            <div className="sq-row">
-              <button type="button" className="sq-btn sq-btn-sm sq-btn-primary" onClick={useSuggestion}>
-                Use this
-              </button>
-              <button type="button" className="sq-btn sq-btn-sm" onClick={() => setSuggestion(null)}>
-                Keep mine
-              </button>
-            </div>
+      <div className="st-voice-grid">
+        <section className="sq-card st-voice-card" aria-label="Your voice">
+          <div className="st-card-head">
+            <h3 className="st-eyebrow">Your voice</h3>
+            <span className="st-mono">{learnedFromText(voice.learnedFromCount)}</span>
           </div>
-        )}
-      </section>
-
-      <section className="sq-card st-rows" aria-label="Writing defaults">
-        <div className="st-setting">
-          <div className="st-setting-text">
-            <label htmlFor="voice-frame">Default story frame</label>
-            <small>Used when you don&apos;t pick one.</small>
-          </div>
-          <select
-            id="voice-frame"
-            className="sq-input st-select"
-            value={voice.defaultFrameKey}
-            onChange={(e) => changeSelect({ defaultFrameKey: e.target.value })}
-          >
-            {options.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="st-setting">
-          <div className="st-setting-text">
-            <label htmlFor="voice-hashtags">Instagram hashtags</label>
-            <small>Maximum per caption.</small>
-          </div>
-          <select
-            id="voice-hashtags"
-            className="sq-input st-select"
-            value={String(voice.igHashtagMax)}
-            onChange={(e) => changeSelect({ igHashtagMax: Number(e.target.value) })}
-          >
-            {igHashtagOptions(voice.igHashtagMax).map((n) => (
-              <option key={n} value={String(n)}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="st-setting">
-          <div className="st-setting-text">
-            <label htmlFor="voice-signoff">Thread sign-off</label>
-            <small>Added to the last post of a thread. Leave empty for none.</small>
-          </div>
-          <input
-            id="voice-signoff"
-            className="sq-input st-signoff"
-            type="text"
-            maxLength={SIGN_OFF_MAX}
-            value={signOff}
-            placeholder="Follow the build →"
-            autoComplete="off"
-            aria-invalid={signOffError ? true : undefined}
-            onChange={(e) => setSignOffDraft(e.target.value)}
-            onBlur={commitSignOff}
-            onKeyDown={enterToCommit(commitSignOff)}
+          <label className="st-field-label" htmlFor="voice-description">
+            Voice description
+          </label>
+          <textarea
+            id="voice-description"
+            className="sq-input st-textarea"
+            rows={4}
+            maxLength={VOICE_DESCRIPTION_MAX}
+            value={description}
+            aria-invalid={descError ? true : undefined}
+            aria-describedby="voice-description-count"
+            onChange={(e) => setDescDraft(e.target.value)}
+            onBlur={commitDescription}
           />
-        </div>
-        {signOffError && (
-          <p className="st-error" role="alert">
-            {signOffError}
+          <div className="st-count-row">
+            <span id="voice-description-count" className="st-mono">
+              {description.length}/{VOICE_DESCRIPTION_MAX}
+            </span>
+            {descError && (
+              <span className="sq-formfield-error" role="alert">
+                {descError}
+              </span>
+            )}
+          </div>
+          <div className="sq-row">
+            <button type="button" className="sq-btn sq-btn-sm st-retrain" onClick={retrain} disabled={running}>
+              {running ? "Reading your published posts…" : "Retrain from my published posts"}
+            </button>
+          </div>
+          <p className="st-live" role="status" aria-live="polite">
+            {running ? "Reading your published posts and writing a suggestion. Nothing is saved yet." : ""}
           </p>
-        )}
-        {selectError && (
-          <p className="st-error" role="alert">
-            {selectError}
-          </p>
-        )}
-      </section>
+          {retrainError && (
+            <p className="st-error" role="alert">
+              {retrainError}
+            </p>
+          )}
+          {suggestion && (
+            <div className="st-suggestion" role="group" aria-label="Suggested voice description">
+              <span className="st-mono">
+                Suggested from {suggestion.basedOn} published {suggestion.basedOn === 1 ? "post" : "posts"}
+              </span>
+              <p className="st-suggestion-text">{suggestion.description}</p>
+              <p className="sq-muted st-suggestion-note">Not saved yet. Your current description stays until you choose.</p>
+              <div className="sq-row">
+                <button type="button" className="sq-btn sq-btn-sm sq-btn-primary" onClick={useSuggestion}>
+                  Use this
+                </button>
+                <button type="button" className="sq-btn sq-btn-sm" onClick={() => setSuggestion(null)}>
+                  Keep mine
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="sq-card st-rows" aria-label="Writing defaults">
+          <div className="st-setting">
+            <div className="st-setting-text">
+              <label htmlFor="voice-frame">Default story frame</label>
+              <small>Used when you don&apos;t pick one.</small>
+            </div>
+            <select
+              id="voice-frame"
+              className="sq-input st-select"
+              value={voice.defaultFrameKey}
+              onChange={(e) => changeSelect({ defaultFrameKey: e.target.value })}
+            >
+              {options.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="st-setting">
+            <div className="st-setting-text">
+              <label htmlFor="voice-hashtags">Instagram hashtags</label>
+              <small>Maximum per caption.</small>
+            </div>
+            <select
+              id="voice-hashtags"
+              className="sq-input st-select"
+              value={String(voice.igHashtagMax)}
+              onChange={(e) => changeSelect({ igHashtagMax: Number(e.target.value) })}
+            >
+              {igHashtagOptions(voice.igHashtagMax).map((n) => (
+                <option key={n} value={String(n)}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="st-setting">
+            <div className="st-setting-text">
+              <label htmlFor="voice-signoff">Sign-off</label>
+              <small>Added to the last post of a thread. Leave empty for none.</small>
+            </div>
+            <input
+              id="voice-signoff"
+              className="sq-input st-signoff"
+              type="text"
+              maxLength={SIGN_OFF_MAX}
+              value={signOff}
+              placeholder="Follow the build →"
+              autoComplete="off"
+              aria-invalid={signOffError ? true : undefined}
+              onChange={(e) => setSignOffDraft(e.target.value)}
+              onBlur={commitSignOff}
+              onKeyDown={enterToCommit(commitSignOff)}
+            />
+          </div>
+          {signOffError && (
+            <p className="st-error" role="alert">
+              {signOffError}
+            </p>
+          )}
+          {selectError && (
+            <p className="st-error" role="alert">
+              {selectError}
+            </p>
+          )}
+        </section>
+
+      </div>
 
       <section className="sq-card" aria-label="Never use these words">
         <div className="st-card-head">

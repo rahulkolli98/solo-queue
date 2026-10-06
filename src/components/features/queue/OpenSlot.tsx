@@ -33,7 +33,7 @@ export default function OpenSlot({
   );
 }
 
-/** One dashed tile standing in for a whole day of unfilled Instagram slots (board 07h). */
+/** One hatched tile standing in for a whole day of unfilled Instagram slots (board 07h). */
 export function OpenTile({ times, dayLabel, dayKey }: { times: string[]; dayLabel: string; dayKey?: string }) {
   return (
     <Link
@@ -41,9 +41,17 @@ export function OpenTile({ times, dayLabel, dayKey }: { times: string[]; dayLabe
       className="sq-q-open sq-q-open-tile"
       aria-label={`Open Instagram slots, ${dayLabel} ${times.join(" and ")}. Fill them from the research inbox.`}
     >
-      <span className="sq-q-tile-format">OPEN</span>
-      <span className="sq-q-open-text">Fill from research</span>
-      <span className="t-meta">{times.join(" · ")}</span>
+      <span className="sq-q-tile-art" aria-hidden="true">
+        <span className="sq-q-tile-blob" />
+        <span className="sq-q-tile-dot" />
+      </span>
+      <span className="sq-q-tile-top">
+        <span className="sq-q-tile-format">OPEN</span>
+      </span>
+      <span className="sq-q-tile-bottom">
+        <span className="sq-q-tile-title">Fill from research</span>
+        <span className="t-meta">{times.join(" · ")}</span>
+      </span>
     </Link>
   );
 }

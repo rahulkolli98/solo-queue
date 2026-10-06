@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Fragment } from "react";
+import PlatformMark from "@/components/features/log/PlatformMark";
 import { nextStep, receiptTime } from "@/lib/publishLog";
 
 export interface Attempt {
@@ -8,6 +8,8 @@ export interface Attempt {
   outcome: "success" | "retryable" | "permanent";
   providerMessage: string | null;
   slotId: string;
+  /** Which try this was for its post: 1 for the first receipt, 2 for the next, and so on. */
+  attempt: number;
   platform: "threads" | "instagram" | null;
   topicTitle: string | null;
   snippet: string;
@@ -19,7 +21,11 @@ const PILL: Record<Attempt["outcome"], string> = {
   permanent: "sq-pill sq-pill-bad",
 };
 
-/** Board 07l: every publish attempt, newest first. Failed attempts show the provider's words and a next step. */
+/**
+ * Board 07l: every publish attempt, newest first. Failed attempts show the provider's words and a
+ * next step. One <tbody> per attempt, so below 768px (log.css) each attempt becomes its own card
+ * (board M07l) instead of a sideways-scrolling table.
+ */
 export default function ReceiptsTable({
   attempts,
   now,
@@ -42,54 +48,48 @@ export default function ReceiptsTable({
               <span className="sq-sr">Platform</span>
             </th>
             <th scope="col">Post</th>
+            <th scope="col">Try</th>
             <th scope="col">Outcome</th>
             <th scope="col">Message</th>
           </tr>
         </thead>
-        <tbody>
-          {attempts.map((a) => {
-            const failed = a.outcome !== "success" && a.providerMessage;
-            const step = nextStep(a.outcome, a.providerMessage);
-            return (
-              <Fragment key={a._id}>
-                <tr className={a.outcome === "permanent" ? "sq-log-row-bad" : undefined}>
-                  <td className="t-mono">{receiptTime(a.attemptedAt, now, tz)}</td>
-                  <td>
-                    {a.platform && (
-                      <span
-                        className={`sq-avatar ${a.platform === "threads" ? "sq-avatar-threads" : "sq-avatar-ig"}`}
-                        role="img"
-                        aria-label={a.platform === "threads" ? "Threads" : "Instagram"}
-                      >
-                        {a.platform === "threads" ? "@" : "▢"}
-                      </span>
-                    )}
+        {attempts.map((a) => {
+          const failed = a.outcome !== "success" && a.providerMessage;
+          const step = nextStep(a.outcome, a.providerMessage);
+          const bad = a.outcome === "permanent" ? "sq-log-row-bad" : undefined;
+          return (
+            <tbody key={a._id} className={a.outcome === "permanent" ? "sq-log-rec sq-log-rec-bad" : "sq-log-rec"}>
+              <tr className={bad}>
+                <td className="t-mono sq-log-time">{receiptTime(a.attemptedAt, now, tz)}</td>
+                <td className="sq-log-plat">{a.platform && <PlatformMark platform={a.platform} label />}</td>
+                <td className="sq-log-title">
+                  <Link href={`/queue?slot=${a.slotId}`} className="sq-log-post">
+                    {a.topicTitle ?? "(deleted post)"}
+                  </Link>
+                </td>
+                <td className="t-mono sq-log-try">
+                  <span className="sq-log-wide">{`#${a.attempt}`}</span>
+                  <span className="sq-log-narrow">{`· TRY ${a.attempt}`}</span>
+                </td>
+                <td className="sq-log-outcome">
+                  <span className={PILL[a.outcome]}>{a.outcome.toUpperCase()}</span>
+                </td>
+                <td className="sq-log-message">{a.providerMessage ?? "-"}</td>
+              </tr>
+              {failed && (
+                <tr className={bad}>
+                  <td className="sq-log-gutter" />
+                  <td colSpan={5}>
+                    <div className="sq-log-detail t-mono">
+                      <span className="sq-log-provider">PROVIDER · {a.providerMessage}</span>
+                      {step && <span className="sq-log-next">NEXT · {step}</span>}
+                    </div>
                   </td>
-                  <td>
-                    <Link href={`/queue?slot=${a.slotId}`} className="sq-log-post">
-                      {a.topicTitle ?? "(deleted post)"}
-                    </Link>
-                  </td>
-                  <td>
-                    <span className={PILL[a.outcome]}>{a.outcome.toUpperCase()}</span>
-                  </td>
-                  <td className="sq-log-message">{a.providerMessage ?? "-"}</td>
                 </tr>
-                {failed && (
-                  <tr className={a.outcome === "permanent" ? "sq-log-row-bad" : undefined}>
-                    <td />
-                    <td colSpan={4}>
-                      <div className="sq-log-detail t-mono">
-                        <span>PROVIDER · {a.providerMessage}</span>
-                        {step && <span className="sq-log-next">NEXT · {step}</span>}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
+              )}
+            </tbody>
+          );
+        })}
       </table>
     </div>
   );

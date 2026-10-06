@@ -111,11 +111,24 @@ function DraftPostcard({
         <Link href={`/studio/${card.topicId}`} className="lb-act">
           <span className="lb-lead">Open in&nbsp;</span>Studio
         </Link>
-        <button type="button" className="lb-act lb-act-dark" disabled={busy} onClick={onFix}>
-          {status.action}
+        <button type="button" className="lb-act lb-act-dark" disabled={busy} onClick={onFix} aria-label={status.action}>
+          {shortAction(status.action)}
         </button>
       </div>
     </article>
+  );
+}
+
+/** On phones the board shortens "Queue next" and "Copy .md" to their first word; the full label stays as the accessible name. */
+function shortAction(action: string) {
+  const [head, ...rest] = action.split(" ");
+  return rest.length > 0 && (head === "Queue" || head === "Copy") ? (
+    <>
+      {head}
+      <span className="lb-lead">{` ${rest.join(" ")}`}</span>
+    </>
+  ) : (
+    action
   );
 }
 

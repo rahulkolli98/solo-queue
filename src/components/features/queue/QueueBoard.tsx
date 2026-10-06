@@ -8,7 +8,8 @@ import { useCallback, useMemo, useState } from "react";
 import QueueSkeleton from "@/components/skeletons/QueueSkeleton";
 import PageHeader from "@/components/ui/PageHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
-import { PlusIcon, SettingsIcon } from "@/components/ui/icons";
+import { ArrowRightIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
+import { useNavCounts } from "@/components/useNavCounts";
 import { useBrowserTz } from "@/lib/useBrowserTz";
 import { useNow } from "@/lib/useNow";
 import {
@@ -63,6 +64,7 @@ export default function QueueBoard() {
   const data = useQuery(api.queueBoard.dayColumns, { from, days: QUERY_DAYS, tz });
   const settings = useQuery(api.settings.get, {});
   const summary = useStableQuery(api.today.summary, { now, tz });
+  const inbox = useNavCounts().research;
 
   const slotParam = params.get("slot");
   const slotId = slotParam && SLOT_PARAM.test(slotParam) ? slotParam : null;
@@ -147,9 +149,10 @@ export default function QueueBoard() {
             <>
               <Link href="/studio" className="sq-btn sq-btn-primary">
                 Open Studio
+                <ArrowRightIcon />
               </Link>
               <Link href="/research" className="sq-btn">
-                Pick from research
+                Pick from research · {inbox}
               </Link>
             </>
           ) : null

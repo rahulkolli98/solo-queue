@@ -722,8 +722,20 @@
   justify-content: center;
   align-items: flex-start;
 }
+/* the new-frame card (board StatesLibraryFrames): a big plus, a 19px title, one muted line of copy */
+.lb-fc-new .lb-fc-plus {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
 .lb-fc-new .lb-fc-name {
-  font-size: 18px;
+  font-size: 19px;
+}
+.lb-fc-copy {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-muted-on-surface);
 }
 .lb-fc-learn {
   border-color: var(--color-line);
@@ -1207,6 +1219,21 @@
     justify-content: center;
     min-height: 44px;
   }
+  /* phones: a one-line "+ New frame" button, no copy */
+  .lb-fc-new {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .lb-fc-new .lb-fc-plus {
+    font-size: 20px;
+  }
+  .lb-fc-new .lb-fc-name {
+    font-size: 17px;
+  }
+  .lb-fc-copy {
+    display: none;
+  }
   .lb-fc-top {
     display: contents;
   }
@@ -1328,5 +1355,44 @@
   }
   .lb-open {
     min-height: 44px;
+  }
+}
+
+/*
+ * Desktop media drop zone as one row (board StatesLibraryMedia): icon, text, the link field with its
+ * help line tucked underneath, Browse. Narrower laptops keep the wrapping layout above.
+ */
+@media (min-width: 1360px) {
+  .lb-drop {
+    display: grid;
+    grid-template-columns: 28px minmax(190px, 1fr) minmax(260px, 400px) auto;
+    align-items: center;
+    column-gap: var(--space-14);
+  }
+  .lb-drop-text {
+    min-width: 0;
+  }
+  .lb-drop .lb-url {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4) var(--space-8);
+  }
+  .lb-drop .lb-url .lb-search {
+    width: 100%;
+  }
+  .lb-drop .lb-url-help {
+    grid-column: 1 / -1;
+    font-size: 11.5px;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* the full help opens up while the founder is typing a link */
+  .lb-drop .lb-url:focus-within .lb-url-help {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 }

@@ -33,9 +33,14 @@ describe("DataSection", () => {
 
   it("shows the disconnect and delete entry buttons, with the dialogs closed", () => {
     const out = renderToStaticMarkup(<DataSection />);
+    // The row title names the action; the button says one word and is named by the title.
     expect(out).toContain("Disconnect all accounts");
     expect(out).toContain("st-btn-danger");
-    expect(out).toMatch(/<button[^>]*st-btn-danger[^>]*>Delete everything<\/button>/);
+    expect(out).toMatch(/<button[^>]*st-btn-danger[^>]*aria-labelledby="delete-label"[^>]*>Delete<\/button>/);
+    expect(out).toMatch(/id="delete-label"[^>]*>Delete everything</);
+    expect(out).toMatch(/<button[^>]*aria-labelledby="disconnect-label"[^>]*>Disconnect<\/button>/);
+    // Both live in one card with the error border.
+    expect(out.match(/st-danger/g)).toHaveLength(1);
     expect(out).not.toContain("<dialog");
   });
 });

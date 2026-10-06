@@ -57,17 +57,19 @@ export default function SlotsSection() {
         {statusText(overall.status, overall.message)}
       </p>
 
-      {PLATFORMS.map((p) => (
-        <PlatformCard
-          key={p.key}
-          platform={p.key}
-          label={p.label}
-          times={slotDefaults[p.key]}
-          activeDays={slotDays[p.key]}
-          onTimes={(change) => defaults.save((cur) => mergeSlotDefaults(cur, p.key, change(cur[p.key])))}
-          onDays={(change) => days.save((cur) => mergeSlotDays(cur, p.key, change(cur[p.key])))}
-        />
-      ))}
+      <div className="st-platforms">
+        {PLATFORMS.map((p) => (
+          <PlatformCard
+            key={p.key}
+            platform={p.key}
+            label={p.label}
+            times={slotDefaults[p.key]}
+            activeDays={slotDays[p.key]}
+            onTimes={(change) => defaults.save((cur) => mergeSlotDefaults(cur, p.key, change(cur[p.key])))}
+            onDays={(change) => days.save((cur) => mergeSlotDays(cur, p.key, change(cur[p.key])))}
+          />
+        ))}
+      </div>
 
       <section className="sq-card st-rows" aria-label="Timing">
         <TimezoneRow
@@ -196,8 +198,18 @@ function PlatformCard({
   const id = `slots-${platform}`;
   return (
     <section className="sq-card st-platform" aria-label={`${label} posting slots`} data-platform={platform}>
-      <div className="st-card-head">
-        <h3 className="st-eyebrow">{label}</h3>
+      <div className="st-platform-head">
+        <span className={`st-platform-glyph st-platform-glyph-${platform}`} aria-hidden="true">
+          {platform === "threads" ? (
+            "@"
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="5" />
+              <circle cx="12" cy="12" r="3.5" />
+            </svg>
+          )}
+        </span>
+        <h3 className="st-platform-name">{label}</h3>
         <span className="st-mono">{perDayText(times)}</span>
       </div>
 

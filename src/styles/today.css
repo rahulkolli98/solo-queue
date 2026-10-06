@@ -221,8 +221,13 @@
 .sq-t-cell-off {
   opacity: 0.55;
 }
+/* an open slot is drawn as hatch (design.md: emptiness is hatch), not a dashed outline */
 .sq-t-cell-open {
-  border: 1.5px dashed var(--color-muted-on-chrome);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-surface) 22%, transparent) 0 2px,
+    transparent 2px 7px
+  );
 }
 .sq-t-cell-failed {
   background: var(--color-primary);
@@ -454,6 +459,13 @@
 }
 .sq-t-note-form .sq-input {
   border-color: var(--color-chrome);
+}
+
+/* the board sets the Today headline at the display size (78px) on wide screens */
+@media (min-width: 768px) {
+  .sq-t-page .sq-headline {
+    font-size: 78px;
+  }
 }
 
 /* ---------- phones ---------- */

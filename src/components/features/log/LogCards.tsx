@@ -1,19 +1,6 @@
 import Link from "next/link";
-import { heartbeatView, usagePercent } from "@/lib/publishLog";
-
-type Platform = "threads" | "instagram";
-const NAME: Record<Platform, string> = { threads: "Threads", instagram: "Instagram" };
-
-function PlatformMark({ platform }: { platform: Platform }) {
-  return (
-    <span
-      className={`sq-avatar ${platform === "threads" ? "sq-avatar-threads" : "sq-avatar-ig"}`}
-      aria-hidden="true"
-    >
-      {platform === "threads" ? "@" : "▢"}
-    </span>
-  );
-}
+import PlatformMark, { PLATFORM_NAME as NAME, type Platform } from "@/components/features/log/PlatformMark";
+import { HEARTBEAT_ALARM_MINUTES, heartbeatView, usagePercent } from "@/lib/publishLog";
 
 /** Board 07l, card 1: is the publisher alive? */
 export function HeartbeatCard({
@@ -31,8 +18,8 @@ export function HeartbeatCard({
         <span className={`sq-log-tag sq-log-tag-${view.kind}`}>{view.tag}</span>
       </div>
       <span className="t-figure sq-log-big">{view.label}</span>
-      <span className="sq-log-note">
-        Checks the queue every minute. Alarm after 3 minutes of silence.
+      <span className="sq-log-note sq-log-wide">
+        {`Checks the queue every minute. Alarm after ${HEARTBEAT_ALARM_MINUTES} minutes of silence.`}
       </span>
     </section>
   );
@@ -48,9 +35,21 @@ export function UsageCard({
 }) {
   return (
     <section className="sq-log-card sq-log-card-yellow" aria-label="Posts in the last 24 hours">
-      <h2 className="t-eyebrow">Last 24 hours</h2>
+      <h2 className="t-eyebrow">
+        <span className="sq-log-wide">Last 24 hours</span>
+        <span className="sq-log-narrow">24 hours</span>
+      </h2>
+      {/* Phone board: two short mono lines instead of the meters. */}
+      <div className="sq-log-compact t-mono">
+        <span>
+          TH {used.threads} / {limits.threads}
+        </span>
+        <span>
+          IG {used.instagram} / {limits.instagram}
+        </span>
+      </div>
       {(["threads", "instagram"] as const).map((platform) => (
-        <div key={platform} className="sq-log-meter">
+        <div key={platform} className="sq-log-meter sq-log-wide">
           <div className="sq-log-meter-head">
             <PlatformMark platform={platform} />
             <span>{NAME[platform]}</span>
@@ -84,7 +83,7 @@ export function MetaCard({
   connections: { platform: Platform; handle: string; status: "healthy" | "expiring" | "failed"; daysLeft: number }[];
 }) {
   return (
-    <section className="sq-log-card sq-log-card-blue" aria-label="Meta connection">
+    <section className="sq-log-card sq-log-card-blue sq-log-wide" aria-label="Meta connection">
       <h2 className="t-eyebrow">Meta connection</h2>
       {connections.length === 0 && <span>Nothing connected yet.</span>}
       {connections.map((c) => (
