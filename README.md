@@ -168,6 +168,31 @@ There is no import yet, so an export is a record to read, not a restore.
   Settings → Posting slots (the only place the defaults live; per-slot
   override stays available).
 
+## Performance (TASK-042, measured 2026-10-06)
+
+Measured on a local production build against the local Convex backend, with
+the chosen model (`meta/muse-spark-1.3-contributor`). Redo them on the live
+deployment after a deploy; the live numbers will be a little higher (network
+round trips to Convex Cloud and Vercel).
+
+| Target | Result | Runs |
+|---|---|---|
+| Queue week view shows its data in under 2 s | 0.27 to 0.35 s cold, 0.15 to 0.20 s warm | 5 |
+| Generating a topic's drafts (thread, caption, reel and blog) in under 45 s | 30 to 39 s (34.4, 38.5, 30.1) | 3 |
+| Publisher tick, claim plus nothing to do, under 5 s | 0.09 to 0.31 s | 12 ticks from the logs |
+
+- **Generation was too slow and was fixed.** The four formats were written one
+  after another, 108 to 184 s in total (134 s in the run the logs kept).
+  They now run side by side, so the wait is the slowest call. Drafts that land
+  are kept if one format fails; the first failure is reported.
+- Three runs cannot establish a 95th percentile; the longest run was 38.5 s,
+  about 15% under the limit. The model is a reasoning model, so expect spread:
+  one earlier run failed with a provider error (the call is retried three times
+  before it gives up).
+- **Not built:** the spec asks the screen to show progress within 5 s as output
+  streams in. Today the skeleton shows at once and each draft appears when its
+  call finishes; nothing streams token by token.
+
 ## Local backend trouble
 
 If `npx convex dev` dies with `fetch failed` before doing anything, its
