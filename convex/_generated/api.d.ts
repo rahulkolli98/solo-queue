@@ -10,6 +10,7 @@
 
 import type * as connections from "../connections.js";
 import type * as crons from "../crons.js";
+import type * as dataTools from "../dataTools.js";
 import type * as drafting from "../drafting.js";
 import type * as drafts from "../drafts.js";
 import type * as frames from "../frames.js";
@@ -64,6 +65,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   connections: typeof connections;
   crons: typeof crons;
+  dataTools: typeof dataTools;
   drafting: typeof drafting;
   drafts: typeof drafts;
   frames: typeof frames;

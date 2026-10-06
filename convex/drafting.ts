@@ -104,6 +104,11 @@ export const storeDraft = internalMutation({
         await ctx.db.delete(row._id);
       }
     }
+    // A file the post-publish cleanup removed is not carried over to the new draft.
+    if (carriedMedia) {
+      const carried = await ctx.db.get(carriedMedia);
+      if (!carried || carried.fileDeletedAt !== undefined) carriedMedia = undefined;
+    }
     // Normalize line endings (model output may carry CRLF) and recompute
     // counts on the stored text, so display/counts/exports always agree.
     const body = args.body.replace(/\r\n?/g, "\n");

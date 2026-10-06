@@ -2,7 +2,7 @@ import type { MutationCtx } from "./_generated/server";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
-import { refusal } from "./lib/slots";
+import { assertFileNotRemoved, refusal } from "./lib/slots";
 import { checkSource, readiness, titleFromCapture } from "./lib/research";
 
 const kindArg = v.union(
@@ -45,6 +45,10 @@ export const add = operatorMutation({
   handler: async (ctx, args) => {
     const checked = checkSource({ ...args, mediaAssetId: args.mediaAssetId });
     if (!checked.ok) throw refusal(checked.code, checked.message);
+    if (checked.mediaAssetId) {
+      const asset = await ctx.db.get(checked.mediaAssetId as Id<"mediaAssets">);
+      if (asset) assertFileNotRemoved(asset);
+    }
 
     let topicId = args.topicId;
     let createdTopic = false;

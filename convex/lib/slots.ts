@@ -16,6 +16,16 @@ export function refusal(code: string, message: string): ConvexError<string> {
   return new ConvexError(`VALIDATION:${code}: ${message}`);
 }
 
+/** Refuse to attach, queue or verify an asset whose file the post-publish cleanup removed. */
+export function assertFileNotRemoved(asset: { fileDeletedAt?: number }): void {
+  if (asset.fileDeletedAt !== undefined) {
+    throw refusal(
+      "MEDIA_REMOVED",
+      "This file was removed after it was published. Upload it again to reuse it."
+    );
+  }
+}
+
 /** Extract {code, message} from a refusal, tolerating Convex's error wrapping. */
 export function parseRefusal(err: unknown): { code: string; message: string } | null {
   let text: string;

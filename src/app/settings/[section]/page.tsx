@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import BillingSection from "@/components/features/settings/BillingSection";
 import ConnectionsSection from "@/components/features/settings/ConnectionsSection";
+import DataSection from "@/components/features/settings/DataSection";
+import MediaSection from "@/components/features/settings/MediaSection";
 import PillarsSection from "@/components/features/settings/PillarsSection";
 import NotificationsSection from "@/components/features/settings/NotificationsSection";
 import PlannedSection from "@/components/features/settings/PlannedSection";
@@ -43,6 +45,10 @@ export default async function SettingsSectionPage({
         <VoiceSection />
       ) : key === "pillars" ? (
         <PillarsSection />
+      ) : key === "media" ? (
+        <MediaSection />
+      ) : key === "data" ? (
+        <DataSection />
       ) : key === "billing" ? (
         <BillingSection />
       ) : (

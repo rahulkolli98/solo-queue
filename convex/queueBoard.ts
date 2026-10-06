@@ -1,7 +1,7 @@
 import type { Id } from "./_generated/dataModel";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
-import { refusal } from "./lib/slots";
+import { assertFileNotRemoved, refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { slotRisk } from "./lib/connectionRisk";
 import { readSettings } from "./lib/settingsDb";
@@ -184,6 +184,7 @@ export const detail = operatorQuery({
             mimeType: asset.mimeType,
             verifiedAt: asset.verifiedAt ?? null,
             lastVerifyError: asset.lastVerifyError ?? null,
+            fileRemoved: asset.fileDeletedAt !== undefined,
           }
         : null,
       receipts: receipts.map((r) => ({
@@ -282,8 +283,10 @@ export const requeue = operatorMutation({
     if (await hasOpenSlot(ctx, slot.draftId)) {
       throw refusal("ALREADY_QUEUED", "This post is already queued again.");
     }
-    if (slot.platform === "instagram" && !(draft.mediaAssetId && (await ctx.db.get(draft.mediaAssetId)))) {
-      throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
+    if (slot.platform === "instagram") {
+      const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+      if (!asset) throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
+      assertFileNotRemoved(asset);
     }
     let at: number;
     try {

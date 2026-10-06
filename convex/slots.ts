@@ -6,6 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import { checkEditedBody, hasPlaceholder, MAX_THREAD_POSTS, splitPosts } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
+  assertFileNotRemoved,
   enqueuePayloadSchema,
   parseRefusal,
   refusal,
@@ -172,7 +173,9 @@ export const getForPublish = internalQuery({
     const draft = await ctx.db.get(slot.draftId);
     if (!draft) return null;
     const topic = await ctx.db.get(draft.topicId);
-    const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    const storedAsset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    // A file the cleanup removed cannot be published: treat it like missing media.
+    const asset = storedAsset && storedAsset.fileDeletedAt === undefined ? storedAsset : null;
     return {
       slot: {
         _id: slot._id,
@@ -336,6 +339,7 @@ async function doEnqueue(
           "MEDIA_MISSING",
           "Attached media is gone — pick another in the Library."
         );
+      assertFileNotRemoved(asset);
       if (!asset.verifiedAt)
         throw refusal(
           "MEDIA_UNVERIFIED",

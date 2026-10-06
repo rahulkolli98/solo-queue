@@ -25,7 +25,8 @@ export type SectionName =
   | "naturalTiming"
   | "vacation"
   | "rules"
-  | "notifications";
+  | "notifications"
+  | "media";
 
 /**
  * Save-on-change for one Settings section. `settings.update` replaces a whole

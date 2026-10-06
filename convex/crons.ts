@@ -15,4 +15,8 @@ crons.daily(
 // env var PUBLISH_DRY_RUN is exactly "0" (see convex/lib/safety.ts).
 crons.interval("publisher-tick", { minutes: 1 }, internal.publish.tick, {});
 
+// Opt-in: removes hosted files of long-published posts, only when
+// Settings > Media > cleanupAfterDays is set (otherwise a no-op).
+crons.interval("media-cleanup", { hours: 24 }, internal.media.cleanupPublished, {});
+
 export default crons;
