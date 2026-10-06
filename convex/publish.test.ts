@@ -80,7 +80,7 @@ describe("publish.tick", () => {
     await connectThreads(t);
     const topic = await insertTopic(t);
     const draft = await insertDraft(t, topic, "threads", "Hello");
-    const slot = await insertSlot(t, draft, Date.now() - MIN);
+    const slot = await insertSlot(t, draft, Date.now() - 5 * MIN);
     const out = await t.action(internal.publish.tick, {});
     expect(out).toMatchObject({ dryRun: true, claimed: 0, published: 0 });
     expect(fake.impl).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("publish.tick", () => {
     await connectThreads(t);
     const topic = await insertTopic(t);
     const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree");
-    const slot = await insertSlot(t, draft, Date.now() - MIN);
+    const slot = await insertSlot(t, draft, Date.now() - 5 * MIN);
 
     const out = await t.action(internal.publish.tick, {});
     expect(out).toMatchObject({ dryRun: false, claimed: 1, published: 1, failed: 0 });
@@ -121,7 +121,7 @@ describe("publish.tick", () => {
     await connectThreads(t);
     const topic = await insertTopic(t);
     const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree");
-    const slot = await insertSlot(t, draft, Date.now() - MIN);
+    const slot = await insertSlot(t, draft, Date.now() - 5 * MIN);
 
     await t.action(internal.publish.tick, {});
     const row = await t.run(async (ctx) => ctx.db.get(slot));
@@ -142,7 +142,7 @@ describe("publish.tick", () => {
     await connectThreads(t);
     const topic = await insertTopic(t);
     const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree\n---\nFour");
-    const slot = await insertSlot(t, draft, Date.now() - MIN);
+    const slot = await insertSlot(t, draft, Date.now() - 5 * MIN);
 
     await t.action(internal.publish.tick, {});
     expect(fake.posts.map((p) => p.text)).toEqual(["One", "Two", "Three", "Four"]);
@@ -165,7 +165,7 @@ describe("publish.tick", () => {
     await connectThreads(t);
     const topic = await insertTopic(t);
     const draft = await insertDraft(t, topic, "threads", "One\n---\nTwo\n---\nThree");
-    const slot = await insertSlot(t, draft, Date.now() - MIN);
+    const slot = await insertSlot(t, draft, Date.now() - 5 * MIN);
 
     await t.action(internal.publish.tick, {});
     const row = await t.run(async (ctx) => ctx.db.get(slot));
@@ -230,7 +230,7 @@ describe("publish.tick", () => {
       }
     });
     const draft = await insertDraft(t, topic, "threads", "due", "k1");
-    const scheduledAt = Date.now() - MIN;
+    const scheduledAt = Date.now() - 5 * MIN;
     const slot = await insertSlot(t, draft, scheduledAt, { attempts: 2 });
 
     const out = await t.action(internal.publish.tick, {});

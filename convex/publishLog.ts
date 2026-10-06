@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import { daysUntil } from "./lib/coverage";
 import { isLivePublishing } from "./lib/safety";
 import { META_DAILY_LIMITS } from "./lib/settingsModel";
+import { readHold } from "./lib/queueHoldDb";
+import { effectiveTz } from "./lib/slotPlanning";
 
 /**
  * Data for the Publishing log (`/log`): is the publisher running, is it
@@ -113,16 +115,28 @@ export const attempts = operatorQuery({
 
 /**
  * Just the publisher mode, for the always-visible status in the app shell:
- * dry run (nothing is posted), live, or paused. Cheap on purpose; the full
- * picture is `status`.
+ * dry run (nothing is posted), live, or paused, and why the queue is holding
+ * (a vacation, or a failed post with "pause on failure" on). Cheap on
+ * purpose; the full picture is `status`. `now` is passed in (a query must not
+ * read the clock); without it no hold is reported. `tz` is the browser zone,
+ * used to word the vacation end date while the saved zone is still "auto".
  */
 export const mode = operatorQuery({
-  args: {},
-  handler: async (ctx) => {
+  args: { now: v.optional(v.number()), tz: v.optional(v.string()) },
+  handler: async (ctx, args) => {
     const pause = parseJson<{ paused?: boolean }>(await kv(ctx, "publishPaused"), {});
+    const held = args.now === undefined ? null : await readHold(ctx, args.now);
+    const hold =
+      held?.reason === "vacation" && held.vacationUntil !== null
+        ? { reason: "vacation" as const, until: held.vacationUntil }
+        : held?.reason === "failure"
+          ? { reason: "failure" as const }
+          : null;
     return {
       mode: isLivePublishing(process.env.PUBLISH_DRY_RUN) ? ("live" as const) : ("dry-run" as const),
       paused: pause.paused === true,
+      hold,
+      tz: held ? effectiveTz(held.settings, args.tz) : "UTC",
     };
   },
 });

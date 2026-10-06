@@ -5,7 +5,8 @@ import { refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { slotRisk } from "./lib/connectionRisk";
 import { readSettings } from "./lib/settingsDb";
-import { hasOpenSlot, planNextSlot, takenTimes } from "./lib/slotPlanning";
+import { isReelTemplate } from "./lib/queueRules";
+import { assertOneReelPerDay, effectiveTz, hasOpenSlot, planNextSlot, reelDays, takenTimes } from "./lib/slotPlanning";
 import { dayKey, resolveTz, zonedParts, zonedWallToUtc } from "./lib/zoned";
 
 /**
@@ -209,12 +210,20 @@ export const retry = operatorMutation({
     const now = Date.now();
     let at = args.scheduledAt;
     if (at !== undefined && at <= now) throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    // "One reel a day" holds for a retried reel too, at the time picked or the next free one.
+    const settings = await readSettings(ctx);
+    const draft = await ctx.db.get(slot.draftId);
+    const reel = draft !== null && isReelTemplate(draft.templateKey) && settings.rules.oneReelPerDay;
     if (at === undefined) {
       try {
-        at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now);
+        at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now, {
+          rejectDays: reel ? await reelDays(ctx, effectiveTz(settings, args.tz), now, new Set([args.id])) : undefined,
+        });
       } catch (err) {
         throw refusal("NO_FREE_SLOT", err instanceof Error ? err.message : "No free slot.");
       }
+    } else if (draft) {
+      await assertOneReelPerDay(ctx, settings, draft.templateKey, at, args.tz, now, args.id);
     }
     await ctx.db.patch(args.id, {
       status: "scheduled",
@@ -278,7 +287,12 @@ export const requeue = operatorMutation({
     }
     let at: number;
     try {
-      at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now);
+      at = await planNextSlot(ctx, slot.platform, await takenTimes(ctx, slot.platform), args.tz, now, {
+        rejectDays:
+          settings.rules.oneReelPerDay && isReelTemplate(draft.templateKey)
+            ? await reelDays(ctx, effectiveTz(settings, args.tz), now)
+            : undefined,
+      });
     } catch (err) {
       throw refusal("NO_FREE_SLOT", err instanceof Error ? err.message : "No free slot.");
     }

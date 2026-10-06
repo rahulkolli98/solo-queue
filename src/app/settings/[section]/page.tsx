@@ -3,6 +3,7 @@ import BillingSection from "@/components/features/settings/BillingSection";
 import ConnectionsSection from "@/components/features/settings/ConnectionsSection";
 import PillarsSection from "@/components/features/settings/PillarsSection";
 import PlannedSection from "@/components/features/settings/PlannedSection";
+import QueueRulesSection from "@/components/features/settings/QueueRulesSection";
 import SlotsSection from "@/components/features/settings/SlotsSection";
 import VoiceSection from "@/components/features/settings/VoiceSection";
 import { SETTINGS_SECTIONS, findSection } from "@/lib/settingsSections";
@@ -33,6 +34,8 @@ export default async function SettingsSectionPage({
         <ConnectionsSection connected={query.connected} error={query.error} detail={query.detail} />
       ) : key === "slots" ? (
         <SlotsSection />
+      ) : key === "rules" ? (
+        <QueueRulesSection />
       ) : key === "voice" ? (
         <VoiceSection />
       ) : key === "pillars" ? (

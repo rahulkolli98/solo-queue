@@ -10,7 +10,21 @@ import {
   parseRefusal,
   refusal,
 } from "./lib/slots";
-import { planNextSlot, takenTimes } from "./lib/slotPlanning";
+import {
+  assertOneReelPerDay,
+  assertUnderDailyCap,
+  effectiveTz,
+  planNextSlot,
+  planSlot,
+  reelDays,
+  scheduledPillars,
+  takenTimes,
+} from "./lib/slotPlanning";
+import { isHeldByNaturalTiming } from "./lib/queueHold";
+import { readHold } from "./lib/queueHoldDb";
+import { isReelTemplate, pillarOf, type QueuedPillar } from "./lib/queueRules";
+import { dayKey } from "./lib/zoned";
+import { readSettings } from "./lib/settingsDb";
 
 /** Scheduled (not yet claimed) slots per platform — powers at-risk warnings. */
 export const countScheduledByPlatform = operatorQuery({
@@ -74,7 +88,7 @@ export const week = operatorQuery({
 
 /** Move a scheduled slot to a new future time. */
 export const reschedule = operatorMutation({
-  args: { id: v.id("slots"), scheduledAt: v.number() },
+  args: { id: v.id("slots"), scheduledAt: v.number(), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
     if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have fired already.");
@@ -82,22 +96,35 @@ export const reschedule = operatorMutation({
       throw refusal("BAD_STATE", "Only scheduled slots can move.");
     if (args.scheduledAt <= Date.now())
       throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    const draft = await ctx.db.get(slot.draftId);
+    if (draft) {
+      await assertOneReelPerDay(
+        ctx,
+        await readSettings(ctx),
+        draft.templateKey,
+        args.scheduledAt,
+        args.tz,
+        Date.now(),
+        args.id
+      );
+    }
     await ctx.db.patch(args.id, { scheduledAt: args.scheduledAt });
     return { slotId: args.id, scheduledAt: args.scheduledAt };
   },
 });
 
 /**
- * Cancel a scheduled slot. The draft is preserved; the topic drops back to
- * ready unless its other drafts are still queued.
+ * Cancel a scheduled or failed slot. The draft is preserved; the topic drops
+ * back to ready unless its other drafts are still queued. Cancelling a failed
+ * post is how the founder clears the "pause on failure" hold without retrying.
  */
 export const cancel = operatorMutation({
   args: { id: v.id("slots") },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
     if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have fired already.");
-    if (slot.status !== "scheduled")
-      throw refusal("BAD_STATE", "Only scheduled slots can be cancelled.");
+    if (slot.status !== "scheduled" && slot.status !== "failed")
+      throw refusal("BAD_STATE", "Only scheduled or failed posts can be cancelled.");
     const draft = await ctx.db.get(slot.draftId);
     await ctx.db.delete(args.id);
     if (draft) {
@@ -343,15 +370,24 @@ async function doEnqueue(
     let at = scheduledAt;
     if (at !== undefined && at <= now)
       throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    const settings = await readSettings(ctx);
+    const zone = effectiveTz(settings, tz);
+    const reel = isReelTemplate(draft.templateKey) && settings.rules.oneReelPerDay;
     if (at === undefined) {
       try {
-        at = await planNextSlot(ctx, platform, await takenTimes(ctx, platform), tz, now);
+        at = await planNextSlot(ctx, platform, await takenTimes(ctx, platform), tz, now, {
+          rejectDays: reel ? await reelDays(ctx, zone, now) : undefined,
+        });
       } catch (err) {
         throw refusal(
           "NO_FREE_SLOT",
           err instanceof Error ? err.message : "No free slot in the next year."
         );
       }
+    } else {
+      // A time the caller chose (or queueTopic planned): the rules still hold.
+      assertUnderDailyCap(settings, platform, await takenTimes(ctx, platform), at, zone);
+      await assertOneReelPerDay(ctx, settings, draft.templateKey, at, tz, now);
     }
 
     const payload = enqueuePayloadSchema.safeParse({
@@ -403,6 +439,9 @@ export const claimDue = internalMutation({
   args: { now: v.number(), limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<Id<"slots">[]> => {
     const cap = Math.min(Math.max(args.limit ?? 10, 1), 25);
+    // Read in the same transaction as the claim, so a hold cannot slip between the check and the claim.
+    const hold = await readHold(ctx, args.now);
+    if (hold.reason) return [];
     const due: { _id: Id<"slots">; scheduledAt: number }[] = [];
     for (const platform of ["threads", "instagram"] as const) {
       const rows = await ctx.db
@@ -411,7 +450,11 @@ export const claimDue = internalMutation({
           q.eq("platform", platform).eq("status", "scheduled").lte("scheduledAt", args.now)
         )
         .take(cap);
-      for (const r of rows) due.push({ _id: r._id, scheduledAt: r.scheduledAt });
+      for (const r of rows) {
+        // Natural timing: a first attempt waits its small fixed delay (never early, under 2 minutes).
+        if (isHeldByNaturalTiming(r, hold.settings.naturalTiming, args.now)) continue;
+        due.push({ _id: r._id, scheduledAt: r.scheduledAt });
+      }
     }
     due.sort((a, b) => a.scheduledAt - b.scheduledAt);
     const winners = due.slice(0, cap);
@@ -494,6 +537,15 @@ export const queueTopic = operatorMutation({
     };
 
     const now = Date.now();
+    const settings = await readSettings(ctx);
+    const zone = effectiveTz(settings, args.tz);
+    // "Mix pillars": the scheduled queue per platform with each post's pillar, grown as this call places posts.
+    const pillar = pillarOf(topic.pillar);
+    const queue: Record<"threads" | "instagram", QueuedPillar[]> = settings.rules.mixPillars
+      ? { threads: await scheduledPillars(ctx, "threads"), instagram: await scheduledPillars(ctx, "instagram") }
+      : { threads: [], instagram: [] };
+    // "One reel a day": local days that already hold a reel, grown as this call places one.
+    const reelDaysTaken = settings.rules.oneReelPerDay ? await reelDays(ctx, zone, now) : new Set<string>();
     const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
     const skipped: { format: string; templateKey: string; code: string; message: string }[] = [];
     for (const f of WEEK_FORMATS) {
@@ -508,9 +560,23 @@ export const queueTopic = operatorMutation({
         continue;
       }
       try {
-        const at = await planNextSlot(ctx, f.platform, taken[f.platform], args.tz, now);
+        const rejectDays =
+          settings.rules.oneReelPerDay && isReelTemplate(f.templateKey) ? reelDaysTaken : undefined;
+        let at: number;
+        try {
+          at = planSlot(settings, f.platform, taken[f.platform], zone, now, {
+            rejectDays,
+            mix: settings.rules.mixPillars ? { pillar, queue: queue[f.platform] } : undefined,
+          });
+        } catch (err) {
+          // Mixing is a preference, never a reason to refuse: with no mixed slot in reach, take the first free one.
+          if (!settings.rules.mixPillars) throw err;
+          at = planSlot(settings, f.platform, taken[f.platform], zone, now, { rejectDays });
+        }
         await doEnqueue(ctx, draft._id, at, args.tz);
         taken[f.platform].push(at);
+        queue[f.platform].push({ at, pillar });
+        if (rejectDays) reelDaysTaken.add(dayKey(at, zone));
         queued.push({ format: f.label, templateKey: f.templateKey, scheduledAt: at });
       } catch (err) {
         const r = parseRefusal(err);

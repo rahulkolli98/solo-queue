@@ -35,7 +35,7 @@ async function setup(t: ReturnType<typeof newTest>) {
     })
   );
   await t.run(async (ctx) => ctx.db.patch(draft, { mediaAssetId: asset }));
-  const slot = await insertSlot(t, draft, Date.now() - 60_000, { platform: "instagram" });
+  const slot = await insertSlot(t, draft, Date.now() - 5 * 60_000, { platform: "instagram" });
   return { slot };
 }
 

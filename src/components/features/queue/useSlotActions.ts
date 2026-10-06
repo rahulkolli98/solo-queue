@@ -76,7 +76,7 @@ export function useSlotActions({
         const at = fromInputValue(when, tz);
         if (at === null) throw new Error("Pick a date and a time.");
         const r =
-          status === "failed" ? await retryMut({ id, scheduledAt: at, tz }) : await rescheduleMut({ id, scheduledAt: at });
+          status === "failed" ? await retryMut({ id, scheduledAt: at, tz }) : await rescheduleMut({ id, scheduledAt: at, tz });
         toast({ title: "Moved", detail: formatStamp(r.scheduledAt, tz) });
         setTyped(null);
       }),

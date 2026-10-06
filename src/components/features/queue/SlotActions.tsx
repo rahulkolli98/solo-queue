@@ -49,7 +49,7 @@ export default function SlotActions({
         </div>
       )}
       {status === "claimed" && <p className="sq-muted">The publisher has this post right now. Nothing to do.</p>}
-      {status === "scheduled" && (
+      {(status === "scheduled" || status === "failed") && (
         <button
           type="button"
           className={`sq-btn sq-q-d-cancel${actions.armed ? " sq-q-d-cancel-armed" : ""}`}

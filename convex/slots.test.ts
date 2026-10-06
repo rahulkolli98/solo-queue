@@ -13,7 +13,7 @@ describe("slots.claimDue", () => {
     const d2 = await insertDraft(t, topic);
     const d3 = await insertDraft(t, topic);
     const later = await insertSlot(t, d1, now + 60 * MIN);
-    const second = await insertSlot(t, d2, now - 1 * MIN);
+    const second = await insertSlot(t, d2, now - 3 * MIN);
     const first = await insertSlot(t, d3, now - 10 * MIN);
 
     const claimed = await t.mutation(internal.slots.claimDue, { now });

@@ -482,3 +482,185 @@
     margin-left: 40px;
   }
 }
+
+/* ---------- Posting slots (06a) and Queue rules (06b) ---------- */
+.st-setting-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.st-hint {
+  margin: 0;
+  font-size: 13px;
+}
+.st-select-wide {
+  min-width: 240px;
+  max-width: 320px;
+}
+.st-setting-error {
+  flex-basis: 100%;
+}
+
+/* switch: a 44 tall button around a 44 x 26 track */
+.st-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.st-switch:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--rounded-pill);
+}
+.st-switch-track {
+  display: inline-flex;
+  width: 44px;
+  height: 26px;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: var(--rounded-pill);
+  background: var(--color-line);
+}
+.st-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  display: block;
+}
+.st-switch[aria-checked="true"] .st-switch-track {
+  background: var(--color-chrome);
+  justify-content: flex-end;
+}
+.st-switch[aria-checked="true"] .st-switch-knob {
+  background: var(--color-threads);
+}
+
+/* platform card: time chips, add row, day toggles */
+.st-platform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.st-time-chip {
+  min-height: 44px;
+  padding-left: var(--space-14);
+}
+.st-time-chip .st-chip-x {
+  width: 44px;
+  height: 44px;
+}
+.st-time-input {
+  flex: 0 1 160px;
+}
+.st-add-row .st-time-input {
+  flex: 0 1 160px;
+}
+.st-add-btn {
+  min-height: 44px;
+}
+.st-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 44px));
+  gap: var(--space-6);
+}
+.st-day {
+  height: 44px;
+  min-width: 0;
+  padding: 0;
+  border-radius: var(--rounded-pill);
+  border: 1.5px solid var(--color-on-surface);
+  background: transparent;
+  color: var(--color-on-surface);
+  font: 500 12px var(--font-mono), "DM Mono", monospace;
+  cursor: pointer;
+}
+.st-day[aria-pressed="true"] {
+  background: var(--color-chrome);
+  color: var(--color-threads);
+}
+.st-day:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* vacation */
+.st-vacation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12) 0;
+  border-top: 1.5px solid var(--color-line-soft);
+}
+.st-vacation-dates {
+  display: flex;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+.st-vacation-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  flex: 0 1 200px;
+  min-width: 0;
+}
+.st-vacation-status {
+  margin: 0;
+  font: 500 13px var(--font-mono), "DM Mono", monospace;
+}
+
+/* daily caps */
+.st-caps {
+  display: flex;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+.st-cap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  flex: 0 1 140px;
+  min-width: 0;
+}
+.st-cap-input {
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .st-setting.st-setting-switch {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+  }
+  .st-select-wide {
+    min-width: 0;
+  }
+  .st-add-row {
+    flex-wrap: wrap;
+  }
+  .st-add-row .st-time-input {
+    flex: 1 1 120px;
+  }
+  .st-days {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .st-vacation-dates {
+    flex-direction: column;
+  }
+  .st-vacation-field {
+    flex-basis: auto;
+  }
+  .st-caps {
+    flex-wrap: nowrap;
+  }
+  .st-cap {
+    flex: 1 1 0;
+  }
+}

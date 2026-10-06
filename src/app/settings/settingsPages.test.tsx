@@ -7,7 +7,6 @@ const { notFound } = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({ notFound, useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@/components/features/ConnectionsPanel", () => ({ default: () => null }));
-vi.mock("@/components/features/SlotRulesForm", () => ({ default: () => null }));
 
 import nextConfig from "../../../next.config";
 import SettingsIndexPage from "./page";

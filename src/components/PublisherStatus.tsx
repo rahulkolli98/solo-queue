@@ -3,15 +3,19 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { publisherStatusView } from "@/lib/publisherStatus";
+import { useBrowserTz } from "@/lib/useBrowserTz";
+import { useNow } from "@/lib/useNow";
 import { api } from "../../convex/_generated/api";
 
 /**
- * Always-visible publisher state (dry run, live or paused), linking to the
+ * Always-visible publisher state (dry run, live, paused or on hold for a vacation or a failed post), linking to the
  * Publishing log. Without it the only hint that posts are not going out lived
  * on a page nothing in the navigation linked to.
  */
 export default function PublisherStatus({ compact = false }: { compact?: boolean }) {
-  const state = useQuery(api.publishLog.mode);
+  const now = useNow();
+  const tz = useBrowserTz();
+  const state = useQuery(api.publishLog.mode, { now, tz });
   if (!state) return null;
   const view = publisherStatusView(state);
   return (
