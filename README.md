@@ -105,6 +105,69 @@ ended" and a reload brings the login prompt back.
   raw builders. `src/lib/operatorGuard.test.ts` fails if a raw builder appears
   outside `convex/waitlist.ts`.
 
+## Weekly checklist (five lines)
+
+1. **Tokens:** Today → Meta card. Both accounts show days left; reconnect (Settings → Connections) if either says "Needs you" or is under 21 days.
+2. **Coverage:** Today → Queue runway. At least 7 days written on both platforms; fill gaps from Research or Studio.
+3. **Receipts:** Publishing log (`/log`). No new PERMANENT or RETRYABLE rows since last week; heartbeat under 5 minutes.
+4. **Hold:** the publisher pill is not ON HOLD. A failed post pauses the queue until it is retried or cancelled (Settings → Queue rules → Pause on failure).
+5. **Backup:** Settings → Data & account → Download everything (JSON). Keep the latest file outside the app.
+
+## If something is lost (backup and recovery)
+
+Your published posts live on Threads and Instagram. Everything else (topics,
+sources, drafts, the queue, frames, templates, settings, the publishing log and
+hosted media) lives **only in the Convex deployment**. The JSON export in
+Settings → Data & account is the one copy you control; it never contains tokens.
+There is no import yet, so an export is a record to read, not a restore.
+
+- **Tokens lost or expired (deployment fine):** Settings → Connections →
+  Reconnect. Nothing else changes. A daily check refreshes any token that has
+  less than a week left; a token that lapses anyway (the app was down, or the
+  refresh failed) needs this reconnect.
+- **Deployment lost:** create a new Convex project and deployment, set the
+  Convex variables from the Environment table (names only here: `THREADS_*`,
+  `IG_*`, `APP_BASE_URL`, `LLM_*`, `PUBLISH_DRY_RUN`, `OPERATOR_JWKS`), run
+  `npx convex deploy`, point Vercel's `NEXT_PUBLIC_CONVEX_URL` and
+  `CONVEX_DEPLOY_KEY` at it and redeploy, then Settings → Connections →
+  Connect Threads and Instagram. The Meta app's redirect URIs only need
+  changing if the app's domain changed. Start with `PUBLISH_DRY_RUN` unset
+  (dry run) until a test post works.
+- **Rehearsed on a fresh clone (2026-10-06):** `git clone`, `npm ci`,
+  `npx tsc --noEmit` and `npx vitest run` all pass with no environment file at
+  all. `npm run build` needs `NEXT_PUBLIC_CONVEX_URL` (Vercel sets it; for a
+  local build, copy `.env.example` to `.env.local` first). The Meta
+  reconnect itself can only be tried live.
+- **What comes back by itself:** the default templates and story frames are
+  recreated on first use. **What you re-enter:** voice, pillars, slots and rules
+  (Settings), and anything queued. **What is gone:** the queue and drafts, the
+  receipts, hosted media files. Keep the JSON export if you want the text of
+  old drafts.
+
+## Decisions closed (open questions)
+
+- **OQ-001, LLM provider:** OpenRouter through the AI SDK's OpenAI-compatible
+  provider, one pinned model in `LLM_MODEL` (swapping models is an env change,
+  no code). Local dev uses a fast free model; production uses a paid model
+  (founder decision 2026-09-30). **To record once the paid model is chosen and
+  after two weeks of use:** the model id, and the cost per week. Until then
+  this question stays open in the roadmap.
+- **OQ-002, Instagram login path:** the Instagram Login path (no Facebook Page)
+  with the scopes `instagram_business_basic` and `instagram_business_content_publish`
+  (`src/lib/oauth.ts`). A photo post with a caption published through it on
+  2026-10-05, so no capability forced the Facebook Login fallback. Reels are
+  not yet proven live (TASK-034).
+- **OQ-003, media policy:** media is stored in Convex and served on a public
+  link (primary). An external direct link to an image or video file is also
+  accepted. Either kind must be verified (reachable, and an image or video) and
+  the verification is good for 24 hours when a post is queued
+  (`VERIFIED_TTL_MS`); the Instagram publisher checks the link is reachable
+  again immediately before it posts and fails the slot, without posting, if it
+  is not. Page links (YouTube, Drive, Vimeo) are refused.
+- **OQ-004, default slot times:** ordered time lists per platform in
+  Settings → Posting slots (the only place the defaults live; per-slot
+  override stays available).
+
 ## Local backend trouble
 
 If `npx convex dev` dies with `fetch failed` before doing anything, its

@@ -27,9 +27,8 @@ export default function RouteError({
         This page <em>stopped.</em>
       </h1>
       <p>
-        Something failed while drawing this screen. Retry it, or go back to
-        Today. This is a display error, so scheduled posts keep publishing on
-        their own.
+        This screen failed to draw. Retry it, or go back to Today. This is a
+        display error, so scheduled posts keep publishing on their own.
       </p>
       {error.digest && (
         <p className="t-mono">Reference: {error.digest}</p>

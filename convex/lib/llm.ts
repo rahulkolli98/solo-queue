@@ -56,7 +56,7 @@ export function llmFailure(err: unknown): ConvexError<string> {
   const e = err as { name?: string; message?: string; statusCode?: number };
   const message = typeof e?.message === "string" ? e.message : "";
   if (message.startsWith("Missing env:")) {
-    return refusal("LLM_NOT_CONFIGURED", "The AI model is not set up on this deployment (LLM_API_KEY or LLM_MODEL is missing).");
+    return refusal("LLM_NOT_CONFIGURED", "LLM_API_KEY or LLM_MODEL is missing on this deployment. Set both in the Convex environment.");
   }
   if (/guardrail|data policy|privacy/i.test(message)) {
     return refusal(
@@ -69,7 +69,7 @@ export function llmFailure(err: unknown): ConvexError<string> {
     return refusal("LLM_AUTH", "The AI provider rejected the API key. Check LLM_API_KEY on this deployment.");
   }
   if (status === 402) {
-    return refusal("LLM_CREDITS", "The AI provider says the account is out of credits.");
+    return refusal("LLM_CREDITS", "The AI provider says the account is out of credits. Add credits with the provider, then retry.");
   }
   if (status === 404) {
     return refusal("LLM_MODEL", "The AI provider does not know the configured model. Check LLM_MODEL on this deployment.");

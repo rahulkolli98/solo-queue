@@ -144,7 +144,7 @@ export default function FirstRun({ summary }: { summary: TodaySummary }) {
       </StepCard>
     ) : (
       <StepCard key="s3" n={3} state="locked" word="locked" title="Queue this week">
-        <span className="sq-t-step-text">Unlocks once your first drafts are ready. One tap fills seven days of slots.</span>
+        <span className="sq-t-step-text">Opens once your first drafts are ready. One tap fills seven days of slots.</span>
       </StepCard>
     );
 

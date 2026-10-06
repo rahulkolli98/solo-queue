@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { dayCards, PLATFORM_NAME, type BoardDay, type PlatformFilter } from "@/lib/queueBoard";
+import { slotCardLabel, dayGroupLabel } from "@/lib/queueA11y";
+import { dayCards, shortDay, type BoardDay, type PlatformFilter } from "@/lib/queueBoard";
 import { studioFillHref } from "@/lib/studioHandoff";
-import { statusLabel } from "./StatusChip";
+import { StatusIcon } from "./StatusChip";
 
 const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
@@ -36,8 +37,13 @@ export default function RangeGrid({
           (platform === "instagram" ? 0 : day.open.threads.length) +
           (platform === "threads" ? 0 : day.open.instagram.length);
         return (
-          <div key={day.key} className={`sq-q-range-day${day.isToday ? " sq-q-range-today" : ""}`}>
-            <span className="sq-q-range-num">{day.label.split(" ")[1]}</span>
+          <div
+            key={day.key}
+            className={`sq-q-range-day${day.isToday ? " sq-q-range-today" : ""}`}
+            role="group"
+            aria-label={dayGroupLabel(day, platform)}
+          >
+            <span className="sq-q-range-num" aria-hidden="true">{day.label.split(" ")[1]}</span>
             {cards.map((c) => (
               <button
                 key={c._id}
@@ -45,15 +51,17 @@ export default function RangeGrid({
                 className={`sq-q-compact sq-q-st-${c.status}`}
                 style={{ background: `var(--color-${c.pillarColor})` }}
                 onClick={() => onOpen(c._id)}
-                aria-label={`${PLATFORM_NAME[c.platform]} ${c.time}, ${c.topicTitle}, ${statusLabel(c.status)}. Open details.`}
+                data-slot-id={c._id}
+                aria-label={slotCardLabel(c, shortDay(day.key))}
               >
+                <StatusIcon status={c.status} />
                 <span className="t-meta">{c.time}</span>
                 <span className="sq-q-compact-title">{c.topicTitle}</span>
                 <span className="t-tag-sm">{c.platform === "threads" ? "TH" : "IG"}</span>
               </button>
             ))}
             {open > 0 && (
-              <Link href={studioFillHref({ dayKey: day.key })} className="sq-q-open sq-q-open-chip" aria-label={`${open} open slots on ${day.label}. Fill from research.`}>
+              <Link href={studioFillHref({ dayKey: day.key })} className="sq-q-open sq-q-open-chip" aria-label={`${open} open ${open === 1 ? "slot" : "slots"} on ${day.label}. Fill from research.`}>
                 <span className="t-meta">{open} OPEN</span>
               </Link>
             )}

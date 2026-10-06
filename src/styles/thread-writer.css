@@ -51,6 +51,14 @@
   opacity: 1;
   text-decoration: underline;
 }
+.sq-tw-tool:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.sq-tw[data-tone="dark"] .sq-tw-tool:focus-visible {
+  outline-color: var(--color-threads);
+}
 .sq-tw-tool:disabled {
   opacity: 0.3;
   cursor: not-allowed;

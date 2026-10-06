@@ -94,7 +94,7 @@ export function TrimDrawer({ card, onClose }: { card: DraftCard; onClose: () => 
         <TrimForm draft={draft} onClose={onClose} />
       ) : (
         <p className="lb-note" data-bad="true">
-          That draft is gone. It may have been replaced in Studio.
+          That draft is gone. It may have been replaced in Studio. Close this and pick the current draft from the list.
         </p>
       )}
     </Drawer>
@@ -115,7 +115,7 @@ export function AttachDrawer({ card, onClose }: { card: DraftCard; onClose: () =
       toast({ title: "Media attached", detail: "The draft can be queued now." });
       onClose();
     } catch (err) {
-      toast({ title: "Could not attach that", detail: refusalText(err, "Try again."), tone: "bad" });
+      toast({ title: "Could not attach the media", detail: refusalText(err, "Try again."), tone: "bad" });
       setBusy(false);
     }
   }

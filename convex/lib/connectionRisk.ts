@@ -14,7 +14,7 @@ export function slotRisk(
   const name = platform === "threads" ? "Threads" : "Instagram";
   if (!connection) return `${name} is not connected. Connect it before this posts.`;
   if (connection.status === "failed") {
-    return `The ${name} connection needs attention. Reconnect before this posts.`;
+    return `The ${name} token refresh failed. Reconnect before this posts.`;
   }
   if (connection.status === "expiring" && connection.tokenExpiresAt <= scheduledAt) {
     return `The ${name} token expires before this posts. Reconnect to refresh it.`;

@@ -39,6 +39,11 @@ export function postsLabel(count: number): string {
   return `${count} / ${MAX_THREAD_POSTS} posts`;
 }
 
+/** Said aloud when Remove waits for its second press on a post that has text ("" the rest of the time). */
+export function removeConfirmText(postNumber: number, confirming: boolean): string {
+  return confirming ? `Press Remove again to delete post ${postNumber}. Moving off this button keeps it.` : "";
+}
+
 /** The one-line explanation under the Posts control. */
 export function postsHelper(frameSteps: number | undefined, savedDefault?: number): string {
   if (savedDefault !== undefined) return `Your default is ${savedDefault} posts. Pick another for this run only.`;

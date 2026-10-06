@@ -108,6 +108,20 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+/* Text links and buttons that would otherwise show only the browser's own ring (near-black, lost on ink). */
+.studio-posts-link:focus-visible,
+.studio-voice a:focus-visible,
+.studio-more-link:focus-visible,
+.studio-inbox-empty a:focus-visible,
+.studio-open:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+/* The next-step sentence takes focus (never by Tab) after Queue, so the bar shows where focus is. */
+.studio-bar-next:focus-visible {
+  outline: 2px solid var(--color-threads);
+  outline-offset: 2px;
+}
 .studio-armed {
   border-color: var(--color-primary);
   color: var(--color-primary-deep);
@@ -930,7 +944,7 @@
 .studio-md code {
   padding: 1px var(--space-4);
   border-radius: var(--rounded-sharp);
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
   font: 500 0.82em var(--font-mono), "DM Mono", monospace;
 }
 .studio-blog-empty {

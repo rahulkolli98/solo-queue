@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { slotCardLabel } from "@/lib/queueA11y";
 import {
   PLATFORM_NAME,
   dayState,
+  shortDay,
   weekdayName,
   type BoardCard,
   type BoardDay,
+  type DayState,
   type Platform,
   type PlatformFilter,
 } from "@/lib/queueBoard";
@@ -15,7 +18,14 @@ import { studioFillHref } from "@/lib/studioHandoff";
 import AtRiskMark from "./AtRiskMark";
 import IgTile from "./IgTile";
 import PlatformGlyph from "./PlatformGlyph";
-import StatusChip, { statusLabel } from "./StatusChip";
+import StatusChip from "./StatusChip";
+
+/** What each day pill's coloured dot means, in words. */
+const DAY_STATE_WORD: Record<DayState, string> = {
+  written: "written",
+  gap: "has open slots",
+  off: "no posting slots",
+};
 
 type Entry =
   | { kind: "card"; time: string; card: BoardCard }
@@ -31,14 +41,25 @@ function entriesFor(day: BoardDay, platform: PlatformFilter): Entry[] {
   return entries.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-function MobileCard({ card, pillarName, onOpen }: { card: BoardCard; pillarName: string; onOpen: (id: string) => void }) {
+function MobileCard({
+  card,
+  pillarName,
+  dayLabel,
+  onOpen,
+}: {
+  card: BoardCard;
+  pillarName: string;
+  dayLabel: string;
+  onOpen: (id: string) => void;
+}) {
   return (
     <button
       type="button"
       className={`sq-q-mcard sq-q-st-${card.status}`}
       style={{ background: `var(--color-${card.pillarColor})` }}
       onClick={() => onOpen(card._id)}
-      aria-label={`Threads post at ${card.time}, ${card.topicTitle}, ${statusLabel(card.status)}.${card.atRisk ? ` At risk: ${card.atRisk}` : ""} Open details.`}
+      data-slot-id={card._id}
+      aria-label={slotCardLabel(card, dayLabel)}
     >
       <span className="sq-q-mcard-top">
         <PlatformGlyph platform="threads" size={20} />
@@ -83,12 +104,12 @@ export default function Agenda({
               type="button"
               className="sq-q-daypill"
               aria-pressed={i === picked}
-              aria-label={`${weekdayName(d.key)} ${date}${state === "gap" ? ", has open slots" : ""}`}
+              aria-label={`${weekdayName(d.key)} ${date}, ${DAY_STATE_WORD[state]}`}
               onClick={() => setPicked(i)}
             >
               <span className="t-meta">{dow}</span>
               <span className="sq-q-daypill-num">{date}</span>
-              <span className={`sq-q-daypill-dot sq-q-daypill-dot-${state}`} />
+              <span className={`sq-q-daypill-dot sq-q-daypill-dot-${state}`} aria-hidden="true" />
             </button>
           );
         })}
@@ -121,14 +142,14 @@ export default function Agenda({
               <Link
                 href={studioFillHref({ dayKey: day.key, time: e.time, platform: e.platform })}
                 className={`sq-q-open sq-q-open-row${empty ? " sq-q-open-row-empty" : ""}`}
-                aria-label={`Open ${PLATFORM_NAME[e.platform]} slot at ${e.time}. Fill it from the research inbox.`}
+                aria-label={`Open ${PLATFORM_NAME[e.platform]} slot, ${shortDay(day.key)} ${e.time}. Fill it from the research inbox.`}
               >
                 {empty ? `OPEN · ${PLATFORM_NAME[e.platform].toUpperCase()}` : "Open slot · fill from research inbox"}
               </Link>
             ) : e.card.platform === "threads" ? (
-              <MobileCard card={e.card} pillarName={pillarNames[e.card.pillarColor] ?? ""} onOpen={onOpen} />
+              <MobileCard card={e.card} pillarName={pillarNames[e.card.pillarColor] ?? ""} dayLabel={shortDay(day.key)} onOpen={onOpen} />
             ) : (
-              <IgTile card={e.card} index={picked} onOpen={onOpen} />
+              <IgTile card={e.card} index={picked} dayLabel={shortDay(day.key)} onOpen={onOpen} />
             )}
           </li>
         ))}

@@ -172,7 +172,7 @@ describe("publish.tick", () => {
     expect(row?.status).toBe("published");
     expect(row?.lastError).toMatch(/Post 2 of 3 did not publish after 4 tries/);
     expect(row?.lastError).toMatch(/code 24, subcode 4279009/);
-    expect(row?.lastError).toMatch(/Posts 1 to 1 are live/);
+    expect(row?.lastError).toMatch(/Post 1 is live. Post the rest by hand/);
     expect(fake.posts.map((p) => p.text)).toEqual(["One"]);
   });
 

@@ -61,7 +61,7 @@ function DraftPostcard({
         actions: [{ label: "View queue", href: "/queue", variant: "primary" }],
       });
     } catch (err) {
-      toast({ title: "Not queued", detail: refusalText(err, "Could not queue this draft."), tone: "bad" });
+      toast({ title: "Not queued", detail: refusalText(err, "Could not queue this draft. Try again."), tone: "bad" });
       setBusy(false);
     }
   }

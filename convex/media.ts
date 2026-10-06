@@ -95,7 +95,7 @@ export const store = operatorMutation({
     if (meta.size > MAX_BYTES)
       throw refusal("TOO_BIG", "File is too big (50 MB max for Instagram-bound media).");
     const publicUrl = await ctx.storage.getUrl(args.storageId);
-    if (!publicUrl) throw refusal("NO_URL", "Couldn't make a public URL for that upload.");
+    if (!publicUrl) throw refusal("NO_URL", "No public URL for that upload. Upload the file again.");
     return await ctx.db.insert("mediaAssets", {
       storageId: args.storageId,
       publicUrl,

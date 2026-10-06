@@ -39,7 +39,7 @@ function Postcard({
         actions: [{ label: "View queue", href: "/queue", variant: "primary" }],
       });
     } catch (err) {
-      toast({ title: "Not requeued", detail: refusalText(err, "Could not requeue this post."), tone: "bad" });
+      toast({ title: "Not requeued", detail: refusalText(err, "Could not requeue this post. Try again."), tone: "bad" });
     } finally {
       setBusy(false);
     }
@@ -50,7 +50,7 @@ function Postcard({
     try {
       await setEvergreen({ id: post.slotId, evergreen: !post.evergreen });
     } catch (err) {
-      toast({ title: "Could not change that", detail: refusalText(err, "Try again."), tone: "bad" });
+      toast({ title: "Could not change the evergreen mark", detail: refusalText(err, "Try again."), tone: "bad" });
     } finally {
       setBusy(false);
     }

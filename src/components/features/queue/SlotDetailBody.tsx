@@ -3,8 +3,10 @@
 import { useState } from "react";
 import FormField from "@/components/ui/FormField";
 import type { SlotStatus } from "@/lib/queueBoard";
+import { AlertIcon } from "@/components/ui/icons";
 import { AtRiskNote } from "./AtRiskMark";
 import ReceiptsTable, { type Receipt } from "./ReceiptsTable";
+import { StatusIcon } from "./StatusChip";
 import type { useSlotActions } from "./useSlotActions";
 
 const PILL: Record<SlotStatus, { cls: string; label: string }> = {
@@ -69,11 +71,21 @@ export default function SlotDetailBody({
   return (
     <>
       <div className="sq-q-d-status">
-        <span className={`sq-pill ${PILL[slot.status].cls}`}>{PILL[slot.status].label}</span>
+        <span className={`sq-pill ${PILL[slot.status].cls}`}>
+          <StatusIcon status={slot.status} />
+          {PILL[slot.status].label}
+        </span>
         <span className="t-mono sq-muted">
           {slot.attempts} attempt{slot.attempts === 1 ? "" : "s"}
         </span>
-        {draft && !draft.constraintOk && <span className="sq-pill sq-pill-bad">OVER LIMIT</span>}
+        {draft && !draft.constraintOk && (
+          <span className="sq-pill sq-pill-bad">
+            <span className="sq-q-statusicon" aria-hidden="true">
+              <AlertIcon />
+            </span>
+            OVER LIMIT
+          </span>
+        )}
       </div>
       <AtRiskNote reason={detail.atRisk} />
       {slot.status === "failed" && slot.lastError && (

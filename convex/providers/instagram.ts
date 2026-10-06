@@ -228,7 +228,7 @@ export async function publishInstagramPost(
       ok: false,
       retryable: false,
       code: "CAPTION_LONG",
-      message: `Caption is ${input.caption.length - CAPTION_LIMIT} chars over the 2,200 limit.`,
+      message: `Caption is ${input.caption.length - CAPTION_LIMIT} characters over the 2,200 cap — shorten it, then retry.`,
     };
   }
   const allowed = input.kind === "photo" ? PHOTO_MIMES : REEL_MIMES;

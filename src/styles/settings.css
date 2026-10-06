@@ -514,7 +514,7 @@
   height: 22px;
   border-radius: var(--rounded-sm);
   overflow: hidden;
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 .st-mix-seg {
   flex: 0 0 var(--st-seg-width);
@@ -1000,7 +1000,7 @@
 .st-meter {
   height: 14px;
   border-radius: var(--rounded-pill);
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
   border: 1.5px solid var(--color-on-surface);
   box-sizing: border-box;
   overflow: hidden;

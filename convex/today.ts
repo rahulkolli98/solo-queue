@@ -229,7 +229,7 @@ export const summary = operatorQuery({
           platform: slot.platform,
           slotId: slot._id,
           title: `${PLATFORM_NAME[slot.platform]} post failed · ${whenLabel(slot.scheduledAt, tz)}.`,
-          detail: slot.lastError ?? "The publisher gave up on this post.",
+          detail: slot.lastError ?? "The publisher gave up on this post. Retry or reschedule it from the Queue.",
         });
       }
     }
@@ -241,7 +241,7 @@ export const summary = operatorQuery({
             id: `expiring:${c.platform}`,
             kind: "expiring",
             platform: c.platform,
-            title: `${PLATFORM_NAME[c.platform]} connection needs attention.`,
+            title: `${PLATFORM_NAME[c.platform]} token refresh failed.`,
             detail: c.lastError ?? "The last token refresh failed. Reconnect before posts fail.",
           });
         } else if (left <= EXPIRY_WARNING_DAYS) {

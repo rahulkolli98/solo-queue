@@ -10,6 +10,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { ArrowRightIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
 import { useNavCounts } from "@/components/useNavCounts";
+import { viewAnnouncement } from "@/lib/queueA11y";
 import { useBrowserTz } from "@/lib/useBrowserTz";
 import { useNow } from "@/lib/useNow";
 import {
@@ -36,6 +37,7 @@ import RangeGrid from "./RangeGrid";
 import SlotDrawer from "./SlotDrawer";
 import Timeline from "./Timeline";
 import WeekGrid from "./WeekGrid";
+import { useSheetFocus } from "./useSheetFocus";
 
 const RANGES = [
   { value: "week", label: "Week" },
@@ -68,7 +70,14 @@ export default function QueueBoard() {
 
   const slotParam = params.get("slot");
   const slotId = slotParam && SLOT_PARAM.test(slotParam) ? slotParam : null;
-  const open = useCallback((id: string) => router.push(`/queue?slot=${id}`, { scroll: false }), [router]);
+  const { remember } = useSheetFocus(slotId);
+  const open = useCallback(
+    (id: string) => {
+      remember();
+      router.push(`/queue?slot=${id}`, { scroll: false });
+    },
+    [router, remember]
+  );
   const close = useCallback(() => router.replace("/queue", { scroll: false }), [router]);
 
   if (data === undefined) return <QueueSkeleton />;
@@ -90,7 +99,7 @@ export default function QueueBoard() {
     ...failedCards(days).map((c) => ({
       slotId: c._id as string,
       title: `${PLATFORM_NAME[c.platform]} post failed · ${formatStamp(c.scheduledAt, data.tz)}.`,
-      reason: c.lastError ?? "The publisher gave up on this post.",
+      reason: c.lastError ?? "The publisher gave up on this post. Retry or reschedule it.",
     })),
   ].filter((f, i, all) => all.findIndex((o) => o.slotId === f.slotId) === i);
   const pillars = settings?.pillars ?? [];
@@ -99,7 +108,7 @@ export default function QueueBoard() {
   const leadTitle = `${headline.top} ${headline.rust}${headline.rest}`.trim();
   const lead = empty ? (
     <>
-      <b>Nothing scheduled yet.</b> {week.open} open slots this week.
+      <b>Nothing scheduled yet.</b> {week.open} open {week.open === 1 ? "slot" : "slots"} this week.
     </>
   ) : (
     <>
@@ -110,6 +119,11 @@ export default function QueueBoard() {
   return (
     <div className="sq-q-page">
       <FailureBanner failed={failures} tz={data.tz} onOpen={open} />
+
+      {/* Heard when the range or platform changes (and when posts are added or removed). */}
+      <p className="sq-sr" role="status">
+        {viewAnnouncement(days, range, platform)}
+      </p>
 
       <div className="sq-q-toolbar">
         <div className="sq-q-rangectl">
@@ -131,6 +145,7 @@ export default function QueueBoard() {
       <PageHeader
         headline={
           <>
+            <span className="sq-sr">Queue: </span>
             {headline.top}
             <br />
             <em>{headline.rust}</em>

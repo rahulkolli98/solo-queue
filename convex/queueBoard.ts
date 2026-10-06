@@ -246,7 +246,7 @@ export const setEvergreen = operatorMutation({
   args: { id: v.id("slots"), evergreen: v.boolean() },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
-    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have been removed.");
     await ctx.db.patch(args.id, { evergreen: args.evergreen });
     return { slotId: args.id, evergreen: args.evergreen };
   },
@@ -261,7 +261,7 @@ export const requeue = operatorMutation({
   args: { id: v.id("slots"), tz: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
-    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have been removed.");
     if (slot.status !== "published") {
       throw refusal("BAD_STATE", "Only published posts can be requeued.");
     }

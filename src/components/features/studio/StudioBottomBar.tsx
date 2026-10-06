@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDownIcon } from "@/components/features/studio/glyphs";
 import { ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 import { slotChipText, type BarSummary, type OpenSlot } from "@/lib/studioModel";
@@ -42,10 +42,40 @@ export default function StudioBottomBar({
   const disabled = !summary.canQueue || queuing;
   // Phones show two lines of the next step; this opens the whole sentence (no effect on wide screens).
   const [nextOpen, setNextOpen] = useState(false);
+
+  // The Queue button disables while it works (and once everything is queued), which drops keyboard
+  // focus onto the page. If it had focus when pressed, hand focus back to the button, or to the
+  // next-step sentence when the button stays disabled, so a keyboard user is not left at the top.
+  const queueRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLParagraphElement>(null);
+  const pressedWithFocus = useRef(false);
+  const wasQueuing = useRef(false);
+  useEffect(() => {
+    if (queuing) {
+      wasQueuing.current = true;
+      return;
+    }
+    if (!wasQueuing.current) return;
+    wasQueuing.current = false;
+    if (!pressedWithFocus.current) return;
+    pressedWithFocus.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    if (queueRef.current && !queueRef.current.disabled) queueRef.current.focus();
+    else nextRef.current?.focus();
+  }, [queuing]);
+
   return (
     <div className="studio-bar" role="region" aria-label="Queue">
       {nextStep && (
-        <p className="studio-bar-next" data-tone={nextTone} data-open={nextOpen || undefined} id="studio-next-step">
+        <p
+          className="studio-bar-next"
+          data-tone={nextTone}
+          data-open={nextOpen || undefined}
+          id="studio-next-step"
+          ref={nextRef}
+          tabIndex={-1}
+        >
           <span className="studio-bar-next-label t-meta">NEXT</span>
           <span className="studio-bar-next-text" aria-live="polite">
             {nextStep}
@@ -105,9 +135,13 @@ export default function StudioBottomBar({
       <button
         type="button"
         className="sq-btn sq-btn-primary studio-queuebtn"
+        ref={queueRef}
         disabled={disabled}
         aria-describedby={nextStep ? "studio-next-step" : undefined}
-        onClick={onQueue}
+        onClick={(e) => {
+          pressedWithFocus.current = document.activeElement === e.currentTarget;
+          onQueue();
+        }}
       >
         {queuing ? "Queueing…" : summary.buttonLabel}
         <ArrowRightIcon />

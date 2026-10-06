@@ -24,7 +24,7 @@ export const brief = operatorAction({
   args: { topicId: v.id("topics"), force: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ brief: string }> => {
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
-    if (!topic) throw new ConvexError("VALIDATION:TOPIC_NOT_FOUND: Topic not found.");
+    if (!topic) throw new ConvexError("VALIDATION:TOPIC_NOT_FOUND: Topic not found — it may have been deleted.");
     if (topic.briefEditedAt && !args.force) {
       throw new ConvexError(
         "VALIDATION:BRIEF_EDITED: You edited this brief. Regenerating will replace your edits."
@@ -54,7 +54,7 @@ export const angles = operatorAction({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args): Promise<{ angles: { platform: string; format: string; frameKey: string; title: string }[] }> => {
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
-    if (!topic) throw new ConvexError("VALIDATION:TOPIC_NOT_FOUND: Topic not found.");
+    if (!topic) throw new ConvexError("VALIDATION:TOPIC_NOT_FOUND: Topic not found — it may have been deleted.");
     const frames = await ctx.runQuery(api.frames.list, {});
     if (frames.length === 0) {
       throw new ConvexError("VALIDATION:NO_FRAMES: Add a story frame in the Library first.");

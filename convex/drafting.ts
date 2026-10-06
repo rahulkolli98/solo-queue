@@ -155,7 +155,7 @@ export const generate = operatorAction({
     const formats = (args.formats?.length ? args.formats : DEFAULT_FORMATS) as Format[];
 
     const topic = await ctx.runQuery(api.topics.get, { id: args.topicId });
-    if (!topic) throw new Error("Topic not found.");
+    if (!topic) throw new Error("Topic not found — it may have been deleted.");
     await ctx.runMutation(internal.templates.ensureDefaults, {});
     const actives = await ctx.runQuery(api.templates.list, {});
     const byKey = new Map(actives.map((t) => [t.key, t]));

@@ -172,6 +172,31 @@
   overflow: hidden;
 }
 
+/* status icon: the second cue beside the word (clock, arrow, tick, triangle) */
+.sq-q-statusicon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: var(--space-4);
+}
+.sq-q-statusicon svg {
+  width: 10px;
+  height: 10px;
+}
+.sq-pill .sq-q-statusicon {
+  margin-right: var(--space-6);
+}
+.sq-pill .sq-q-statusicon svg {
+  width: 12px;
+  height: 12px;
+}
+.sq-q-compact > .sq-q-statusicon {
+  margin-right: 0;
+}
+.sq-q-compact > .sq-q-statusicon svg {
+  width: 12px;
+  height: 12px;
+}
+
 /* status chip: words, never colour alone */
 .sq-q-chip {
   display: inline-flex;
@@ -185,12 +210,12 @@
   font-weight: 500;
   letter-spacing: 0.06em;
   white-space: nowrap;
-  background: rgba(43, 26, 20, 0.12);
+  background: color-mix(in srgb, var(--color-chrome) 12%, transparent);
   color: var(--color-on-surface);
 }
 .sq-q-chip-scheduled {
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(43, 26, 20, 0.4);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-chrome) 40%, transparent);
 }
 .sq-q-chip-published {
   background: var(--color-chrome);
@@ -249,7 +274,7 @@
   bottom: 34px;
   width: 120px;
   height: 120px;
-  background: rgba(43, 26, 20, 0.14);
+  background: color-mix(in srgb, var(--color-chrome) 14%, transparent);
 }
 .sq-q-tile-dot {
   position: absolute;
@@ -258,7 +283,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(251, 245, 232, 0.55);
+  background: color-mix(in srgb, var(--color-surface-raised) 55%, transparent);
 }
 .sq-q-tile-top,
 .sq-q-tile-bottom {
@@ -450,7 +475,7 @@
   box-sizing: border-box;
   border-radius: 13px;
   border: 1.5px solid var(--color-instagram);
-  background: rgba(240, 119, 92, 0.18);
+  background: color-mix(in srgb, var(--color-instagram) 18%, transparent);
 }
 .sq-q-dots {
   position: absolute;
@@ -544,7 +569,7 @@
   overflow: hidden;
   border: 1.5px solid var(--color-line-soft);
   border-radius: var(--rounded-xs);
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 .sq-q-media img,
 .sq-q-media video {

@@ -34,6 +34,11 @@ export function useToast(): ToastApi {
   return api;
 }
 
+/** A failure interrupts the reader ("alert"); a confirmation waits its turn ("status"). */
+export function toastRole(tone: ToastItem["tone"]): "alert" | "status" {
+  return tone === "bad" ? "alert" : "status";
+}
+
 function ToastCard({
   item,
   onDismiss,
@@ -54,7 +59,7 @@ function ToastCard({
   const bad = item.tone === "bad";
   return (
     <div
-      role="status"
+      role={toastRole(item.tone)}
       className={`sq-toast${bad ? " sq-toast-bad" : ""}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

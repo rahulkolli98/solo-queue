@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { errorText } from "@/lib/errors";
+import { CANCEL_ARM_MS } from "@/lib/queueA11y";
 import { formatStamp, fromInputValue, toInputValue } from "@/lib/queueBoard";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -43,7 +44,7 @@ export function useSlotActions({
 
   useEffect(() => {
     if (!armed) return;
-    const timer = setTimeout(() => setArmed(false), 5000);
+    const timer = setTimeout(() => setArmed(false), CANCEL_ARM_MS);
     return () => clearTimeout(timer);
   }, [armed]);
 

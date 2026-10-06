@@ -53,7 +53,7 @@ export const add = operatorMutation({
     let topicId = args.topicId;
     let createdTopic = false;
     if (topicId) {
-      if (!(await ctx.db.get(topicId))) throw refusal("TOPIC_NOT_FOUND", "Topic not found.");
+      if (!(await ctx.db.get(topicId))) throw refusal("TOPIC_NOT_FOUND", "Topic not found — it may have been deleted.");
     } else {
       topicId = await ctx.db.insert("topics", {
         title: titleFromCapture({ text: checked.text, url: checked.url }),

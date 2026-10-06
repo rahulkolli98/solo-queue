@@ -44,7 +44,7 @@ export default function AnglesRow({
         <span className="t-eyebrow">Angles to try</span>
         {has && (
           <button type="button" className="sq-btn" disabled={busy} onClick={() => void run()}>
-            {busy ? "Thinking…" : "More angles"}
+            {busy ? "Writing…" : "More angles"}
           </button>
         )}
       </div>
@@ -61,7 +61,7 @@ export default function AnglesRow({
         <div className="rs-angles-empty">
           <span>Three angles for this topic, each with a platform, a format and a story frame.</span>
           <button type="button" className="sq-btn sq-btn-sm sq-btn-dark" disabled={busy} onClick={() => void run()}>
-            {busy ? "Thinking…" : "Suggest angles"}
+            {busy ? "Writing…" : "Suggest angles"}
           </button>
         </div>
       )}

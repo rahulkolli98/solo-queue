@@ -272,7 +272,7 @@
   list-style: none;
 }
 .sq-t-inbox li + li {
-  border-top: 1px solid rgba(43, 26, 20, 0.2);
+  border-top: 1px solid color-mix(in srgb, var(--color-chrome) 20%, transparent);
 }
 .sq-t-inbox-row {
   display: flex;
@@ -379,7 +379,7 @@
 }
 .sq-t-kv-rule {
   height: 1px;
-  background: rgba(43, 26, 20, 0.2);
+  background: color-mix(in srgb, var(--color-chrome) 20%, transparent);
 }
 .sq-t-warn-ink {
   color: var(--color-primary-deep);

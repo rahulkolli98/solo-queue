@@ -19,8 +19,8 @@ export default function ConnectionsSection({
 }) {
   const errCopy = error
     ? ERROR_COPY[error] ?? {
-        title: "Something went wrong.",
-        body: "Try connecting again.",
+        title: "Meta sign-in did not finish.",
+        body: "The error code was not recognised. Try connecting again.",
       }
     : null;
 

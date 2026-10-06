@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AutoTextarea from "@/components/features/studio/AutoTextarea";
 import { THREADS_POST_LIMIT, charLen } from "@/lib/draftText";
+import { removeConfirmText } from "@/lib/studioCompose";
 import { bannedWordsFlag } from "@/lib/studioModel";
 
 /**
@@ -134,6 +135,10 @@ export default function ThreadPostRow({
             )}
           </span>
         )}
+        {/* A standing live region: the second-press question is spoken though the button keeps focus. */}
+        <span className="sq-sr" role="status">
+          {removeConfirmText(n, confirming)}
+        </span>
       </div>
     </div>
   );

@@ -17,10 +17,10 @@ export const join = mutation({
   handler: async (ctx, args): Promise<{ status: "joined" | "exists" }> => {
     const email = args.email.trim().toLowerCase();
     if (email.length === 0 || email.length > MAX_EMAIL_LEN) {
-      throw new Error("Please enter a valid email address.");
+      throw new Error("Enter a valid email address.");
     }
     if (!EMAIL_RE.test(email)) {
-      throw new Error("Please enter a valid email address.");
+      throw new Error("Enter a valid email address.");
     }
     const existing = await ctx.db
       .query("waitlist")

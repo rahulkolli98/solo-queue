@@ -366,9 +366,9 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
     // The first post publishes as the slot; the rest follow as replies to it.
     const posts = splitPosts(stripBeatHeaders(draft.body));
     const text = (posts.length > 0 ? posts[0] : draft.body).trim();
-    if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts.");
+    if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts. Write the post, then retry.");
     if (text.length > THREADS_POST_LIMIT) {
-      return markPermanent(ctx, slot._id, now, `Post 1 is ${text.length - THREADS_POST_LIMIT} characters over the ${THREADS_POST_LIMIT} limit — shorten it, then retry.`);
+      return markPermanent(ctx, slot._id, now, `Post 1 is ${text.length - THREADS_POST_LIMIT} characters over the ${THREADS_POST_LIMIT} cap — shorten it, then retry.`);
     }
     const out = slot.containerId
       ? await resumeThreadsContainer({
@@ -474,7 +474,8 @@ async function publishThreadReplies(
     }
     if (!out.ok) {
       const tried = attempts > 1 ? ` after ${attempts} tries` : "";
-      const note = `Post ${number} of ${rest.length + 1} did not publish${tried}: ${out.message} Posts 1 to ${number - 1} are live.`;
+      const live = number - 1 === 1 ? "Post 1 is live." : `Posts 1 to ${number - 1} are live.`;
+      const note = `Post ${number} of ${rest.length + 1} did not publish${tried}: ${out.message} ${live} Post the rest by hand.`;
       await ctx.runMutation(internal.slotRecovery.setNote, { id: slotId, note });
       await ctx.runMutation(internal.publish.addReceipt, {
         slotId,

@@ -46,7 +46,7 @@ async function getJson(url: string): Promise<unknown> {
 
 function requireEnv(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`Missing env: ${name}`);
+  if (!v) throw new Error(`Missing env: ${name}. Set it in the Convex environment, then try again.`);
   return v;
 }
 
@@ -100,21 +100,21 @@ async function exchangeThreads(code: string): Promise<{
     redirect_uri: redirectUri,
     code,
   })) as { access_token?: string };
-  if (!short?.access_token) throw new Error("Threads exchange returned no token.");
+  if (!short?.access_token) throw new Error("Threads exchange returned no token. Connect Threads again.");
 
   const long = (await getJson(
     `https://graph.threads.com/access_token?grant_type=th_exchange_token&client_secret=${encodeURIComponent(
       appSecret
     )}&access_token=${encodeURIComponent(short.access_token)}`
   )) as { access_token?: string; expires_in?: number };
-  if (!long?.access_token) throw new Error("Threads long-lived exchange failed.");
+  if (!long?.access_token) throw new Error("Threads long-lived token exchange failed. Connect Threads again.");
 
   const me = (await getJson(
     `https://graph.threads.com/v1.0/me?fields=id,username&access_token=${encodeURIComponent(
       long.access_token
     )}`
   )) as { id?: string; username?: string };
-  if (!me?.id) throw new Error("Threads profile fetch failed.");
+  if (!me?.id) throw new Error("Threads profile fetch failed. Connect Threads again.");
 
   return {
     platformUserId: me.id,
@@ -160,7 +160,7 @@ async function exchangeInstagram(code: string): Promise<{
         permissions?: string | string[];
       });
   if (!short?.access_token)
-    throw new Error("Instagram exchange returned no token.");
+    throw new Error("Instagram exchange returned no token. Connect Instagram again.");
 
   const long = (await getJson(
     `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_id=${encodeURIComponent(
@@ -170,14 +170,14 @@ async function exchangeInstagram(code: string): Promise<{
     )}&access_token=${encodeURIComponent(short.access_token)}`
   )) as { access_token?: string; expires_in?: number };
   if (!long?.access_token)
-    throw new Error("Instagram long-lived exchange failed.");
+    throw new Error("Instagram long-lived token exchange failed. Connect Instagram again.");
 
   const me = (await getJson(
     `https://graph.instagram.com/v26.0/me?fields=user_id,username,account_type&access_token=${encodeURIComponent(
       long.access_token
     )}`
   )) as { user_id?: string; username?: string; account_type?: string };
-  if (!me?.user_id) throw new Error("Instagram profile fetch failed.");
+  if (!me?.user_id) throw new Error("Instagram profile fetch failed. Connect Instagram again.");
   const accountType = (me.account_type ?? "").toLowerCase();
   if (
     accountType !== "business" &&
@@ -185,7 +185,7 @@ async function exchangeInstagram(code: string): Promise<{
     accountType !== "creator"
   ) {
     throw new Error(
-      `NOT_PROFESSIONAL: account type is ${me.account_type ?? "unknown"}.`
+      `NOT_PROFESSIONAL: account type is ${me.account_type ?? "unknown"}. Switch the account to Business or Creator, then connect again.`
     );
   }
 
@@ -315,7 +315,7 @@ export const applyRefreshResult = internalMutation({
     await ctx.db.patch(row._id, {
       status: next,
       lastCheckedAt: Date.now(),
-      lastError: args.error ?? "Refresh failed.",
+      lastError: args.error ?? "Token refresh failed. Reconnect in Settings.",
     });
     return next;
   },
@@ -333,7 +333,7 @@ async function refreshWithProvider(
       )}`
     )) as { access_token?: string; expires_in?: number };
     if (!data?.expires_in)
-      throw new Error("Threads refresh returned no expiry.");
+      throw new Error("Threads refresh returned no expiry. Reconnect Threads in Settings.");
     return {
       accessToken: data.access_token ?? current,
       tokenExpiresAt: Date.now() + data.expires_in * 1000,
@@ -345,7 +345,7 @@ async function refreshWithProvider(
     )}`
   )) as { access_token?: string; expires_in?: number };
   if (!data?.access_token || !data?.expires_in)
-    throw new Error("Instagram refresh returned no token.");
+    throw new Error("Instagram refresh returned no token. Reconnect Instagram in Settings.");
   return {
     accessToken: data.access_token,
     tokenExpiresAt: Date.now() + data.expires_in * 1000,
@@ -362,7 +362,7 @@ export const refresh = operatorAction({
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: args.platform,
     });
-    if (!row) return { status: "missing", error: "No connection stored." };
+    if (!row) return { status: "missing", error: "No connection stored. Connect the account first." };
     // Both providers reject refreshes for tokens less than 24h old. A token
     // with ~59+ days remaining was minted within the last day — skip the
     // provider call instead of burning a failure against it.
@@ -382,7 +382,7 @@ export const refresh = operatorAction({
       );
       return { status };
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Refresh failed.";
+      const message = e instanceof Error ? e.message : "Token refresh failed. Reconnect in Settings.";
       const status = await ctx.runMutation(
         internal.connections.applyRefreshResult,
         { platform: args.platform, ok: false, error: message }
@@ -417,7 +417,7 @@ export const checkExpiring = internalAction({
         await ctx.runMutation(internal.connections.applyRefreshResult, {
           platform: row.platform,
           ok: false,
-          error: e instanceof Error ? e.message : "Refresh failed.",
+          error: e instanceof Error ? e.message : "Token refresh failed. Reconnect in Settings.",
         });
         degraded++;
       }
@@ -488,7 +488,7 @@ export const publishThreadsTest = operatorAction({
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: "threads",
     });
-    if (!row) throw new Error("No threads connection stored.");
+    if (!row) throw new Error("No Threads connection stored. Connect Threads first.");
     const token = encodeURIComponent(row.accessToken);
 
     const createRes = await fetch(
@@ -564,7 +564,7 @@ export const deleteThreadsTest = operatorAction({
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: "threads",
     });
-    if (!row) throw new Error("No threads connection stored.");
+    if (!row) throw new Error("No Threads connection stored. Connect Threads first.");
     const res = await fetch(
       `https://graph.threads.com/v1.0/${args.mediaId}?access_token=${encodeURIComponent(
         row.accessToken
@@ -594,13 +594,13 @@ export const verifyInstagram = operatorAction({
     const row = await ctx.runQuery(internal.connections.getOne, {
       platform: "instagram",
     });
-    if (!row) throw new Error("No instagram connection stored.");
+    if (!row) throw new Error("No Instagram connection stored. Connect Instagram first.");
     const me = (await getJson(
       `https://graph.instagram.com/v26.0/me?fields=user_id,username&access_token=${encodeURIComponent(
         row.accessToken
       )}`
     )) as { user_id?: string; username?: string };
-    if (!me?.user_id) throw new Error("Instagram token verification failed.");
+    if (!me?.user_id) throw new Error("Instagram token verification failed. Reconnect Instagram in Settings.");
     return { username: me.username ?? me.user_id, userId: me.user_id };
   },
 });

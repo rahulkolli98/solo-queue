@@ -22,6 +22,18 @@
   top: var(--space-12);
 }
 
+/* A visible focus ring on the shell's own links (the browser default is near-black, invisible on the dark sidebar). */
+.sq-skip:focus-visible,
+.sq-mobile-brand:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.sq-logo:focus-visible,
+.sq-publisher:focus-visible {
+  outline: 2px solid var(--color-threads);
+  outline-offset: 2px;
+}
+
 .sq-sidebar {
   width: 224px;
   flex-shrink: 0;
@@ -121,7 +133,7 @@
   gap: 10px;
   padding: 14px;
   border-radius: 18px;
-  background: rgba(244, 235, 217, 0.07);
+  background: color-mix(in srgb, var(--color-surface) 7%, transparent);
   color: var(--color-on-chrome-strong);
   font-size: 14px;
 }

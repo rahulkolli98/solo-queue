@@ -1,3 +1,4 @@
+import { dayGroupLabel } from "@/lib/queueA11y";
 import { PLATFORM_NAME, shortDay, type BoardDay, type Platform, type PlatformFilter } from "@/lib/queueBoard";
 import IgTile from "./IgTile";
 import OpenSlot, { OpenTile } from "./OpenSlot";
@@ -18,7 +19,7 @@ function ThreadsCell({ day, onOpen }: { day: BoardDay; onOpen: (id: string) => v
   return (
     <div className="sq-q-cell sq-q-cell-threads">
       {day.threads.map((c) => (
-        <ThreadsCard key={c._id} card={c} onOpen={onOpen} />
+        <ThreadsCard key={c._id} card={c} dayLabel={label} onOpen={onOpen} />
       ))}
       {day.open.threads.map((time) => (
         <OpenSlot key={time} platform="threads" time={time} dayLabel={label} dayKey={day.key} />
@@ -34,7 +35,7 @@ function InstagramCell({ day, column, onOpen }: { day: BoardDay; column: number;
   return (
     <div className="sq-q-cell sq-q-cell-ig">
       {day.instagram.map((c) => (
-        <IgTile key={c._id} card={c} index={column} onOpen={onOpen} />
+        <IgTile key={c._id} card={c} index={column} dayLabel={label} onOpen={onOpen} />
       ))}
       {day.instagram.length === 0 && day.open.instagram.length > 0 && (
         <OpenTile times={day.open.instagram} dayLabel={label} dayKey={day.key} />
@@ -85,8 +86,15 @@ export default function WeekGrid({
       {days.map((day, i) => {
         const [dow, date] = day.label.split(" ");
         return (
-          <div key={day.key} className="sq-q-daycol" style={{ gridColumn: i + 2, gridRow: `1 / span ${1 + Number(showThreads) + Number(showIg)}` }}>
-            <div className={`sq-q-dayhead${day.isToday ? " sq-q-dayhead-today" : ""}`}>
+          <div
+            key={day.key}
+            className="sq-q-daycol"
+            style={{ gridColumn: i + 2, gridRow: `1 / span ${1 + Number(showThreads) + Number(showIg)}` }}
+            role="group"
+            aria-label={dayGroupLabel(day, platform)}
+          >
+            {/* The group already names the day; the head is the sighted label for it. */}
+            <div className={`sq-q-dayhead${day.isToday ? " sq-q-dayhead-today" : ""}`} aria-hidden="true">
               <span className="t-mono">{dow}</span>
               <span className="sq-q-daynum">{date}</span>
               <span className="sq-sr">{day.isToday ? ", today" : ""}</span>

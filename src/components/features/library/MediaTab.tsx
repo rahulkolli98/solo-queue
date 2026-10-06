@@ -81,7 +81,7 @@ export function MediaTile({
     } catch (err) {
       const why = refusalText(err, "Try again.");
       setRemoveError(why);
-      toast({ title: "Could not remove it", detail: why, tone: "bad" });
+      toast({ title: "Could not remove the file", detail: why, tone: "bad" });
     }
   }
 
@@ -227,7 +227,7 @@ export default function MediaTab({
       toast({ title: "Link added", detail: "Checking that it is an image or video file." });
       await verifyAsset(id);
     } catch (err) {
-      setProblem(refusalText(err, "Could not add that link."));
+      setProblem(refusalText(err, "Could not add that link. Try again."));
     } finally {
       setAddingUrl(false);
     }

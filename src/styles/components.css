@@ -73,7 +73,7 @@
   color: var(--color-on-surface);
 }
 .sq-pill-mid {
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
   color: var(--color-on-surface);
 }
 .sq-pill-bad {
@@ -126,11 +126,11 @@
 }
 /* action buttons adapt to the tone they sit on */
 .sq-banner-coral .sq-btn {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--color-on-primary);
+  color: var(--color-on-primary);
 }
 .sq-banner-coral .sq-btn-primary {
-  background: #fff;
+  background: var(--color-on-primary);
   color: var(--color-on-surface);
 }
 .sq-banner-yellow .sq-btn-primary,
@@ -140,7 +140,7 @@
   color: var(--color-on-chrome-strong);
 }
 .sq-banner-coral .sq-btn:focus-visible {
-  outline-color: #fff;
+  outline-color: var(--color-on-primary);
 }
 
 /* Phones: the banner's actions drop below the text instead of squeezing it. */
@@ -173,10 +173,10 @@
   pointer-events: auto;
   background: var(--color-chrome);
   color: var(--color-on-chrome-strong);
-  border: 1.5px solid rgba(244, 235, 217, 0.2);
+  border: 1.5px solid color-mix(in srgb, var(--color-surface) 20%, transparent);
   border-radius: 20px;
   padding: var(--space-16) 18px;
-  box-shadow: 0 18px 40px rgba(43, 26, 20, 0.35);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--color-chrome) 35%, transparent);
   display: flex;
   flex-direction: column;
   gap: var(--space-10);
@@ -268,10 +268,10 @@
   animation: sq-skp 1.4s ease-in-out infinite;
 }
 .sq-sk-dk {
-  background: rgba(244, 235, 217, 0.16);
+  background: color-mix(in srgb, var(--color-surface) 16%, transparent);
 }
 .sq-sk-y {
-  background: rgba(43, 26, 20, 0.12);
+  background: color-mix(in srgb, var(--color-chrome) 12%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .sq-sk {
@@ -292,7 +292,7 @@
   left: 40%;
   width: 64px;
   height: 20px;
-  background: rgba(240, 119, 92, 0.8);
+  background: color-mix(in srgb, var(--color-instagram) 80%, transparent);
   transform: rotate(4deg);
 }
 

@@ -62,7 +62,7 @@ export function PostingAs() {
       <span className="sq-eyebrow">Posting as</span>
       <div className="sq-posting-card">
         {connections === undefined ? (
-          <span className="sq-muted">Loading…</span>
+          <span className="sq-muted">Loading accounts…</span>
         ) : !threads && !instagram ? (
           <span className="sq-muted">Nothing connected yet.</span>
         ) : (

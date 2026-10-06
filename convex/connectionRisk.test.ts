@@ -13,7 +13,7 @@ describe("slotRisk", () => {
   it("flags a missing or failed connection, in words", () => {
     expect(slotRisk("instagram", "scheduled", Date.now() + DAY, undefined)).toMatch(/Instagram is not connected/);
     expect(slotRisk("threads", "scheduled", Date.now() + DAY, { ...healthy, status: "failed" })).toMatch(
-      /Threads connection needs attention/
+      /Threads token refresh failed/
     );
   });
   it("flags an expiring token only when it expires before the post", () => {
@@ -53,9 +53,9 @@ describe("queue board at-risk flags", () => {
     const board = await t.query(api.queueBoard.dayColumns, { from: Date.now() - 3600000, days: 3, tz: "UTC" });
     const cards = board.days.flatMap((d) => d.threads);
     expect(cards).toHaveLength(1);
-    expect(cards[0].atRisk).toMatch(/needs attention/);
+    expect(cards[0].atRisk).toMatch(/token refresh failed/);
     const detail = await t.query(api.queueBoard.detail, { id: slot });
-    expect(detail?.atRisk).toMatch(/needs attention/);
+    expect(detail?.atRisk).toMatch(/token refresh failed/);
     expect(JSON.stringify([board, detail])).not.toContain("SECRET-TOKEN");
   });
 
