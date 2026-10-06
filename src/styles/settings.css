@@ -1,0 +1,181 @@
+/*
+ * Settings (boards 06, 06a-06h, MSettings*): the section list on the left and
+ * one section on the right; on a phone the list is the screen and a section
+ * opens full-screen with a back link.
+ */
+.st-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-32);
+}
+
+.st-frame {
+  display: flex;
+  gap: var(--space-28);
+  margin-top: var(--space-24);
+  align-items: flex-start;
+}
+.st-nav {
+  width: 210px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.st-group {
+  display: contents;
+}
+.st-group-title {
+  display: none;
+}
+.st-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  height: 44px;
+  padding: 0 var(--space-14);
+  box-sizing: border-box;
+  border-radius: var(--rounded-md);
+  font: 400 15px var(--font-body), "DM Sans", sans-serif;
+  color: var(--color-muted-on-surface);
+  text-decoration: none;
+}
+.st-link:hover {
+  background: rgba(43, 26, 20, 0.06);
+}
+.st-link[aria-current="page"] {
+  background: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+  font-weight: 600;
+}
+.st-link:focus-visible,
+.st-back:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.st-link-meta {
+  margin-left: auto;
+  font: 500 10px var(--font-mono), "DM Mono", monospace;
+  letter-spacing: 0.06em;
+}
+.st-link-chev {
+  display: none;
+}
+.st-plan {
+  margin-top: var(--space-24);
+  padding: var(--space-14);
+  border-radius: var(--rounded-lg);
+  border: 1.5px dashed var(--color-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  font-size: 13px;
+  color: var(--color-muted-on-surface);
+}
+.st-plan strong {
+  font: 700 18px var(--font-display), "Bricolage Grotesque", sans-serif;
+  color: var(--color-on-surface);
+}
+.st-plan-tag {
+  font: 500 10px var(--font-mono), "DM Mono", monospace;
+}
+
+.st-body {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+.st-back {
+  display: none;
+}
+.st-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+.st-section-title {
+  margin: 0;
+  font: 800 34px/1 var(--font-display), "Bricolage Grotesque", sans-serif;
+  letter-spacing: -1.2px;
+}
+.st-section-blurb {
+  margin: var(--space-6) 0 0;
+  font-size: 18px;
+  color: var(--color-muted-on-surface);
+}
+
+@media (max-width: 767px) {
+  .st-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+  }
+  .st-head .sq-headline {
+    font-size: 40px;
+  }
+  .st-frame {
+    flex-direction: column;
+    gap: var(--space-16);
+    margin-top: var(--space-16);
+    align-items: stretch;
+  }
+  .st-frame[data-view="section"] .st-nav,
+  .st-frame[data-view="index"] .st-body {
+    display: none;
+  }
+  .st-nav {
+    width: auto;
+    gap: var(--space-16);
+  }
+  .st-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .st-group-title {
+    display: block;
+    margin: 0 0 var(--space-4);
+    font: 500 11px var(--font-mono), "DM Mono", monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted-on-surface);
+  }
+  .st-link {
+    height: 52px;
+    background: var(--color-surface-raised);
+    border: 1.5px solid var(--color-line-soft);
+    color: var(--color-on-surface);
+  }
+  .st-link[aria-current="page"] {
+    background: var(--color-surface-raised);
+    color: var(--color-on-surface);
+    font-weight: 400;
+  }
+  .st-link-meta {
+    margin-left: auto;
+  }
+  .st-link-chev {
+    display: inline;
+    color: var(--color-muted-on-surface);
+  }
+  .st-plan {
+    margin-top: 0;
+  }
+  .st-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    align-self: flex-start;
+    height: 44px;
+    font: 600 15px var(--font-body), "DM Sans", sans-serif;
+    color: var(--color-on-surface);
+    text-decoration: none;
+  }
+  .st-section-title {
+    font-size: 28px;
+  }
+}

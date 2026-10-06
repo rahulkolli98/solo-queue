@@ -115,7 +115,7 @@ export default function QueueBoard() {
         </div>
         <div className="sq-q-toolbar-right">
           <SegmentedControl label="Platform" options={[...PLATFORMS]} value={platform} onChange={setPlatform} />
-          <Link href="/settings" className="sq-btn sq-q-rules">
+          <Link href="/settings/slots" className="sq-btn sq-q-rules">
             <SettingsIcon />
             <span className="sq-q-rules-label">Slot rules</span>
           </Link>

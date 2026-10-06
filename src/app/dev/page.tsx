@@ -34,7 +34,7 @@ export default function Gallery() {
           tone="yellow"
           title="Threads token expires in 6 days."
           detail="Reconnect before Thursday's slots fail."
-          actions={[{ label: "Reconnect", href: "/settings", variant: "primary" }]}
+          actions={[{ label: "Reconnect", href: "/settings/connections", variant: "primary" }]}
         />
         <Banner
           tone="blue"

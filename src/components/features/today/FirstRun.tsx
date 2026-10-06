@@ -70,7 +70,7 @@ export default function FirstRun({ summary }: { summary: TodaySummary }) {
         word="now"
         title="Connect Threads"
         footer={
-          <Link href="/settings" className="sq-btn sq-btn-dark">
+          <Link href="/settings/connections" className="sq-btn sq-btn-dark">
             Connect Threads
           </Link>
         }
@@ -170,7 +170,7 @@ export default function FirstRun({ summary }: { summary: TodaySummary }) {
         </span>
         {!instagram?.connected && (
           <div className="sq-t-actions">
-            <Link href="/settings" className="sq-btn">
+            <Link href="/settings/connections" className="sq-btn">
               Connect Instagram
             </Link>
           </div>

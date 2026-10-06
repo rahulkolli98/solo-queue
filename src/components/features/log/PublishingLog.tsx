@@ -45,7 +45,7 @@ export default function PublishingLog() {
           title: "Token refresh needs attention",
           detail: bad.map(({ c, r }) => `${c.platform}: ${r.error ?? r.status}`).join(" · "),
           tone: "bad",
-          actions: [{ label: "Manage connections", href: "/settings", variant: "primary" }],
+          actions: [{ label: "Manage connections", href: "/settings/connections", variant: "primary" }],
         });
     } catch (e) {
       toast({ title: "Could not refresh tokens", detail: errorText(e, "Try again."), tone: "bad" });
@@ -90,7 +90,7 @@ export default function PublishingLog() {
           tone="coral"
           title="Publishing is paused."
           detail={status.paused.reason ?? "The publisher stopped after an error."}
-          actions={[{ label: "Manage connections", href: "/settings", variant: "primary" }]}
+          actions={[{ label: "Manage connections", href: "/settings/connections", variant: "primary" }]}
         />
       )}
 

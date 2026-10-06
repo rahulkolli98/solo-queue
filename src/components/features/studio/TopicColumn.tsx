@@ -130,7 +130,7 @@ export default function TopicColumn({
           <p className="studio-voice">
             <span className="t-meta">VOICE</span>
             <span className="studio-voice-text">{voice || "Not set yet."}</span>
-            <Link href="/settings" className="t-meta">
+            <Link href="/settings/voice" className="t-meta">
               EDIT IN SETTINGS
             </Link>
           </p>
