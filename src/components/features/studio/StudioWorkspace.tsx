@@ -9,6 +9,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
 import BlogPanel from "@/components/features/studio/BlogPanel";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
+import PlatformNotice from "@/components/features/studio/PlatformNotice";
 import ReplaceConfirm from "@/components/features/studio/ReplaceConfirm";
 import { GenerateControls, StudioToolbar, type Pane } from "@/components/features/studio/StudioActions";
 import StudioBottomBar from "@/components/features/studio/StudioBottomBar";
@@ -40,6 +41,8 @@ import {
   KIND_META,
   QUEUE_KINDS,
   barSummary,
+  draftsNeedingFix,
+  fixHeadline,
   formatWhen,
   latestByKind,
   mediaState,
@@ -283,6 +286,14 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     progress: generation.progress ? { done: generation.progress.done, total: generation.progress.total } : undefined,
     emptySub: "GENERATE TO START",
   });
+  // Drafts that block queueing: over the limit, media, or a failed write. They drive the headline,
+  // the Instagram footer and, on a phone, the other pane's switch ring and notice.
+  const needFix = draftsNeedingFix(
+    states,
+    QUEUE_KINDS.filter((k) => !latest[k] && gen(k).error)
+  );
+  const threadsNeed = needFix.filter((k) => k === "threads").length;
+  const igNeed = needFix.length - threadsNeed;
   const save = editor.summary(existingIds);
   const hasDrafts = Boolean(latest.threads || latest.caption || latest.reel || latest.blog);
   const threadPosts = latest.threads ? parseThread(bodyOf("threads") ?? "").length : 0;
@@ -344,6 +355,10 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     <>
       both platforms <em>coming…</em>
     </>
+  ) : needFix.length > 0 ? (
+    <>
+      {fixHeadline(needFix.length).lead} <em>{fixHeadline(needFix.length).accent}</em>
+    </>
   ) : hasDrafts ? (
     <>
       both platforms <em>out.</em>
@@ -383,6 +398,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         onPane={setPane}
         counts={{ threads: threadPosts, instagram: igCount }}
         saved={save.state === "saved"}
+        attention={{ threads: threadsNeed > 0 && pane !== "threads", instagram: igNeed > 0 && pane !== "instagram" }}
       />
       <StudioGuideStrip steps={guide.steps} />
 
@@ -461,11 +477,22 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           onWriting={setWriterOpen}
           expectedPosts={generation.running ? generation.postCount : undefined}
           bannedWords={settings?.voice.bannedWords}
+          notice={
+            pane === "threads" && igNeed > 0 ? (
+              <PlatformNotice platform="Instagram" count={igNeed} onOpen={() => setPane("instagram")} />
+            ) : undefined
+          }
         />
         <InstagramColumn
           tab={igTab}
           onTab={setIgTab}
           draftCount={igCount}
+          needCount={igNeed}
+          notice={
+            pane === "instagram" && threadsNeed > 0 ? (
+              <PlatformNotice platform="Threads" count={threadsNeed} onOpen={() => setPane("threads")} />
+            ) : undefined
+          }
           panels={{ reel: igPanel("reel"), caption: igPanel("caption") }}
         />
         <BlogPanel

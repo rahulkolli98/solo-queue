@@ -82,9 +82,11 @@ describe("open slots", () => {
     expect(out).toContain("Open Threads slot, Sun 27 Sep 19:00");
   });
 
-  it("stands one dashed tile in for a whole day of Instagram slots", () => {
+  it("stands one hatched tile in for a whole day of Instagram slots", () => {
     const out = html(<OpenTile times={["12:00", "18:30"]} dayLabel="Mon 28 Sep" />);
     expect(out).toContain("12:00 · 18:30");
+    expect(out).toContain("sq-q-tile-blob");
+    expect(out).toContain("sq-q-tile-title");
     expect(out).toContain('href="/studio"');
   });
 });
@@ -154,7 +156,9 @@ describe("ReceiptsTable", () => {
       />
     );
     expect(out.indexOf("PERMANENT")).toBeLessThan(out.indexOf("RETRYABLE"));
-    expect(out).toContain("#2");
+    expect(out).toContain("TRY 2");
+    expect(out).toContain("TRY 1");
+    expect(out).not.toContain("<th");
     expect(out).toContain("sq-q-rfail");
     expect(out).toContain("Image 2: URL not reachable");
   });

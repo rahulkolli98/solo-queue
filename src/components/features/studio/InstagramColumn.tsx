@@ -1,8 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import IgPanel, { type IgPanelProps } from "@/components/features/studio/IgPanel";
 import { InstagramAvatar } from "@/components/features/studio/glyphs";
 import StudioTabs, { useTabIds } from "@/components/features/studio/StudioTabs";
+import { instagramFooter } from "@/lib/studioModel";
 
 export type IgTab = "reel" | "caption";
 
@@ -12,12 +14,18 @@ export default function InstagramColumn({
   onTab,
   panels,
   draftCount,
+  needCount = 0,
+  notice,
 }: {
   tab: IgTab;
   onTab: (tab: IgTab) => void;
   /** Props for each tab's panel. */
   panels: Record<IgTab, IgPanelProps>;
   draftCount: number;
+  /** Instagram drafts that cannot be queued yet (over the limit, media, a failed write). */
+  needCount?: number;
+  /** Phone only: Threads needs the founder ("Threads: 1 draft needs you"). */
+  notice?: ReactNode;
 }) {
   const { tabId, panelId } = useTabIds();
   return (
@@ -29,6 +37,7 @@ export default function InstagramColumn({
         </div>
         <span className="t-mono studio-count">{draftCount} / 2 DRAFTS</span>
       </div>
+      {notice}
       <StudioTabs
         label="Instagram format"
         value={tab}
@@ -49,6 +58,11 @@ export default function InstagramColumn({
       >
         <IgPanel key={tab} {...panels[tab]} />
       </div>
+      {needCount > 0 && (
+        <div className="studio-colfoot">
+          <span className="t-mono studio-foot-rust">{instagramFooter(needCount)}</span>
+        </div>
+      )}
     </section>
   );
 }

@@ -98,10 +98,19 @@ export function shortAge(ts: number, now: number): string {
   return `${Math.floor(d / 7)} W`;
 }
 
-/** "3 SOURCES · SAVED 2 D AGO" */
+/** "3 SOURCES" */
+export function sourceCountLabel(sourceCount: number): string {
+  return `${sourceCount} ${sourceCount === 1 ? "SOURCE" : "SOURCES"}`;
+}
+
+/** "3 SOURCES · SAVED 2 D AGO" (phones drop the word SAVED: "3 SOURCES · 2 D AGO") */
 export function topicMetaLine(sourceCount: number, createdAt: number, now: number): string {
-  const sources = `${sourceCount} ${sourceCount === 1 ? "SOURCE" : "SOURCES"}`;
-  return `${sources} · SAVED ${shortAge(createdAt, now)} AGO`;
+  return `${sourceCountLabel(sourceCount)} · SAVED ${shortAge(createdAt, now)} AGO`;
+}
+
+/** The age half of the meta line, "2 D AGO", so the rail can wrap "SAVED " in a desktop-only span. */
+export function topicAgeLabel(createdAt: number, now: number): string {
+  return `${shortAge(createdAt, now)} AGO`;
 }
 
 export function wordCount(text: string): number {

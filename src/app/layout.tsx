@@ -12,7 +12,8 @@ import { ToastProvider } from "@/components/ui/Toast";
 const display = Bricolage_Grotesque({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  // The design boards load Bricolage with its optical-size axis; without it headings render wider.
+  axes: ["opsz"],
 });
 
 const body = DM_Sans({

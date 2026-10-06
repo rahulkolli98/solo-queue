@@ -6,7 +6,7 @@ import { ArrowRightIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { readinessLabel } from "../../../../convex/lib/research";
 import { refusalText } from "@/lib/refusalText";
-import { sourceSummary } from "@/lib/researchBoard";
+import { sourceCountLabel, sourceSummary } from "@/lib/researchBoard";
 import { postsOf, sendToStudioNote } from "@/lib/researchThread";
 import { studioTopicHref } from "@/lib/studioHandoff";
 import { latestByKind } from "@/lib/studioModel";
@@ -49,6 +49,7 @@ export default function TopicBoard({
 
   const imageUrls = new Map((media ?? []).map((m) => [m._id as string, m.publicUrl]));
   const pillar = pillarOf(pillars, topic.pillar);
+  const readiness = readinessLabel({ ready: topic.ready, needsMore: topic.needsMore });
 
   async function onArchive() {
     try {
@@ -74,15 +75,22 @@ export default function TopicBoard({
     <section className="rs-board" aria-label="Topic board">
       <div className="rs-board-head">
         <div className="rs-board-titles">
-          <span className="t-eyebrow">
-            <span className="rs-long">Topic board · </span>
+          <div className="rs-phonehead">
+            <span className="rs-tag" style={pillar ? { background: `var(--color-${pillar.color})` } : undefined}>
+              {pillar ? pillar.name : "No pillar yet"}
+            </span>
+            <span className="t-meta rs-phonehead-ready">
+              {topic.ready ? "● " : ""}
+              {readiness} · {sourceCountLabel(topic.sourceCount)}
+            </span>
+          </div>
+          <span className="t-eyebrow rs-long">
+            <span>Topic board · </span>
             {sources ? sourceSummary(sources) : "…"}
             {pillar ? ` · ${pillar.name}` : ""}
           </span>
           <h2 className="rs-board-title">{topic.title}</h2>
-          <span className="t-meta">
-            {readinessLabel({ ready: topic.ready, needsMore: topic.needsMore })}
-          </span>
+          <span className="t-meta rs-long">{readiness}</span>
         </div>
         <div className="rs-board-actions">
           <button type="button" className="sq-btn" onClick={onEdit}>

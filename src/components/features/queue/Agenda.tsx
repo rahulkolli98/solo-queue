@@ -120,7 +120,7 @@ export default function Agenda({
             {e.kind === "open" ? (
               <Link
                 href={studioFillHref({ dayKey: day.key, time: e.time, platform: e.platform })}
-                className="sq-q-open sq-q-open-row"
+                className={`sq-q-open sq-q-open-row${empty ? " sq-q-open-row-empty" : ""}`}
                 aria-label={`Open ${PLATFORM_NAME[e.platform]} slot at ${e.time}. Fill it from the research inbox.`}
               >
                 {empty ? `OPEN · ${PLATFORM_NAME[e.platform].toUpperCase()}` : "Open slot · fill from research inbox"}

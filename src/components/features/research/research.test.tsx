@@ -53,7 +53,8 @@ describe("TopicRail", () => {
   it("marks a ready row and the selected row", () => {
     const out = rail({ active: [topic({})], activeTotal: 1, selectedId: "t1" });
     expect(out).toContain("READY");
-    expect(out).toContain("3 SOURCES · SAVED 2 D AGO");
+    // "SAVED " is a desktop-only span: phones read "3 SOURCES · 2 D AGO" (board MResearch)
+    expect(out).toContain('3 SOURCES · <span class="rs-long">SAVED </span>2 D AGO');
     expect(out).toContain('aria-pressed="true"');
   });
   it("says how many sources a topic still needs", () => {

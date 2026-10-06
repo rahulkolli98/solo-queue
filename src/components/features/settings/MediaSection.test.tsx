@@ -35,7 +35,9 @@ describe("MediaSection", () => {
     expect(out).toContain(
       "Files are stored on your own Solo Queue backend and served on public links Meta can fetch."
     );
-    expect(out).toContain("Your own S3 or R2 bucket");
+    expect(out).toContain("Your own bucket");
+    expect(out).toContain("S3 · R2");
+    expect(out).toContain("● IN USE");
     expect(out.match(/Coming later/g)).toHaveLength(1);
     const inputs = out.match(/<input type="radio"[^>]*>/g) ?? [];
     expect(inputs).toHaveLength(2);

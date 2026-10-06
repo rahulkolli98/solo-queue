@@ -3,9 +3,11 @@
 import { useState } from "react";
 import AutoTextarea from "@/components/features/studio/AutoTextarea";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
+import BlogPreview from "@/components/features/studio/BlogPreview";
 import ManualDraft from "@/components/features/studio/ManualDraft";
 import StudioTabs, { useTabIds } from "@/components/features/studio/StudioTabs";
 import type { DraftView, GenState } from "@/components/features/studio/types";
+import SegmentedControl from "@/components/ui/SegmentedControl";
 import { markdownFilename, wordCount } from "@/lib/draftText";
 
 export type BlogTabId = "threads" | "reel" | "caption" | "blog";
@@ -20,6 +22,7 @@ export default function BlogPanel({
   onWrite,
   writing,
   onSaveManual,
+  defaultEditing = false,
 }: {
   view?: DraftView;
   topicTitle: string | undefined;
@@ -32,10 +35,14 @@ export default function BlogPanel({
   writing: boolean;
   /** Store the "Write it myself" text as the topic's blog draft. */
   onSaveManual?: (text: string) => Promise<void>;
+  /** Open on the markdown text instead of the article preview. */
+  defaultEditing?: boolean;
 }) {
   const { tabId, panelId } = useTabIds();
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const [manual, setManual] = useState(false);
+  // The draft reads as an article by default; "Edit" reveals the markdown text (it autosaves as before).
+  const [editing, setEditing] = useState(defaultEditing);
 
   async function copy() {
     if (!view) return;
@@ -74,18 +81,35 @@ export default function BlogPanel({
       </div>
     );
   } else if (view) {
+    // An empty draft has nothing to preview, so it opens straight on the text.
+    const showText = editing || !view.body.trim();
     content = (
       <>
-        <span className="t-meta studio-article-label">
-          BLOG DRAFT · MARKDOWN · {wordCount(view.body)} WORDS · NOT POSTED, FOR YOUR SITE OR NEWSLETTER
-        </span>
-        <AutoTextarea
-          className="studio-textarea studio-textarea-blog"
-          aria-label="Blog draft (markdown)"
-          value={view.body}
-          onChange={(e) => view.onChange(e.target.value)}
-          onBlur={view.onBlur}
-        />
+        <div className="studio-article-top">
+          <span className="t-meta studio-article-label">
+            BLOG DRAFT · MARKDOWN · {wordCount(view.body)} WORDS · NOT POSTED, FOR YOUR SITE OR NEWSLETTER
+          </span>
+          <SegmentedControl
+            label="Blog draft view"
+            value={showText ? "edit" : "preview"}
+            onChange={(v) => setEditing(v === "edit")}
+            options={[
+              { value: "preview", label: "Preview" },
+              { value: "edit", label: "Edit" },
+            ]}
+          />
+        </div>
+        {showText ? (
+          <AutoTextarea
+            className="studio-textarea studio-textarea-blog"
+            aria-label="Blog draft (markdown)"
+            value={view.body}
+            onChange={(e) => view.onChange(e.target.value)}
+            onBlur={view.onBlur}
+          />
+        ) : (
+          <BlogPreview body={view.body} />
+        )}
       </>
     );
   } else if (gen.error) {
@@ -118,6 +142,7 @@ export default function BlogPanel({
     <section className="studio-col studio-col-blog" aria-label="Blog draft">
       <div className="studio-blog-head">
         <StudioTabs<BlogTabId>
+          className="studio-blog-tabs"
           label="Draft"
           value="blog"
           tabId={tabId}

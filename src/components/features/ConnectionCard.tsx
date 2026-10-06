@@ -36,7 +36,11 @@ export default function ConnectionCard({
 }) {
   const title = platform === "threads" ? "Threads" : "Instagram";
   return (
-    <section className="sq-card" aria-label={`${title} connection`}>
+    <section
+      className="sq-card sq-conn-card"
+      data-connected={connection ? "true" : "false"}
+      aria-label={`${title} connection`}
+    >
       <div className="sq-card-h">
         <span
           className={`sq-avatar ${platform === "threads" ? "sq-avatar-threads" : "sq-avatar-ig"}`}
@@ -46,7 +50,7 @@ export default function ConnectionCard({
         </span>
         <h2 className="sq-card-title">{title}</h2>
         {connection && (
-          <span className="sq-tag" style={{ marginLeft: "auto" }}>
+          <span className="sq-tag sq-conn-tag" data-status={connection.status}>
             {STATUS_LABEL[connection.status]}
           </span>
         )}

@@ -14,8 +14,8 @@ import { effectiveTz } from "./lib/slotPlanning";
  */
 
 const DAY_MS = 86400000;
-/** The cron ticks every minute; older than this and the publisher is considered stopped. */
-export const HEARTBEAT_STALE_MS = 3 * 60_000;
+/** The cron ticks every minute; no beat for this long (5 minutes, per the PRD and board 07l) and the publisher is considered stopped. */
+export const HEARTBEAT_STALE_MS = 5 * 60_000;
 
 type KvRow = { value: string } | null;
 
@@ -89,6 +89,23 @@ export const attempts = operatorQuery({
   handler: async (ctx, args) => {
     const cap = Math.min(Math.max(args.limit ?? 50, 1), 200);
     const rows = await ctx.db.query("publishReceipts").order("desc").take(500);
+    // "TRY n": a receipt's place among its own slot's receipts, oldest first. Read from the slot's
+    // whole history (not the 500-row window above) so a long-retried post still counts from 1.
+    const slotOrder = new Map<string, string[]>();
+    const tryNumber = async (slotId: (typeof rows)[number]["slotId"], receiptId: string) => {
+      let order = slotOrder.get(slotId);
+      if (!order) {
+        const all = await ctx.db
+          .query("publishReceipts")
+          .withIndex("by_slot", (q) => q.eq("slotId", slotId))
+          .take(200);
+        order = all
+          .sort((a, b) => a.attemptedAt - b.attemptedAt || a._creationTime - b._creationTime)
+          .map((x) => x._id as string);
+        slotOrder.set(slotId, order);
+      }
+      return Math.max(1, order.indexOf(receiptId) + 1);
+    };
     const out = [];
     for (const r of rows) {
       if (args.outcome && r.outcome !== args.outcome) continue;
@@ -101,6 +118,7 @@ export const attempts = operatorQuery({
         outcome: r.outcome,
         providerMessage: r.providerMessage ?? null,
         slotId: r.slotId,
+        attempt: await tryNumber(r.slotId, r._id),
         platform: slot?.platform ?? null,
         scheduledAt: slot?.originalScheduledAt ?? slot?.scheduledAt ?? null,
         slotStatus: slot?.status ?? null,

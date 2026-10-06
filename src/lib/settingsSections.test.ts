@@ -5,6 +5,7 @@ import {
   findSection,
   groupedSections,
   navMeta,
+  postingAsSummary,
   sectionFromPath,
 } from "./settingsSections";
 
@@ -26,10 +27,22 @@ describe("settings sections", () => {
     expect(DEFAULT_SECTION).toBe("connections");
   });
 
-  it("groups them as Accounts / Posting / Writing / You for the phone list", () => {
+  it("groups them as Accounts / Posting / Writing / You for the phone list, whatever the desktop order", () => {
     const groups = groupedSections();
     expect(groups.map((g) => g.group)).toEqual(["Accounts", "Posting", "Writing", "You"]);
-    expect(groups.map((g) => g.items.length)).toEqual([1, 3, 2, 3]);
+    expect(groups.map((g) => g.items.map((s) => s.label))).toEqual([
+      ["Connections", "Media hosting"],
+      ["Posting slots", "Queue rules", "Content pillars"],
+      ["Voice & writing"],
+      ["Notifications", "Plan & billing", "Data & account"],
+    ]);
+  });
+
+  it("uses the board's blurbs for Content pillars and Media hosting", () => {
+    expect(findSection("pillars")?.blurb).toBe("The four things you post about, and how often.");
+    expect(findSection("media")?.blurb).toBe(
+      "Instagram publishes from a public link, so images and videos need a home."
+    );
   });
 
   it("finds a section by slug and reads the section out of a pathname", () => {
@@ -49,5 +62,28 @@ describe("settings sections", () => {
     expect(navMeta("pillars", live)).toBe("4");
     expect(navMeta("rules", live)).toBe("");
     expect(navMeta("connections", {})).toBe("");
+  });
+
+  it("summarises who the app is posting as for the phone list", () => {
+    expect(postingAsSummary(undefined)).toBeNull();
+    expect(postingAsSummary([])).toBeNull();
+    const ok = postingAsSummary([
+      { platform: "instagram", handle: "@ig", status: "healthy" },
+      { platform: "threads", handle: "@th", status: "healthy" },
+    ]);
+    expect(ok?.label).toBe("ALL HEALTHY");
+    expect(ok?.rows).toEqual([
+      { platform: "threads", handle: "@th" },
+      { platform: "instagram", handle: "@ig" },
+    ]);
+    expect(
+      postingAsSummary([
+        { platform: "threads", handle: "@th", status: "failed" },
+        { platform: "instagram", handle: "@ig", status: "healthy" },
+      ])?.health
+    ).toBe("failed");
+    expect(postingAsSummary([{ platform: "threads", handle: "@th", status: "expiring" }])?.label).toBe(
+      "EXPIRING SOON"
+    );
   });
 });

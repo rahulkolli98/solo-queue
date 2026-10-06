@@ -102,6 +102,19 @@
   gap: var(--space-8);
 }
 
+/* Phone-only variants are hidden until the phone block at the bottom shows them. */
+.sq-log-narrow,
+.sq-log-compact {
+  display: none;
+}
+.sq-log-refresh.sq-log-narrow {
+  display: none;
+}
+.sq-log-mark svg {
+  width: 16px;
+  height: 16px;
+}
+
 .sq-log-table-wrap {
   overflow-x: auto;
 }
@@ -124,6 +137,13 @@
   padding: 10px;
   border-bottom: 1px solid var(--color-line-soft);
   vertical-align: top;
+}
+.sq-log-time,
+.sq-log-try {
+  font-size: 12px;
+}
+.sq-log-time {
+  white-space: nowrap;
 }
 .sq-log-row-bad td {
   background: rgba(200, 65, 43, 0.07);
@@ -152,8 +172,168 @@
   color: var(--color-threads);
 }
 
+/* Phone (boards M07l): a compact two-up row, then one card per attempt. */
 @media (max-width: 767px) {
+  .sq-log-wide,
+  .sq-log-refresh.sq-log-wide,
+  .sq-log-br {
+    display: none;
+  }
+  .sq-log-narrow {
+    display: inline;
+  }
+  .sq-log-refresh.sq-log-narrow {
+    display: inline-flex;
+    width: 100%;
+    height: 44px;
+  }
+  /* The explainer and the header's copy of the button are desktop-only; with both gone the side column is empty. */
+  .sq-pageheader-side:has(.sq-log-refresh) {
+    display: none;
+  }
+
   .sq-log-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-10);
+  }
+  .sq-log-card {
+    padding: var(--space-14);
+    border-radius: var(--rounded-control);
+  }
+  .sq-log-card-dark {
+    gap: var(--space-2);
+  }
+  .sq-log-card-yellow {
+    gap: var(--space-4);
+  }
+  .sq-log-card-dark h2 {
+    color: var(--color-muted-on-chrome);
+  }
+  .sq-log-big {
+    font-size: 26px;
+  }
+  .sq-log-tag-running,
+  .sq-log-tag-dry-run {
+    display: none;
+  }
+  .sq-log-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  /* Receipts: no outer card, each attempt is its own card. */
+  .sq-log-card-raised {
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  .sq-log-table-wrap {
+    overflow: visible;
+  }
+  .sq-log-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    min-width: 0;
+  }
+  .sq-log-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .sq-log-rec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    padding: var(--space-12) var(--space-14);
+    border: 1.5px solid var(--color-line-soft);
+    border-radius: var(--rounded-lg);
+    background: var(--color-surface-raised);
+  }
+  .sq-log-rec-bad {
+    border-color: var(--color-primary);
+  }
+  .sq-log-rec td,
+  .sq-log-row-bad td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .sq-log-rec tr {
+    display: grid;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-4);
+    row-gap: var(--space-6);
+  }
+  .sq-log-rec tr + tr {
+    display: block;
+  }
+  .sq-log-plat {
+    order: 1;
+    margin-right: var(--space-4);
+  }
+  .sq-log-time {
+    order: 2;
+    font-size: 11px;
+  }
+  .sq-log-try {
+    order: 3;
+    font-size: 11px;
+  }
+  .sq-log-outcome {
+    order: 4;
+    justify-self: end;
+  }
+  .sq-log-title,
+  .sq-log-message,
+  .sq-log-detail {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .sq-log-title {
+    order: 5;
+    grid-column: 1 / -1;
+    font-size: 14px;
+  }
+  .sq-log-message {
+    order: 6;
+    grid-column: 1 / -1;
+    font-size: 12.5px;
+  }
+  .sq-log-rec .sq-avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+  .sq-log-rec .sq-log-mark svg {
+    width: 12px;
+    height: 12px;
+  }
+  .sq-log-rec .sq-pill {
+    height: 20px;
+    font-size: 9.5px;
+  }
+  /* The message line already says what the provider said; keep only the next step. */
+  .sq-log-gutter,
+  .sq-log-provider {
+    display: none;
+  }
+  .sq-log-detail {
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    font-size: 11px;
+    color: var(--color-primary-deep);
+  }
+  .sq-log-next {
+    color: var(--color-primary-deep);
   }
 }

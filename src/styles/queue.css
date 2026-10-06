@@ -333,18 +333,32 @@
   padding: 0 var(--space-12);
   border-radius: var(--rounded-sm);
 }
+/* the all-open Instagram tile: a rust hatch on paper, the filled tile's blob and dot, no dashes (board 07h) */
 .sq-q-open-tile {
+  position: relative;
   min-height: 112px;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
+  border: 0;
   border-radius: var(--rounded-sharp);
   padding: var(--space-12);
-  background: var(--color-error-tint);
+  color: var(--color-on-surface);
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 10%, transparent) 0 2px,
+    transparent 2px 8px
+  );
+  box-shadow: var(--shadow-paper);
 }
-.sq-q-open-tile .sq-q-tile-format {
-  background: transparent;
-  color: var(--color-primary-deep);
-  box-shadow: inset 0 0 0 1.5px var(--color-primary);
+.sq-q-open-tile:hover {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 18%, transparent) 0 2px,
+    transparent 2px 8px
+  );
+}
+.sq-q-open-tile .sq-q-tile-blob {
+  border-radius: 50%;
 }
 
 /* ---------- 3 weeks / month: a compact weekday-aligned calendar ---------- */
@@ -575,29 +589,34 @@
 .sq-q-receipts h3 {
   margin: 0 0 var(--space-6);
 }
-.sq-q-rtable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.sq-q-rlist {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.sq-q-rtable th {
-  padding: 0 var(--space-8) var(--space-10);
-  border-bottom: 1.5px solid var(--color-chrome);
-  text-align: left;
-  font-family: var(--font-mono), "DM Mono", monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted-on-surface);
-}
-.sq-q-rtable td {
-  padding: var(--space-10) var(--space-8);
+.sq-q-rrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-10) 0;
   border-top: 1px solid var(--color-line-soft);
-  vertical-align: top;
+  font-size: 13.5px;
 }
-.sq-q-rtable tbody tr:first-child td {
+.sq-q-rrow:first-child {
   border-top: 0;
+}
+.sq-q-rtime {
+  flex: none;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.sq-q-rrow .sq-pill {
+  flex: none;
+}
+.sq-q-rmsg {
+  min-width: 0;
 }
 .sq-q-rfail {
   background: var(--color-error-tint);
@@ -627,6 +646,10 @@
 .sq-q-d-cancel-armed {
   background: var(--color-primary);
   color: var(--color-on-primary);
+}
+/* the armed label is shorter on phones (board MStatesQueueDrawer) */
+.sq-q-cancel-short {
+  display: none;
 }
 
 /* ---------- phones: day pills + agenda list (boards MQueue*) ---------- */
@@ -724,19 +747,22 @@
     letter-spacing: -0.4px;
     -webkit-line-clamp: 3;
   }
-  /* sheet receipts (board MStatesQueueDrawer): time, outcome, message on one line each; the try count drops out */
-  .sq-q-rtable th,
-  .sq-q-rtable td {
-    padding-left: var(--space-6);
-    padding-right: var(--space-6);
-  }
-  .sq-q-rtable th:nth-child(2),
-  .sq-q-rtable td:nth-child(2) {
+  .sq-q-cancel-long {
     display: none;
   }
-  .sq-q-rtable td:first-child {
-    white-space: nowrap;
-    font-size: 11px;
+  .sq-q-cancel-short {
+    display: inline;
+  }
+  /* sheet receipts (board MStatesQueueDrawer): time, outcome, message on one line each; the try count drops out */
+  .sq-q-rtry {
+    display: none;
+  }
+  .sq-q-rrow {
+    gap: var(--space-8);
+    font-size: 13px;
+  }
+  .sq-q-rtime {
+    font-size: 10px;
   }
 }
 
@@ -882,6 +908,14 @@
     font-size: 14px;
     font-weight: 600;
     text-align: center;
+  }
+  /* empty queue: compact mono rows (board MStatesQueueEmpty) */
+  .sq-q-open-row-empty {
+    min-height: 44px;
+    border-radius: 14px;
+    font-family: var(--font-mono), "DM Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
   }
   .sq-q-d-row {
     flex-wrap: wrap;

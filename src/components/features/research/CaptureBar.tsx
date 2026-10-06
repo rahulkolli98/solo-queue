@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { refusalText } from "@/lib/refusalText";
 import { detectCapture } from "@/lib/researchBoard";
 import { api } from "../../../../convex/_generated/api";
+import { usePhone } from "./usePhone";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 /**
@@ -27,6 +28,7 @@ export default function CaptureBar({
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const phone = usePhone();
 
   useEffect(() => {
     if (lit) input.current?.focus();
@@ -77,7 +79,7 @@ export default function CaptureBar({
           type="text"
           className="rs-capture-input"
           data-lit={lit || undefined}
-          placeholder="Paste a link, a quote, or a half-thought…"
+          placeholder={phone ? "Paste a link or a half-thought…" : "Paste a link, a quote, or a half-thought…"}
           value={value}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "rs-capture-error" : undefined}

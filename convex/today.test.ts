@@ -75,6 +75,8 @@ describe("today.summary", () => {
     const kinds = out.alerts.map((a) => a.kind);
     expect(kinds).toEqual(["expiring", "coverage"]);
     expect(out.alerts[0].title).toBe("Threads token expires in 6 days.");
+    // With nothing queued the alert says only what to do; with posts queued it says how many depend on the token.
+    expect(out.alerts[0].detail).toBe("Reconnect before the slots start failing.");
     const coverage = out.alerts[1];
     expect(coverage.title).toBe("Threads has 0 days written.");
 
@@ -92,6 +94,18 @@ describe("today.summary", () => {
     });
     out = await t.query(api.today.summary, { now: NOW, tz: "UTC" });
     expect(out.alerts).toEqual([]);
+  });
+
+  it("says how many queued posts depend on an expiring token", async () => {
+    const t = newTest();
+    await connect(t, "threads", "healthy", 6);
+    const topic = await insertTopic(t);
+    const draft = await insertDraft(t, topic, "threads", "Post one");
+    await insertSlot(t, draft, NOW + 2 * DAY, { platform: "threads" });
+    await insertSlot(t, draft, NOW + 3 * DAY, { platform: "threads" });
+    const out = await t.query(api.today.summary, { now: NOW, tz: "UTC" });
+    const expiring = out.alerts.find((a) => a.kind === "expiring");
+    expect(expiring?.detail).toBe("2 scheduled posts depend on it. Reconnect before the slots start failing.");
   });
 
   it("turning 'queue running low' off hides the coverage banner, and 'post failed' off hides the failed one", async () => {

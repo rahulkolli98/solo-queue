@@ -37,7 +37,9 @@ const SWITCHES: ReadonlyArray<{ key: SwitchKey; title: string; help: string }> =
 ];
 
 /**
- * Board 06b: how the queue decides what goes out next. Every control saves as
+ * Board 06b: how the queue decides what goes out next, in the board's order
+ * (Mix pillars, Evergreen rest, One reel a day, Pause on failure, the daily
+ * caps). Every control saves as
  * it changes (switches and the select at once; the two caps when you leave the
  * field or press Enter). Each save sends the whole `rules` object, including
  * `fillGaps`, which has no control yet and keeps its saved value.
@@ -55,6 +57,27 @@ export default function QueueRulesSection() {
     return result;
   }
 
+  const switchRow = (s: (typeof SWITCHES)[number]) => (
+    <div key={s.key} className="st-setting st-setting-switch">
+      <div className="st-setting-text">
+        <span id={`rule-${s.key}-label`} className="st-setting-title">
+          {s.title}
+        </span>
+        <small id={`rule-${s.key}-help`}>{s.help}</small>
+      </div>
+      <SettingSwitch
+        id={`rule-${s.key}`}
+        checked={rules[s.key]}
+        labelledBy={`rule-${s.key}-label`}
+        describedBy={`rule-${s.key}-help`}
+        onChange={() => {
+          // Flip the latest saved value, so two quick toggles do not undo each other.
+          run((cur) => mergeRules(cur, { [s.key]: !cur[s.key] }));
+        }}
+      />
+    </div>
+  );
+
   return (
     <div className="st-stack">
       <p className="st-save-status sq-muted" role="status" aria-live="polite" data-state={status}>
@@ -62,26 +85,7 @@ export default function QueueRulesSection() {
       </p>
 
       <section className="sq-card st-rows" aria-label="Queue rules">
-        {SWITCHES.map((s) => (
-          <div key={s.key} className="st-setting st-setting-switch">
-            <div className="st-setting-text">
-              <span id={`rule-${s.key}-label`} className="st-setting-title">
-                {s.title}
-              </span>
-              <small id={`rule-${s.key}-help`}>{s.help}</small>
-            </div>
-            <SettingSwitch
-              id={`rule-${s.key}`}
-              checked={rules[s.key]}
-              labelledBy={`rule-${s.key}-label`}
-              describedBy={`rule-${s.key}-help`}
-              onChange={() => {
-                // Flip the latest saved value, so two quick toggles do not undo each other.
-                run((cur) => mergeRules(cur, { [s.key]: !cur[s.key] }));
-              }}
-            />
-          </div>
-        ))}
+        {switchRow(SWITCHES[0])}
 
         <div className="st-setting">
           <div className="st-setting-text">
@@ -105,35 +109,40 @@ export default function QueueRulesSection() {
             ))}
           </select>
         </div>
+
+        {switchRow(SWITCHES[1])}
+        {switchRow(SWITCHES[2])}
+
+        <div className="st-setting st-setting-caps">
+          <div className="st-setting-text">
+            <span id="caps-label" className="st-setting-title">
+              Personal daily cap
+            </span>
+            <small id="caps-help">
+              Stay well under Meta&apos;s limits (Threads {dailyCapLimit("threads")}, Instagram{" "}
+              {dailyCapLimit("instagram")}).
+            </small>
+          </div>
+          <div className="st-caps">
+            <CapField
+              platform="threads"
+              label="Threads"
+              saved={rules.dailyCap.threads}
+              onSave={(n) => run((cur) => mergeDailyCap(cur, "threads", n))}
+            />
+            <CapField
+              platform="instagram"
+              label="Instagram"
+              saved={rules.dailyCap.instagram}
+              onSave={(n) => run((cur) => mergeDailyCap(cur, "instagram", n))}
+            />
+          </div>
+        </div>
         {error && (
           <p className="st-error" role="alert">
             {error}
           </p>
         )}
-      </section>
-
-      <section className="sq-card" aria-label="Personal daily cap">
-        <div className="st-card-head">
-          <h3 className="st-eyebrow">Personal daily cap</h3>
-        </div>
-        <p className="sq-muted st-hint" id="caps-help">
-          Stay well under Meta&apos;s limits (Threads {dailyCapLimit("threads")}, Instagram{" "}
-          {dailyCapLimit("instagram")}).
-        </p>
-        <div className="st-caps">
-          <CapField
-            platform="threads"
-            label="Threads"
-            saved={rules.dailyCap.threads}
-            onSave={(n) => run((cur) => mergeDailyCap(cur, "threads", n))}
-          />
-          <CapField
-            platform="instagram"
-            label="Instagram"
-            saved={rules.dailyCap.instagram}
-            onSave={(n) => run((cur) => mergeDailyCap(cur, "instagram", n))}
-          />
-        </div>
       </section>
     </div>
   );

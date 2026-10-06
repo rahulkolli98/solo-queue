@@ -250,7 +250,10 @@ export const summary = operatorQuery({
             kind: "expiring",
             platform: c.platform,
             title: `${PLATFORM_NAME[c.platform]} token expires in ${left} day${left === 1 ? "" : "s"}.`,
-            detail: "Reconnect before the slots start failing.",
+            detail:
+              runway[c.platform].posts > 0
+                ? `${runway[c.platform].posts} scheduled post${runway[c.platform].posts === 1 ? "" : "s"} depend${runway[c.platform].posts === 1 ? "s" : ""} on it. Reconnect before the slots start failing.`
+                : "Reconnect before the slots start failing.",
           });
         }
       }

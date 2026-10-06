@@ -41,15 +41,15 @@ export default function MediaSection() {
         {statusText(status, message)}
       </p>
 
-      <section className="sq-card" aria-label="Where files live">
-        <div className="st-card-head">
-          <h3 className="st-eyebrow">Where files live</h3>
-        </div>
+      <section aria-label="Where files live">
         <div className="st-choices" role="radiogroup" aria-label="Where files live">
           <label className="st-choice" data-selected="true">
             <input type="radio" name="hosting" value="solo" checked readOnly className="st-choice-radio" />
             <span className="st-choice-text">
-              <span className="st-setting-title">Solo Queue hosting</span>
+              <span className="st-choice-head">
+                <span className="st-choice-title">Solo Queue hosting</span>
+                <span className="st-pill st-pill-use">● IN USE</span>
+              </span>
               <small>
                 Files are stored on your own Solo Queue backend and served on public links Meta can fetch.
               </small>
@@ -58,9 +58,12 @@ export default function MediaSection() {
           <label className="st-choice" data-disabled="true">
             <input type="radio" name="hosting" value="bucket" disabled checked={false} readOnly className="st-choice-radio" />
             <span className="st-choice-text">
-              <span className="st-setting-title">
-                Your own S3 or R2 bucket <span className="sq-tag">Coming later</span>
+              <span className="st-choice-head">
+                <span className="st-choice-title">Your own bucket</span>
+                <span className="st-pill st-pill-outline">S3 · R2</span>
               </span>
+              <small>Bring your own storage and keep files under your control.</small>
+              <span className="sq-tag">Coming later</span>
             </span>
           </label>
         </div>

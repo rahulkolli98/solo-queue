@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
+import { ChevronDownIcon } from "@/components/features/studio/glyphs";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { CheckIcon } from "@/components/ui/icons";
 import { POSTS_MAX, POSTS_MIN, postsHelper } from "@/lib/studioCompose";
@@ -57,6 +58,8 @@ export function PostsControl({
   onClearDefault?: () => void;
 }) {
   const id = useId();
+  // Phones keep the helper line and the default link behind "More" so the thread starts higher.
+  const [open, setOpen] = useState(false);
   const options = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
   return (
     <div className="studio-posts-ctl">
@@ -77,19 +80,31 @@ export function PostsControl({
           </option>
         ))}
       </select>
-      <span id={`${id}-hint`} className="studio-posts-hint">
-        {postsHelper(steps, saved)}
-      </span>
-      {onMakeDefault && value !== (saved ?? Number.NaN) && (
-        <button type="button" className="studio-posts-link" disabled={disabled} onClick={() => onMakeDefault(value)}>
-          Make {value} my default
-        </button>
-      )}
-      {onClearDefault && saved !== undefined && value === saved && (
-        <button type="button" className="studio-posts-link" disabled={disabled} onClick={onClearDefault}>
-          Let the story frame decide
-        </button>
-      )}
+      <button
+        type="button"
+        className="studio-posts-more"
+        aria-expanded={open}
+        aria-controls={`${id}-extra`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        More
+        <ChevronDownIcon />
+      </button>
+      <div id={`${id}-extra`} className="studio-posts-extra" data-open={open || undefined}>
+        <span id={`${id}-hint`} className="studio-posts-hint">
+          {postsHelper(steps, saved)}
+        </span>
+        {onMakeDefault && value !== (saved ?? Number.NaN) && (
+          <button type="button" className="studio-posts-link" disabled={disabled} onClick={() => onMakeDefault(value)}>
+            Make {value} my default
+          </button>
+        )}
+        {onClearDefault && saved !== undefined && value === saved && (
+          <button type="button" className="studio-posts-link" disabled={disabled} onClick={onClearDefault}>
+            Let the story frame decide
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -141,6 +156,7 @@ export function StudioToolbar({
   onPane,
   counts,
   saved = false,
+  attention,
 }: {
   saveText: string;
   saveFailed: boolean;
@@ -150,6 +166,8 @@ export function StudioToolbar({
   counts: { threads: number; instagram: number };
   /** Edits are saved: show a tick beside the "Saved 14:32" text. */
   saved?: boolean;
+  /** Phone: platforms whose drafts need the founder while another pane is showing (their switch segment gets a ring). */
+  attention?: { threads?: boolean; instagram?: boolean };
 }) {
   return (
     <div className="studio-toolbar">
@@ -164,7 +182,11 @@ export function StudioToolbar({
           ]}
         />
       </div>
-      <div className="studio-seg-mobile">
+      <div
+        className="studio-seg-mobile"
+        data-attention-threads={attention?.threads || undefined}
+        data-attention-instagram={attention?.instagram || undefined}
+      >
         <SegmentedControl
           label="Studio view"
           value={pane}

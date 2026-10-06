@@ -57,7 +57,14 @@ export default function SlotActions({
           onClick={actions.cancel}
           aria-live="polite"
         >
-          {actions.armed ? "Tap again to cancel · the draft is kept" : "Cancel post"}
+          {actions.armed ? (
+            <>
+              <span className="sq-q-cancel-long">Tap again to cancel · the draft is kept</span>
+              <span className="sq-q-cancel-short">Tap again · the draft is kept</span>
+            </>
+          ) : (
+            "Cancel post"
+          )}
         </button>
       )}
     </div>

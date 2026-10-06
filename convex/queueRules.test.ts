@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { slotJitterMs } from "./lib/queueHold";
@@ -14,7 +14,15 @@ const BASE_RULES = DEFAULT_SETTINGS.rules;
 const REEL_REFUSAL =
   /ONE_REEL_PER_DAY: There is already a reel on that day\. Pick another day, or turn off "One reel a day" in Settings\./;
 
+// Planning looks for the next free slot after "now", so these tests pin the clock to 06:00 UTC today: every default
+// slot time (09:30 to 19:00) is still ahead, whatever time of day the suite runs.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(day0 + 6 * HOUR);
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();

@@ -56,26 +56,31 @@ export default function PublishingLog() {
 
   if (status === undefined) return <LogSkeleton />;
 
+  // Desktop keeps the button in the header beside the explainer; the phone board puts it full-width
+  // under the cards (log.css shows exactly one of the two).
+  const refreshButton = (placement: "wide" | "narrow") => (
+    <button
+      type="button"
+      className={`sq-btn sq-btn-dark sq-log-refresh sq-log-${placement}`}
+      onClick={runRefresh}
+      disabled={refreshing || status.connections.length === 0}
+    >
+      {refreshing ? "Refreshing…" : "Run refresh now"}
+    </button>
+  );
+
   return (
     <>
       <PageHeader
         eyebrow="Publishing log"
         headline={
           <>
-            Every post, <em>every attempt.</em>
+            Every post,
+            <br className="sq-log-br" /> <em>every attempt.</em>
           </>
         }
         aside="What the publisher did, when, and what Meta said back."
-        actions={
-          <button
-            type="button"
-            className="sq-btn sq-btn-dark"
-            onClick={runRefresh}
-            disabled={refreshing || status.connections.length === 0}
-          >
-            {refreshing ? "Refreshing…" : "Run refresh now"}
-          </button>
-        }
+        actions={refreshButton("wide")}
       />
 
       {status.mode === "dry-run" && (
@@ -99,6 +104,7 @@ export default function PublishingLog() {
         <UsageCard used={status.usage24h} limits={status.limits} />
         <MetaCard connections={status.connections} />
       </div>
+      {refreshButton("narrow")}
 
       <section className="sq-log-card sq-log-card-raised" aria-label="Receipts">
         <div className="sq-log-card-head">
