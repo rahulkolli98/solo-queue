@@ -216,6 +216,22 @@
     white-space: nowrap;
   }
 
+  /* Screens other than Today: the screen name is the heading and the wordmark steps aside (the tab bar links home). */
+  .sq-mobile-header[data-home="false"] .sq-mobile-brand {
+    display: none;
+  }
+
+  .sq-mobile-header[data-home="false"] .sq-mobile-title {
+    order: -1;
+    text-align: left;
+    font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    text-transform: none;
+    color: var(--color-on-surface);
+  }
+
   .sq-mobile-actions {
     display: flex;
     align-items: center;

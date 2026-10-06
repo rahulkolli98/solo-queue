@@ -75,7 +75,8 @@ export default function TopicBoard({
       <div className="rs-board-head">
         <div className="rs-board-titles">
           <span className="t-eyebrow">
-            Topic board · {sources ? sourceSummary(sources) : "…"}
+            <span className="rs-long">Topic board · </span>
+            {sources ? sourceSummary(sources) : "…"}
             {pillar ? ` · ${pillar.name}` : ""}
           </span>
           <h2 className="rs-board-title">{topic.title}</h2>

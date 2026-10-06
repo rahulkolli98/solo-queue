@@ -464,8 +464,43 @@
   .sq-t-page .sq-headline {
     font-size: 44px;
   }
+  /* the board's date line: a light italic 20px sitting 4px above the headline */
+  .sq-t-top {
+    margin-bottom: calc(-1 * var(--space-12));
+  }
   .sq-t-top .t-date {
+    font-family: var(--font-body), "DM Sans", sans-serif;
     font-size: 20px;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  /* the board has no coverage sentence under the headline; the runway card and alerts carry it */
+  .sq-t-populated .sq-pageheader-side {
+    display: none;
+  }
+  /* alerts: text on top, full-width 44px actions below, no icon (board) */
+  .sq-t-alerts .sq-banner-tone > svg {
+    display: none;
+  }
+  .sq-t-alerts .sq-banner-body {
+    flex-basis: 100%;
+  }
+  .sq-t-alerts .sq-banner-actions {
+    flex-wrap: wrap;
+  }
+  .sq-t-alerts .sq-banner-actions .sq-btn {
+    flex: 1 1 auto;
+    height: 44px;
+  }
+  /* the inbox count links to Research: widen the tap area to 44px without growing the badge */
+  .sq-t-badge {
+    position: relative;
+  }
+  .sq-t-badge::after {
+    content: "";
+    position: absolute;
+    inset: -11px -10px;
   }
   .sq-t-top .sq-t-new {
     display: none;
@@ -486,9 +521,13 @@
   .sq-t-card-ink {
     grid-column: auto;
   }
+  .sq-t-card-coral {
+    gap: var(--space-14);
+  }
   .sq-t-note {
     transform: rotate(-1.2deg);
     padding: 14px 16px 12px;
+    gap: var(--space-8);
   }
   .sq-t-note-body {
     font-size: 15px;
@@ -496,8 +535,15 @@
   .sq-t-actions .sq-btn {
     height: 44px;
   }
+  /* the two figures sit side by side (board); the sub lines wrap under them */
   .sq-t-figures {
-    gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-12) var(--space-16);
+  }
+  .sq-t-open {
+    grid-column: 1 / -1;
   }
   .sq-t-figures .t-figure {
     font-size: 36px;

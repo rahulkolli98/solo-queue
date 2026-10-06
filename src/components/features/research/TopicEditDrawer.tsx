@@ -137,10 +137,10 @@ export default function TopicEditDrawer({
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="sq-btn sq-btn-dark" disabled={busy} onClick={() => void save(false)}>
+          <button type="button" className="sq-btn sq-btn-dark rs-drawer-save" disabled={busy} onClick={() => void save(false)}>
             {busy ? "Saving…" : "Save topic"}
           </button>
-          <button type="button" className="sq-btn" disabled={busy} onClick={() => void save(true)}>
+          <button type="button" className="sq-btn rs-drawer-studio" disabled={busy} onClick={() => void save(true)}>
             Save &amp; open in Studio
           </button>
           {topic && (
@@ -148,7 +148,7 @@ export default function TopicEditDrawer({
               <span className="rs-drawer-spacer" />
               <button
                 type="button"
-                className="sq-btn rs-danger"
+                className="sq-btn rs-danger rs-drawer-delete"
                 data-armed={del.armed || undefined}
                 disabled={busy}
                 onClick={() => del.tap(() => void doDelete())}

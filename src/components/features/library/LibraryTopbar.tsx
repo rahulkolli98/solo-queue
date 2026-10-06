@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { ResearchIcon } from "@/components/ui/icons";
 import type { LibraryTab } from "@/lib/libraryBoard";
 import type { LibraryFilters, Pillar } from "./types";
 
@@ -33,8 +35,36 @@ export default function LibraryTopbar({
   pillars: Pillar[];
 }) {
   const showSelects = tab === "published" || tab === "drafts";
+  // Phone only: the search field and the pillar / platform filters open from two buttons.
+  const [panel, setPanel] = useState<"search" | "filter" | null>(null);
+  const toggle = (next: "search" | "filter") => setPanel((cur) => (cur === next ? null : next));
   return (
     <div className="lb-top">
+      <div className="lb-mbar">
+        <button
+          type="button"
+          className="lb-mbtn lb-mbtn-icon"
+          aria-label="Search library"
+          aria-expanded={panel === "search"}
+          aria-controls="lb-tools"
+          data-active={filters.search.trim() ? "true" : undefined}
+          onClick={() => toggle("search")}
+        >
+          <ResearchIcon />
+        </button>
+        {showSelects && (
+          <button
+            type="button"
+            className="lb-mbtn"
+            aria-expanded={panel === "filter"}
+            aria-controls="lb-tools"
+            data-active={filters.pillar || filters.platform ? "true" : undefined}
+            onClick={() => toggle("filter")}
+          >
+            Filter
+          </button>
+        )}
+      </div>
       <nav className="lb-tabs" aria-label="Library section">
         {TABS.map((t) => (
           <Link
@@ -49,7 +79,7 @@ export default function LibraryTopbar({
           </Link>
         ))}
       </nav>
-      <div className="lb-tools">
+      <div className="lb-tools" id="lb-tools" data-panel={panel ?? undefined}>
         <label htmlFor="lb-search" className="sq-sr">
           {SEARCH_LABEL[tab]}
         </label>
