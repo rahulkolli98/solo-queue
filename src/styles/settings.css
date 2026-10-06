@@ -632,6 +632,18 @@
 .st-cap-input {
   width: 100%;
 }
+.st-clear {
+  align-self: flex-end;
+  min-height: 44px;
+}
+
+/* a switch that is not built yet: shown off and unavailable */
+.st-setting-later {
+  opacity: 0.6;
+}
+.st-switch:disabled {
+  cursor: not-allowed;
+}
 
 @media (max-width: 767px) {
   .st-setting.st-setting-switch {

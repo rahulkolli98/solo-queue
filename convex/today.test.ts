@@ -94,6 +94,29 @@ describe("today.summary", () => {
     expect(out.alerts).toEqual([]);
   });
 
+  it("turning 'queue running low' off hides the coverage banner, and 'post failed' off hides the failed one", async () => {
+    const t = newTest();
+    await connect(t, "threads");
+    const topic = await insertTopic(t);
+    const draft = await insertDraft(t, topic, "threads", "Post one");
+    await insertSlot(t, draft, NOW + DAY, { platform: "threads", status: "failed" });
+    let out = await t.query(api.today.summary, { now: NOW, tz: "UTC" });
+    expect(out.alerts.map((a) => a.kind)).toEqual(["failed", "coverage"]);
+
+    const current = await t.query(api.settings.get, {});
+    await t.mutation(api.settings.update, {
+      patch: { notifications: { ...current.notifications, queueLow: false } },
+    });
+    out = await t.query(api.today.summary, { now: NOW, tz: "UTC" });
+    expect(out.alerts.map((a) => a.kind)).toEqual(["failed"]);
+
+    await t.mutation(api.settings.update, {
+      patch: { notifications: { ...current.notifications, queueLow: false, postFailed: false } },
+    });
+    out = await t.query(api.today.summary, { now: NOW, tz: "UTC" });
+    expect(out.alerts).toEqual([]);
+  });
+
   it("builds the pillar mix from queued posts and the target from settings", async () => {
     const t = newTest();
     const a = await insertTopic(t, "A");

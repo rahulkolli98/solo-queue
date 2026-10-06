@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import BillingSection from "@/components/features/settings/BillingSection";
 import ConnectionsSection from "@/components/features/settings/ConnectionsSection";
 import PillarsSection from "@/components/features/settings/PillarsSection";
+import NotificationsSection from "@/components/features/settings/NotificationsSection";
 import PlannedSection from "@/components/features/settings/PlannedSection";
 import QueueRulesSection from "@/components/features/settings/QueueRulesSection";
 import SlotsSection from "@/components/features/settings/SlotsSection";
@@ -36,6 +37,8 @@ export default async function SettingsSectionPage({
         <SlotsSection />
       ) : key === "rules" ? (
         <QueueRulesSection />
+      ) : key === "notifications" ? (
+        <NotificationsSection />
       ) : key === "voice" ? (
         <VoiceSection />
       ) : key === "pillars" ? (

@@ -24,7 +24,8 @@ export type SectionName =
   | "timezone"
   | "naturalTiming"
   | "vacation"
-  | "rules";
+  | "rules"
+  | "notifications";
 
 /**
  * Save-on-change for one Settings section. `settings.update` replaces a whole
