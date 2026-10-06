@@ -110,7 +110,7 @@ export default function TopicEditDrawer({
       });
       onGone();
     } catch (err) {
-      setFailure({ text: refusalText(err, "Could not archive the topic."), offerArchive: false });
+      setFailure({ text: refusalText(err, "Could not archive the topic. Try again."), offerArchive: false });
     } finally {
       setBusy(false);
     }
@@ -126,7 +126,7 @@ export default function TopicEditDrawer({
       onGone();
     } catch (err) {
       setFailure({
-        text: refusalText(err, "Could not delete the topic."),
+        text: refusalText(err, "Could not delete the topic. Try again."),
         offerArchive: refusalCode(err) === "HAS_SLOTS",
       });
     } finally {

@@ -34,7 +34,7 @@ export default function AddSourceForm({ topicId, onDone }: { topicId: string; on
       setText("");
       onDone();
     } catch (err) {
-      setError(studioErrorText(err, "Couldn't add that source."));
+      setError(studioErrorText(err, "Couldn't add that source. Try again."));
     } finally {
       setBusy(false);
     }

@@ -65,11 +65,11 @@
   color: var(--color-on-primary);
 }
 .sq-log-tag-never {
-  background: rgba(244, 235, 217, 0.16);
+  background: color-mix(in srgb, var(--color-surface) 16%, transparent);
   color: var(--color-on-chrome-strong);
 }
 .sq-log-tag-dry-run {
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 
 .sq-log-meter {
@@ -88,7 +88,7 @@
 .sq-log-meter-track {
   height: 8px;
   border-radius: var(--rounded-sharp);
-  background: rgba(43, 26, 20, 0.15);
+  background: color-mix(in srgb, var(--color-chrome) 15%, transparent);
 }
 .sq-log-meter-fill {
   height: 8px;
@@ -146,7 +146,7 @@
   white-space: nowrap;
 }
 .sq-log-row-bad td {
-  background: rgba(200, 65, 43, 0.07);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
 }
 .sq-log-post {
   font-weight: 700;

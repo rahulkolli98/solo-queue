@@ -48,9 +48,9 @@ export function useMediaActions(): MediaActions {
             id: draftId as Id<"drafts">,
             mediaAssetId: assetId as Id<"mediaAssets"> | null,
           }),
-        "Couldn't attach the media."
+        "Couldn't attach the media. Try again."
       ),
     verify: (assetId) =>
-      run(assetId, () => verifyMedia({ id: assetId as Id<"mediaAssets"> }), "Couldn't verify that URL."),
+      run(assetId, () => verifyMedia({ id: assetId as Id<"mediaAssets"> }), "Couldn't verify that URL. Try again."),
   };
 }

@@ -142,7 +142,7 @@ textarea.sq-input {
 }
 .sq-input-error {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(200, 65, 43, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 /* ---------- drawer (desktop) / bottom sheet (phone) ---------- */
@@ -169,7 +169,7 @@ textarea.sq-input {
   display: none;
 }
 .sq-drawer::backdrop {
-  background: rgba(43, 26, 20, 0.45);
+  background: color-mix(in srgb, var(--color-chrome) 45%, transparent);
 }
 .sq-drawer-body {
   display: flex;

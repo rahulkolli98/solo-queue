@@ -38,7 +38,7 @@ export default function NewTopicColumn({ emphasiseInbox = false }: { emphasiseIn
       const id = await create({ title: title.trim(), notes: notes.trim() || undefined });
       router.push(`/studio/${id}?${mode === "write" ? "write=1" : "draft=1"}`);
     } catch (err) {
-      setError(studioErrorText(err, "Couldn't save the topic."));
+      setError(studioErrorText(err, "Couldn't save the topic. Try again."));
       setBusy(null);
     }
   }

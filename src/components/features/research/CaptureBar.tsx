@@ -61,7 +61,7 @@ export default function CaptureBar({
       });
     } catch (err) {
       
-      setError(refusalText(err, "Could not save that. Try again."));
+      setError(refusalText(err, "Could not save to the inbox. Try again."));
     } finally {
       setBusy(false);
     }

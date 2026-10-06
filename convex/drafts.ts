@@ -119,7 +119,7 @@ export const attachMedia = operatorMutation({
   args: { id: v.id("drafts"), mediaAssetId: v.union(v.id("mediaAssets"), v.null()) },
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);
-    if (!draft) throw new Error("Draft not found.");
+    if (!draft) throw new Error("Draft not found — it may have been deleted.");
     if (args.mediaAssetId !== null) {
       const asset = await ctx.db.get(args.mediaAssetId);
       if (!asset) throw new Error("Media not found — it may have been deleted.");

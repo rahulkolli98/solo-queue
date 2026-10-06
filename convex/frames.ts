@@ -118,7 +118,7 @@ export const setActive = operatorMutation({
       .query("frames")
       .withIndex("by_key", (q) => q.eq("key", args.key))
       .first();
-    if (!row) throw refusal("FRAME_NOT_FOUND", "Frame not found.");
+    if (!row) throw refusal("FRAME_NOT_FOUND", "Frame not found — it may have been deleted.");
     await ctx.db.patch(row._id, { isActive: args.isActive });
     return { key: args.key, isActive: args.isActive };
   },

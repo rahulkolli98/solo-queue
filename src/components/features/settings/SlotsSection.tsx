@@ -231,7 +231,7 @@ function PlatformCard({
 
       <div className="st-add-row">
         <label className="sq-sr" htmlFor={`${id}-time`}>
-          Add a {label} time
+          Add a time for {label}
         </label>
         <input
           id={`${id}-time`}

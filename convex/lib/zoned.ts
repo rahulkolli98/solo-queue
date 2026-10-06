@@ -112,8 +112,8 @@ export interface SlotPlan {
  */
 export function nextFreeSlot(plan: SlotPlan): number {
   const times = plan.times.filter((t) => HHMM.test(t)).sort();
-  if (times.length === 0) throw new Error("No slot times configured.");
-  if (plan.days.length === 0) throw new Error("No posting days configured.");
+  if (times.length === 0) throw new Error("No slot times set. Add one in Settings, then try again.");
+  if (plan.days.length === 0) throw new Error("No posting days set. Add one in Settings, then try again.");
   const busy = new Set(plan.taken.map((t) => Math.floor(t / 60000)));
   const perDay = new Map<string, number>();
   for (const t of plan.taken) {

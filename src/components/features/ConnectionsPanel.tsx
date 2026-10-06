@@ -26,7 +26,7 @@ function ThreadsTest({ onDone }: { onDone: (msg: string) => void }) {
       setMediaId(id);
       onDone(`Test post live as ${id} — delete it when ready.`);
     } catch (e) {
-      onDone(errorText(e, "Test publish failed."));
+      onDone(errorText(e, "Test post did not publish. Try again."));
     } finally {
       setPhase("idle");
     }
@@ -40,7 +40,7 @@ function ThreadsTest({ onDone }: { onDone: (msg: string) => void }) {
       setMediaId(null);
       onDone("Test post deleted. Connection proven end to end.");
     } catch (e) {
-      onDone(errorText(e, "Test delete failed."));
+      onDone(errorText(e, "Test post was not deleted. Try again."));
     } finally {
       setPhase("idle");
     }
@@ -78,7 +78,7 @@ function InstagramTest({ onDone }: { onDone: (msg: string) => void }) {
       const r = await verify({});
       onDone(`Token valid for ${r.username} (${r.userId}).`);
     } catch (e) {
-      onDone(e instanceof Error ? e.message : "Verification failed.");
+      onDone(e instanceof Error ? e.message : "Token check failed. Try again.");
     } finally {
       setBusy(false);
     }
@@ -108,7 +108,7 @@ function RefreshButton({ platform }: { platform: "threads" | "instagram" }) {
             : "Token refreshed."
       );
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Refresh failed.");
+      setMsg(e instanceof Error ? e.message : "Token refresh failed. Try again.");
     } finally {
       setBusy(false);
     }

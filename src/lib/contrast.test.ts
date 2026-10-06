@@ -29,7 +29,7 @@ describe("token pairs the app-wide primitives rely on (WCAG AA, 4.5:1 for text)"
     ["error text on its tint", "primary-deep", "error-tint"],
     ["tab label: muted on the chrome", "muted-on-chrome", "chrome"],
     ["pill ok: ink on yellow", "on-surface", "warning"],
-    ["pill mid: ink on dim paper", "on-surface", "paper-dim"],
+    ["pill mid: ink on dim paper", "on-surface", "on-chrome"],
   ];
 
   it.each(pairs)("%s", (_label, fg, bg) => {

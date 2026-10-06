@@ -35,7 +35,9 @@
   --color-tape-cream: #efe4ce;
   --color-tape-coral: #f3977f;
   --color-dot-blue: #5e8fc2;
-  --color-paper-dim: #e9dcc4;
+  --color-chrome-wash: #4b3b33;
+  --color-line-on-chrome: #53443b;
+  --color-error-wash: #f7e8db;
 
   /* radii */
   --rounded-sharp: 4px;
@@ -46,6 +48,7 @@
   --rounded-lg: 16px;
   --rounded-xl: 18px;
   --rounded-segment: 19px;
+  --rounded-dialog: 20px;
   --rounded-control: 22px;
   --rounded-card: 26px;
   --rounded-panel: 30px;

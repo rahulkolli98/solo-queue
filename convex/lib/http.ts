@@ -32,10 +32,18 @@ export async function checkReachable(
     return headStatus;
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("URL not reachable")) throw err;
-    throw new Error(
-      `URL not reachable (${err instanceof Error ? err.message : "network error"}).`
-    );
+    throw new Error(`URL not reachable (${networkReason(err)}).`);
   }
+}
+
+/** What a failed fetch means in plain words: the raw system error ("os error 10061") is no use to the founder. */
+export function networkReason(err: unknown): string {
+  const m = (err instanceof Error ? err.message : "").toLowerCase();
+  if (/refused|econnrefused|os error 10061/.test(m)) return "the host refused the connection";
+  if (/dns|enotfound|no such host|not known|os error 11001|getaddrinfo/.test(m)) return "the host name was not found";
+  if (/timeout|timed out|abort/.test(m)) return "the host did not answer in time";
+  if (/certificate|ssl|tls/.test(m)) return "the host's security certificate was not accepted";
+  return "network error";
 }
 
 export interface UrlProbe {
@@ -74,7 +82,7 @@ export async function probeUrl(
     throw new Error(`URL not reachable (HTTP ${get.status}).`);
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("URL not reachable")) throw err;
-    throw new Error(`URL not reachable (${err instanceof Error ? err.message : "network error"}).`);
+    throw new Error(`URL not reachable (${networkReason(err)}).`);
   }
 }
 

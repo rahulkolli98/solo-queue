@@ -146,7 +146,7 @@ export default function FramesTab({
                   +
                 </span>
                 <span className="lb-fc-name">New frame</span>
-                <span className="lb-fc-copy">Start from scratch with 3 to 5 beats.</span>
+                <span className="lb-fc-copy">Start from scratch with 2 to 5 beats.</span>
               </button>
               <div className="lb-fc lb-fc-learn" aria-disabled="true">
                 <span className="lb-fc-name">Learn from a post</span>

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { CloseIcon } from "@/components/ui/icons";
 
 /**
  * A modal panel: a right-hand drawer on desktop, a bottom sheet on phones
  * (shell/components CSS switches at 768px). Built on the native <dialog> so
  * focus is trapped, Esc closes and the page behind is inert. Clicking the
- * scrim closes it too.
+ * scrim closes it too. The dialog is named by its eyebrow and title together
+ * ("Threads · Tue 6 Oct, 19:00 Why staking beats streaks") once it is open.
  */
 export default function Drawer({
   open,
@@ -28,6 +29,9 @@ export default function Drawer({
   width?: "side" | "edit";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const ids = useId();
+  const eyebrowId = `${ids}-eyebrow`;
+  const titleId = `${ids}-title`;
 
   useEffect(() => {
     const dialog = ref.current;
@@ -41,6 +45,7 @@ export default function Drawer({
       ref={ref}
       className={`sq-drawer sq-drawer-${width}`}
       aria-label={title}
+      aria-labelledby={open ? (eyebrow ? `${eyebrowId} ${titleId}` : titleId) : undefined}
       onClose={onClose}
       onClick={(e) => {
         // A click on the dialog element itself (not its content) is the scrim.
@@ -52,8 +57,14 @@ export default function Drawer({
           <span className="sq-drawer-handle" aria-hidden="true" />
           <div className="sq-drawer-head">
             <div className="sq-drawer-titles">
-              {eyebrow && <span className="t-eyebrow">{eyebrow}</span>}
-              <h2 className="t-title">{title}</h2>
+              {eyebrow && (
+                <span className="t-eyebrow" id={eyebrowId}>
+                  {eyebrow}
+                </span>
+              )}
+              <h2 className="t-title" id={titleId}>
+                {title}
+              </h2>
             </div>
             <button type="button" className="sq-icon-btn" aria-label="Close" onClick={onClose}>
               <CloseIcon />

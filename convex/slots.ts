@@ -97,6 +97,13 @@ export const reschedule = operatorMutation({
       throw refusal("BAD_STATE", "Only scheduled slots can move.");
     if (args.scheduledAt <= Date.now())
       throw refusal("BAD_TIME", "Pick a future time for the slot.");
+    // The slot may move to any time no other post on this platform already holds (its own old time is free).
+    const others = await takenTimes(ctx, slot.platform);
+    const own = others.indexOf(slot.scheduledAt);
+    if (own >= 0) others.splice(own, 1);
+    if (others.includes(args.scheduledAt)) {
+      throw refusal("SLOT_TAKEN", "Another post is already set for that time. Pick a different time.");
+    }
     const draft = await ctx.db.get(slot.draftId);
     if (draft) {
       await assertOneReelPerDay(
@@ -390,7 +397,10 @@ async function doEnqueue(
       }
     } else {
       // A time the caller chose (or queueTopic planned): the rules still hold.
-      assertUnderDailyCap(settings, platform, await takenTimes(ctx, platform), at, zone);
+      const taken = await takenTimes(ctx, platform);
+      // Two posts at the same minute on one platform would be one slot with two owners.
+      if (taken.includes(at)) throw refusal("SLOT_TAKEN", "Another post is already set for that time. Pick a different time.");
+      assertUnderDailyCap(settings, platform, taken, at, zone);
       await assertOneReelPerDay(ctx, settings, draft.templateKey, at, tz, now);
     }
 
@@ -482,7 +492,7 @@ export const release = internalMutation({
   },
   handler: async (ctx, args) => {
     const slot = await ctx.db.get(args.id);
-    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found.");
+    if (!slot) throw refusal("SLOT_NOT_FOUND", "Slot not found — it may have been removed.");
     if (slot.status !== "claimed")
       throw refusal("BAD_STATE", "Only claimed slots can be released.");
     const at = Math.max(slot.scheduledAt, args.notBefore ?? slot.scheduledAt);
@@ -559,7 +569,7 @@ export const queueTopic = operatorMutation({
           format: f.label,
           templateKey: f.templateKey,
           code: "NO_DRAFT",
-          message: `No ${f.label.toLowerCase()} draft yet — generate one first.`,
+          message: "No draft yet — generate one first.",
         });
         continue;
       }

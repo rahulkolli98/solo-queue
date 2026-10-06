@@ -80,7 +80,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
 
   const editor = useDraftEditor(
     (draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }),
-    (e) => studioErrorText(e, "Couldn't save edits.")
+    (e) => studioErrorText(e, "Couldn't save edits. Press Retry.")
   );
   const media = useMediaActions();
 
@@ -387,7 +387,17 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   return (
     <>
       <div className="studio-head">
-        <PageHeader eyebrow="Studio / new batch" kicker="One topic in —" headline={headline} actions={generateButton} />
+        <PageHeader
+          eyebrow="Studio / new batch"
+          kicker="One topic in —"
+          headline={
+            <>
+              <span className="sq-sr">{topic.title}: </span>
+              {headline}
+            </>
+          }
+          actions={generateButton}
+        />
       </div>
       <div className="studio-actions-phone">{generateButton}</div>
       <StudioToolbar

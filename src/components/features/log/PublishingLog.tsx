@@ -39,10 +39,10 @@ export default function PublishingLog() {
         status.connections.map(async (c) => ({ c, r: await refresh({ platform: c.platform }) }))
       );
       const bad = results.filter(({ r }) => r.status === "failed" || r.error);
-      if (bad.length === 0) toast({ title: "Tokens checked", detail: "Both connections answered." });
+      if (bad.length === 0) toast({ title: "Tokens checked", detail: `${results.length} ${results.length === 1 ? "connection" : "connections"} answered.` });
       else
         toast({
-          title: "Token refresh needs attention",
+          title: "Token refresh failed",
           detail: bad.map(({ c, r }) => `${c.platform}: ${r.error ?? r.status}`).join(" · "),
           tone: "bad",
           actions: [{ label: "Manage connections", href: "/settings/connections", variant: "primary" }],

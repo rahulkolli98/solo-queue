@@ -13,6 +13,7 @@ import {
   postCountToSend,
   postsHelper,
   postsLabel,
+  removeConfirmText,
   removeFromThread,
   replaceQuestion,
   studioEntry,
@@ -52,6 +53,13 @@ describe("posts control", () => {
   it("labels the thread length against the 25 post limit", () => {
     expect(postsLabel(6)).toBe("6 / 25 posts");
     expect(postsLabel(MAX_THREAD_POSTS)).toBe("25 / 25 posts");
+  });
+});
+
+describe("removeConfirmText (what a screen reader hears while Remove waits for its second press)", () => {
+  it("names the post and says how to back out, and is silent otherwise", () => {
+    expect(removeConfirmText(3, true)).toBe("Press Remove again to delete post 3. Moving off this button keeps it.");
+    expect(removeConfirmText(3, false)).toBe("");
   });
 });
 

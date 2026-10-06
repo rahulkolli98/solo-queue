@@ -119,7 +119,7 @@
   border-radius: var(--rounded-card);
 }
 .sq-skel-card-dim {
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 .sq-skel-card-dark {
   background: var(--color-chrome);
@@ -129,7 +129,7 @@
   border: 1.5px solid var(--color-line-soft);
 }
 .sq-skel-card-blue {
-  background: rgba(143, 179, 218, 0.35);
+  background: color-mix(in srgb, var(--color-info) 35%, transparent);
   gap: 16px;
 }
 .sq-skel-note {
@@ -141,7 +141,7 @@
   border-radius: var(--rounded-xs);
 }
 .sq-skel-note-soft {
-  background: rgba(251, 245, 232, 0.6);
+  background: color-mix(in srgb, var(--color-surface-raised) 60%, transparent);
   padding: 14px;
   gap: 8px;
   border-radius: var(--rounded-sharp);
@@ -194,7 +194,7 @@
 .sq-skel-rail-col > i {
   flex-grow: 1;
   width: 2px;
-  background: rgba(244, 235, 217, 0.25);
+  background: color-mix(in srgb, var(--color-surface) 25%, transparent);
 }
 .sq-skel-th {
   display: inline-flex;
@@ -288,7 +288,7 @@
   border: 1.5px solid var(--color-line-soft);
 }
 .sq-skel-topic-dim {
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 .sq-skel-board {
   display: flex;
@@ -296,7 +296,7 @@
   gap: 18px;
   padding: 22px 24px;
   border-radius: var(--rounded-card);
-  background: rgba(255, 213, 74, 0.38);
+  background: color-mix(in srgb, var(--color-threads) 38%, transparent);
 }
 .sq-skel-board-body {
   flex-grow: 1;
@@ -388,7 +388,7 @@
   min-height: 0;
 }
 .sq-skel-postcard-dim {
-  background: var(--color-paper-dim);
+  background: var(--color-on-chrome);
 }
 .sq-skel-postcards-m {
   display: grid;
@@ -463,7 +463,7 @@
     gap: var(--space-8);
     padding: var(--space-14) var(--space-16);
     border-radius: var(--rounded-xl);
-    background: rgba(143, 179, 218, 0.35);
+    background: color-mix(in srgb, var(--color-info) 35%, transparent);
   }
   .sq-skel-phone .sq-skel-thread-m {
     flex-grow: 1;
