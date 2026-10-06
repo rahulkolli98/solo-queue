@@ -462,3 +462,19 @@ describe("media on a card (Studio panel and attach dialog)", () => {
     expect(out).toContain("Open file");
   });
 });
+
+describe("never-use words on the Instagram caption", () => {
+  const caption = (body: string, bannedWords?: string[]) =>
+    html(<IgPanel {...igBase} kind="caption" view={view(body)} bannedWords={bannedWords} />);
+
+  it("flags a caption that uses one, naming the words", () => {
+    const out = caption("Crush it and delve deeper.", ["delve", "crush it"]);
+    expect(out).toContain("NEVER-USE: delve, crush it");
+    expect(out).toContain("sq-pill sq-pill-ok");
+  });
+
+  it("has no flag for a clean caption or without a list", () => {
+    expect(caption("A plain caption.", ["delve"])).not.toContain("NEVER-USE");
+    expect(caption("Delve.")).not.toContain("NEVER-USE");
+  });
+});

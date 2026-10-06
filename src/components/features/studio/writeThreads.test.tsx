@@ -238,3 +238,41 @@ describe("new topic and inbox: two ways in", () => {
     expect(out).toContain(">Write<");
   });
 });
+
+describe("never-use words", () => {
+  const words = ["unlock", "delve"];
+
+  it("flags each post that uses one, naming the word, in the same row as the over-limit flag", () => {
+    const out = column({
+      view: view("We unlock growth.\n---\nNothing wrong here.\n---\nTime to DELVE."),
+      bannedWords: words,
+    });
+    expect(out).toContain("NEVER-USE: unlock");
+    expect(out).toContain("NEVER-USE: delve");
+    expect(out.match(/NEVER-USE/g)).toHaveLength(2);
+    expect(out).toContain("sq-pill sq-pill-ok");
+  });
+
+  it("shows no flag when the list is empty, missing, or the words only appear inside other words", () => {
+    expect(column({ view: view("We unlock growth."), bannedWords: [] })).not.toContain("NEVER-USE");
+    expect(column({ view: view("We unlock growth.") })).not.toContain("NEVER-USE");
+    expect(column({ view: view("It unlocked a door."), bannedWords: words })).not.toContain("NEVER-USE");
+  });
+
+  it("a post row shows the flag beside the counter", () => {
+    const row = html(
+      <ThreadPostRow
+        index={0}
+        text="Let us delve."
+        beat="Hook"
+        last
+        bannedWords={words}
+        onChange={vi.fn()}
+        onTrim={vi.fn()}
+        onSplit={vi.fn()}
+      />
+    );
+    expect(row).toContain("NEVER-USE: delve");
+    expect(row).toContain("Hook · 13 / 500");
+  });
+});

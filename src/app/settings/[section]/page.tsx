@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import BillingSection from "@/components/features/settings/BillingSection";
 import ConnectionsSection from "@/components/features/settings/ConnectionsSection";
+import PillarsSection from "@/components/features/settings/PillarsSection";
 import PlannedSection from "@/components/features/settings/PlannedSection";
 import SlotsSection from "@/components/features/settings/SlotsSection";
+import VoiceSection from "@/components/features/settings/VoiceSection";
 import { SETTINGS_SECTIONS, findSection } from "@/lib/settingsSections";
 
 export function generateStaticParams() {
@@ -31,6 +33,10 @@ export default async function SettingsSectionPage({
         <ConnectionsSection connected={query.connected} error={query.error} detail={query.detail} />
       ) : key === "slots" ? (
         <SlotsSection />
+      ) : key === "voice" ? (
+        <VoiceSection />
+      ) : key === "pillars" ? (
+        <PillarsSection />
       ) : key === "billing" ? (
         <BillingSection />
       ) : (

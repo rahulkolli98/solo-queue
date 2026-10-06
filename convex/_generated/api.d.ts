@@ -29,6 +29,7 @@ import type * as lib_slotPlanning from "../lib/slotPlanning.js";
 import type * as lib_slots from "../lib/slots.js";
 import type * as lib_threadReplies from "../lib/threadReplies.js";
 import type * as lib_topicOrder from "../lib/topicOrder.js";
+import type * as lib_voiceRules from "../lib/voiceRules.js";
 import type * as lib_zoned from "../lib/zoned.js";
 import type * as library from "../library.js";
 import type * as media from "../media.js";
@@ -47,6 +48,7 @@ import type * as templateCopy from "../templateCopy.js";
 import type * as templates from "../templates.js";
 import type * as today from "../today.js";
 import type * as topics from "../topics.js";
+import type * as voice from "../voice.js";
 import type * as waitlist from "../waitlist.js";
 
 import type {
@@ -77,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   "lib/slots": typeof lib_slots;
   "lib/threadReplies": typeof lib_threadReplies;
   "lib/topicOrder": typeof lib_topicOrder;
+  "lib/voiceRules": typeof lib_voiceRules;
   "lib/zoned": typeof lib_zoned;
   library: typeof library;
   media: typeof media;
@@ -95,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   templates: typeof templates;
   today: typeof today;
   topics: typeof topics;
+  voice: typeof voice;
   waitlist: typeof waitlist;
 }>;
 

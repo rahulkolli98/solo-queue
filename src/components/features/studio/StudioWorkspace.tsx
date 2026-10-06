@@ -336,6 +336,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       queuedWhen: whenOf(kind),
       onManualText: (has: boolean) => setManualText((m) => ({ ...m, [kind]: has })),
       onSaveManual: (text: string) => saveManual(kind, text),
+      bannedWords: settings?.voice.bannedWords,
     };
   }
 
@@ -459,6 +460,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           writing={writerOpen}
           onWriting={setWriterOpen}
           expectedPosts={generation.running ? generation.postCount : undefined}
+          bannedWords={settings?.voice.bannedWords}
         />
         <InstagramColumn
           tab={igTab}

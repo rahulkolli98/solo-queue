@@ -5,6 +5,7 @@
  */
 import type { Doc } from "../../convex/_generated/dataModel";
 import { VERIFIED_TTL_MS } from "../../convex/lib/slots";
+import { findBannedWords } from "../../convex/lib/voiceRules";
 import {
   CAPTION_LIMIT,
   THREADS_POST_LIMIT,
@@ -70,6 +71,17 @@ export function latestByKind(drafts: Draft[]): Partial<Record<DraftKind, Draft>>
     if (hit) out[kind] = hit;
   }
   return out;
+}
+
+/**
+ * The flag Studio shows on a draft that uses one of the founder's never-use
+ * words: "NEVER-USE: unlock, delve", or null when it uses none. It is computed
+ * from the live text and the live settings list, so editing either updates it.
+ */
+export function bannedWordsFlag(text: string, banned: readonly string[] | undefined): string | null {
+  if (!banned || banned.length === 0) return null;
+  const found = findBannedWords(text, [...banned]);
+  return found.length > 0 ? `NEVER-USE: ${found.join(", ")}` : null;
 }
 
 export type MediaState = "none" | "missing" | "unverified" | "stale" | "ok";
