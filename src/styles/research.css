@@ -1155,3 +1155,36 @@
     letter-spacing: normal;
   }
 }
+
+/* ---------- make a story frame from this topic or a post (collapsed until asked for) ---------- */
+.rs-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.rs-frame-toggle {
+  align-self: flex-start;
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--rounded-control);
+  border: 1.5px dashed color-mix(in srgb, var(--color-chrome) 45%, transparent);
+  background: transparent;
+  color: var(--color-on-surface);
+  font: 600 14px var(--font-body), "DM Sans", sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.rs-frame-toggle[aria-expanded="true"] {
+  border-style: solid;
+}
+.rs-frame-toggle:focus-visible {
+  outline: 2px solid var(--color-on-surface);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .rs-frame-toggle {
+    align-self: stretch;
+  }
+}

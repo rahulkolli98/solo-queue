@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   duplicateFrame,
   emptyFrame,
@@ -11,6 +11,7 @@ import {
   type FrameDraft,
 } from "@/lib/libraryBoard";
 import { defaultChipLabel, effectiveDefaultKinds } from "@/lib/frameDefaults";
+import FrameProposer from "../frames/FrameProposer";
 import FrameEditor from "./FrameEditor";
 import { PostcardSkeletons } from "./PublishedTab";
 import type { Frame, LibraryFilters, Pillar, Voice } from "./types";
@@ -99,6 +100,12 @@ export default function FramesTab({
   const param = searchParams.get("frame");
   // A duplicate is an unsaved copy held here until it is saved or dropped.
   const [seed, setSeed] = useState<{ id: number; draft: FrameDraft } | null>(null);
+  // "Learn from a post" opens a panel above the cards; nothing is saved until the founder says so.
+  const [learnOpen, setLearnOpen] = useState(false);
+  const learnRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (learnOpen) learnRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+  }, [learnOpen]);
 
   function select(frame: string) {
     setSeed(null);
@@ -129,6 +136,17 @@ export default function FramesTab({
   return (
     <div className="lb-grid">
       <div className="lb-main">
+        {learnOpen && frames !== undefined && (
+          <div className="lb-learn" id="lb-learn-panel" ref={learnRef}>
+            <div className="lb-learn-head">
+              <h2 className="t-eyebrow">Learn from a post</h2>
+              <button type="button" className="sq-btn lb-learn-close" onClick={() => setLearnOpen(false)}>
+                Close
+              </button>
+            </div>
+            <FrameProposer sources={["post"]} frames={frames} onDone={() => setLearnOpen(false)} />
+          </div>
+        )}
         <div className="lb-cards lb-cards-frames">
           {frames === undefined ? (
             <PostcardSkeletons />
@@ -166,13 +184,19 @@ export default function FramesTab({
                 <span className="lb-fc-name">New frame</span>
                 <span className="lb-fc-copy">Start from scratch with 2 to 5 beats.</span>
               </button>
-              <div className="lb-fc lb-fc-learn" aria-disabled="true">
-                <span className="lb-fc-name">Learn from a post</span>
-                <span className="t-mono">COMING LATER</span>
-                <span className="t-body-sm">
-                  Pull the beats out of a post that worked. Until then, build the frame by hand.
+              <button
+                type="button"
+                className="lb-fc lb-fc-learn"
+                aria-expanded={learnOpen}
+                aria-controls="lb-learn-panel"
+                onClick={() => setLearnOpen((open) => !open)}
+              >
+                <span className="lb-fc-plus" aria-hidden="true">
+                  +
                 </span>
-              </div>
+                <span className="lb-fc-name">Learn from a post</span>
+                <span className="lb-fc-copy">Paste a post that worked and get its beats.</span>
+              </button>
             </>
           )}
         </div>

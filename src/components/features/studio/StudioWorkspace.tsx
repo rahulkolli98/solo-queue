@@ -30,10 +30,10 @@ import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
 import { kindsAtRisk, replaceQuestion, studioEntry } from "@/lib/studioCompose";
 import { DEFAULT_FRAMES } from "../../../../convex/lib/framesModel";
 import { withFormatDefault } from "../../../../convex/lib/formatSetup";
-import { buildSetupRows, includedKinds, setupToSend, type SetupChoice, type SetupChoices } from "@/lib/studioSetup";
+import { buildSetupRows, choicesForAngle, includedKinds, setupToSend, type SetupChoice, type SetupChoices } from "@/lib/studioSetup";
 import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
-import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, researchBanner } from "@/lib/studioHandoff";
+import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, angleBanner, parseAngle, researchBanner } from "@/lib/studioHandoff";
 import { useDraftEditor } from "@/lib/useDraftEditor";
 import {
   KIND_META,
@@ -81,10 +81,13 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   );
   const media = useMediaActions();
 
-  const [pane, setPane] = useState<Pane>("threads");
-  const [igTab, setIgTab] = useState<IgTab>("reel");
   // What the founder changed for this run, per format; anything not here follows the saved defaults.
-  const [choices, setChoices] = useState<SetupChoices>({});
+  // "Draft this" on a Research angle opens Studio with only that format ticked and its frame picked.
+  const [angle] = useState(() => parseAngle(search));
+  // A carousel angle opens on the Instagram column's Carousel tab.
+  const [pane, setPane] = useState<Pane>(() => (angle?.kind === "carousel" ? "instagram" : "threads"));
+  const [igTab, setIgTab] = useState<IgTab>(() => (angle?.kind === "carousel" ? "carousel" : "reel"));
+  const [choices, setChoices] = useState<SetupChoices>(() => (angle ? choicesForAngle(angle) : {}));
   const [setupOpen, setSetupOpen] = useState(false);
   const [attachKind, setAttachKind] = useState<"reel" | "caption" | null>(null);
   const [manualText, setManualText] = useState<Record<string, boolean>>({});
@@ -339,7 +342,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     fromResearch: arrivedFromResearch,
   });
   const fromResearch = arrivedFromResearch && !researchDismissed;
-  const research = researchBanner(hasDrafts, Boolean(topic?.brief));
+  const research = angle ? angleBanner(KIND_META[angle.kind].noun) : researchBanner(hasDrafts, Boolean(topic?.brief));
 
   function openAttach(kind: "reel" | "caption") {
     setPane("instagram");

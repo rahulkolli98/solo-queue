@@ -84,3 +84,58 @@ export function researchBanner(hasDrafts: boolean, hasBrief = false): { title: s
             : "Press Generate drafts and the thread, Instagram reel script and caption are written from this topic and its sources, or press Write it myself to write the thread yourself. Then you review, attach media and queue.",
       };
 }
+
+/**
+ * "Draft this" on an angle card: Studio opens with only that angle's format ticked and its story frame picked.
+ * The query names the angle's format and frame; it never starts the model (the founder presses Generate).
+ */
+export const ANGLE_PARAM = "angle";
+export const ANGLE_FRAME_PARAM = "frame";
+
+export interface AngleSetup {
+  /** The Studio format the angle drafts. */
+  kind: "threads" | "caption" | "reel" | "carousel";
+  frameKey?: string;
+}
+
+const ANGLE_KINDS: readonly AngleSetup["kind"][] = ["threads", "caption", "reel", "carousel"];
+const FRAME_KEY = /^[a-z][a-z0-9-]{1,39}$/;
+
+/**
+ * The Studio format an angle drafts. The platform decides: a "single" on Threads is one Threads post (the Threads
+ * writer), a "single" on Instagram is a caption. Null for a format Studio does not write.
+ */
+export function angleSetup(angle: { platform?: string; format: string; frameKey: string }): AngleSetup | null {
+  let kind: AngleSetup["kind"] | undefined;
+  if (angle.format === "reel") kind = "reel";
+  else if (angle.format === "caption") kind = "caption";
+  else if (angle.format === "carousel") kind = "carousel";
+  else if (angle.format === "thread") kind = "threads";
+  else if (angle.format === "single") kind = angle.platform === "instagram" ? "caption" : "threads";
+  return kind ? { kind, frameKey: angle.frameKey } : null;
+}
+
+/** `/studio/<id>?from=research&angle=reel&frame=confession`, or null for a format Studio does not write. */
+export function studioAngleHref(topicId: string, angle: { platform?: string; format: string; frameKey: string }): string | null {
+  const setup = angleSetup(angle);
+  if (!setup) return null;
+  const q = new URLSearchParams({ [RESEARCH_HANDOFF_PARAM]: RESEARCH_HANDOFF_VALUE, [ANGLE_PARAM]: setup.kind });
+  if (angle.frameKey && FRAME_KEY.test(angle.frameKey)) q.set(ANGLE_FRAME_PARAM, angle.frameKey);
+  return `/studio/${topicId}?${q.toString()}`;
+}
+
+/** The angle a Studio link names (a Studio format and a frame), or null when the query has none or names an unknown format. */
+export function parseAngle(params: { get: (name: string) => string | null }): AngleSetup | null {
+  const kind = ANGLE_KINDS.find((k) => k === params.get(ANGLE_PARAM));
+  if (!kind) return null;
+  const frame = params.get(ANGLE_FRAME_PARAM);
+  return { kind, frameKey: frame && FRAME_KEY.test(frame) ? frame : undefined };
+}
+
+/** What the Research banner says when the founder arrived from an angle card. */
+export function angleBanner(label: string): { title: string; detail: string } {
+  return {
+    title: "Sent from Research.",
+    detail: `Drafting just the ${label} for this angle. Press Generate, or open Change to add more formats.`,
+  };
+}

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { readinessLabel } from "../../../../convex/lib/research";
@@ -11,6 +12,7 @@ import { postsOf, sendToStudioNote } from "@/lib/researchThread";
 import { studioTopicHref } from "@/lib/studioHandoff";
 import { latestByKind } from "@/lib/studioModel";
 import { api } from "../../../../convex/_generated/api";
+import FrameProposer from "../frames/FrameProposer";
 import AddSource from "./AddSource";
 import AnglesRow from "./AnglesRow";
 import BriefPaper from "./BriefPaper";
@@ -46,6 +48,7 @@ export default function TopicBoard({
   const archive = useMutation(api.topics.archive);
   const unarchive = useMutation(api.topics.unarchive);
   const { toast } = useToast();
+  const [frameOpen, setFrameOpen] = useState(false);
 
   const imageUrls = new Map((media ?? []).map((m) => [m._id as string, m.publicUrl]));
   const pillar = pillarOf(pillars, topic.pillar);
@@ -123,6 +126,23 @@ export default function TopicBoard({
       </div>
 
       <AnglesRow topicId={topic._id} angles={topic.angles} frames={frames} />
+
+      <section className="rs-frame" aria-label="Story frame">
+        <button
+          type="button"
+          className="rs-frame-toggle"
+          aria-expanded={frameOpen}
+          aria-controls="rs-frame-panel"
+          onClick={() => setFrameOpen((open) => !open)}
+        >
+          Make a story frame from this topic or a post
+        </button>
+        {frameOpen && (
+          <div className="rs-frame-panel" id="rs-frame-panel">
+            <FrameProposer topic={{ id: topic._id, title: topic.title }} sources={["topic", "post"]} frames={frames} />
+          </div>
+        )}
+      </section>
 
       <YourThread topicId={topic._id} timezone={timezone} />
     </section>

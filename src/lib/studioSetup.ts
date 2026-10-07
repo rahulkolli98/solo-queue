@@ -185,3 +185,15 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
   }
   return out;
 }
+
+/**
+ * The setup for "Draft this" on an angle card: only that angle's format is ticked and its story frame is picked
+ * (a frame that does not fit the format is ignored by the rows, so the saved default applies).
+ */
+export function choicesForAngle(angle: { kind: DraftKind; frameKey?: string }): SetupChoices {
+  const out: SetupChoices = {};
+  for (const kind of SETUP_ROWS) {
+    out[kind] = kind === angle.kind ? { include: true, ...(angle.frameKey ? { frameKey: angle.frameKey } : {}) } : { include: false };
+  }
+  return out;
+}
