@@ -201,7 +201,9 @@ export const generate = operatorAction({
       charCount: number;
     }[] = [];
 
-    for (const format of formats) {
+    // The formats do not depend on each other, so the model calls run side by side: the founder waits for the
+    // slowest one, not for the sum of all four. Each draft is stored as soon as its own call finishes.
+    const writeFormat = async (format: Format): Promise<void> => {
       const { templateKey, platform, draftFormat, fit } = FORMATS[format];
       const template = byKey.get(templateKey)!;
       // The frame steers every format except the blog draft, and only where it fits.
@@ -276,7 +278,13 @@ export const generate = operatorAction({
       });
       if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
       results.push({ id, format, templateKey, templateVersion: template.version, ...check });
-    }
+    };
+
+    const settled = await Promise.allSettled(formats.map(writeFormat));
+    results.sort((a, b) => formats.indexOf(a.format) - formats.indexOf(b.format));
+    // Drafts that landed stay saved; the first failure (in format order) is reported, as before.
+    const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed) throw failed.reason;
 
     await ctx.runMutation(api.topics.update, {
       id: args.topicId,
