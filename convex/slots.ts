@@ -302,6 +302,9 @@ async function doEnqueue(
     if (!draft)
       throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been deleted.");
     const platform = draft.platform;
+    if (draft.slides) {
+      throw refusal("CAROUSEL_NOT_READY", "Carousels cannot be queued yet. Publishing them to Instagram is the next step.");
+    }
     if (platform === "blog")
       throw refusal(
         "UNSUPPORTED_PLATFORM",

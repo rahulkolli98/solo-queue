@@ -9,9 +9,14 @@ import {
   FRAME_FITS,
   MAX_BEATS,
   frameFormErrors,
+  fitsCarousel,
+  frameSaveArgs,
   hasErrors,
   keyFromName,
   moveBeat,
+  styleCount,
+  STYLE_MAX,
+  STYLE_TOO_LONG,
   toggleFit,
   type FrameDraft,
   type FrameFormErrors,
@@ -66,6 +71,7 @@ export default function FrameEditor({
   const [format, setFormat] = useState<FrameFormat>(() => formatOfFits(initial.fits));
   const defaults = useFrameDefaultSave();
   const isNew = draft.key === null;
+  const styleLength = (draft.style ?? "").length;
   // Defaults count only what is saved: a format counts once the saved frame fits it.
   const savedFits = frames.find((f) => f.key === draft.key)?.fits ?? initial.fits;
   const toggles = defaultToggles({ key: draft.key ?? "", fits: isNew ? draft.fits : savedFits }, voice, frames);
@@ -100,13 +106,7 @@ export default function FrameEditor({
     setServerError(null);
     try {
       const key = draft.key ?? keyFromName(draft.name, takenKeys);
-      const res = await save({
-        key,
-        name: draft.name.trim(),
-        beats: draft.beats.map((b) => ({ label: b.label.trim(), hint: b.hint.trim() })),
-        fits: draft.fits,
-        color: draft.color,
-      });
+      const res = await save(frameSaveArgs(draft, key));
       toast({
         title: res.created ? "Frame created" : "Frame saved",
         detail: res.created
@@ -209,6 +209,25 @@ export default function FrameEditor({
           + Add beat
         </button>
       </div>
+
+      {fitsCarousel(draft.fits) && (
+        <div className="lb-field lb-style-field">
+          <FormField
+            label="Style and references"
+            hint="How the carousel should look and sound: tone, example carousels you like (describe them), things to avoid. Optional."
+            error={styleLength > STYLE_MAX ? (errors.style ?? STYLE_TOO_LONG) : errors.style}
+          >
+            <textarea
+              rows={5}
+              value={draft.style ?? ""}
+              onChange={(e) => patch({ style: e.target.value })}
+            />
+          </FormField>
+          <span className={`t-meta lb-style-count${styleLength > STYLE_MAX ? " is-over" : ""}`} aria-live="polite">
+            {styleCount(draft.style ?? "")}
+          </span>
+        </div>
+      )}
 
       <div className="lb-field" role="group" aria-labelledby="lb-fits-title">
         <span className="lb-field-title" id="lb-fits-title">

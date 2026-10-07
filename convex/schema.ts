@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { slideValidator } from "./lib/carouselValidators";
 
 /** One format's saved default in Settings (see convex/lib/formatSetup.ts). */
 const formatDefaultValidator = v.object({
@@ -72,6 +73,10 @@ export default defineSchema({
     platform: v.union(platform, v.literal("blog")),
     body: v.string(),
     mediaAssetId: v.optional(v.id("mediaAssets")),
+    /** A carousel's slides (2 to 10, added 2026-10-07). `body` is its caption. */
+    slides: v.optional(v.array(slideValidator)),
+    /** A carousel's rendered slide images, in order (2 to 10). `mediaAssetId` stays the cover (the first). */
+    mediaAssetIds: v.optional(v.array(v.id("mediaAssets"))),
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference
@@ -163,6 +168,8 @@ export default defineSchema({
       )
     ),
     color: v.string(), // design token name, e.g. "pillar-build"
+    /** For a carousel frame: the look, the tone and references to follow (added 2026-10-07). */
+    style: v.optional(v.string()),
     usedCount: v.number(),
     version: v.number(),
     isActive: v.boolean(),

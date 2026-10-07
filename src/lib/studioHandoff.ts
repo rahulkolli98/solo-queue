@@ -93,28 +93,29 @@ export const ANGLE_PARAM = "angle";
 export const ANGLE_FRAME_PARAM = "frame";
 
 export interface AngleSetup {
-  /** The Studio format the angle drafts. The carousel is not a Studio format yet. */
-  kind: "threads" | "caption" | "reel";
+  /** The Studio format the angle drafts. */
+  kind: "threads" | "caption" | "reel" | "carousel";
   frameKey?: string;
 }
 
-const ANGLE_KINDS: readonly AngleSetup["kind"][] = ["threads", "caption", "reel"];
+const ANGLE_KINDS: readonly AngleSetup["kind"][] = ["threads", "caption", "reel", "carousel"];
 const FRAME_KEY = /^[a-z][a-z0-9-]{1,39}$/;
 
 /**
  * The Studio format an angle drafts. The platform decides: a "single" on Threads is one Threads post (the Threads
- * writer), a "single" on Instagram is a caption. The carousel is not a Studio format yet (null).
+ * writer), a "single" on Instagram is a caption. Null for a format Studio does not write.
  */
 export function angleSetup(angle: { platform?: string; format: string; frameKey: string }): AngleSetup | null {
   let kind: AngleSetup["kind"] | undefined;
   if (angle.format === "reel") kind = "reel";
   else if (angle.format === "caption") kind = "caption";
+  else if (angle.format === "carousel") kind = "carousel";
   else if (angle.format === "thread") kind = "threads";
   else if (angle.format === "single") kind = angle.platform === "instagram" ? "caption" : "threads";
   return kind ? { kind, frameKey: angle.frameKey } : null;
 }
 
-/** `/studio/<id>?from=research&angle=reel&frame=confession`, or null for a format Studio cannot draft yet. */
+/** `/studio/<id>?from=research&angle=reel&frame=confession`, or null for a format Studio does not write. */
 export function studioAngleHref(topicId: string, angle: { platform?: string; format: string; frameKey: string }): string | null {
   const setup = angleSetup(angle);
   if (!setup) return null;

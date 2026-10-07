@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The carousel image route reads its fonts from disk; make sure they ship with it on Vercel.
+  outputFileTracingIncludes: {
+    "/api/carousel/slide": ["./assets/fonts/**"],
+  },
   async redirects() {
     return [
       // TASK-054 route rename: old placeholders moved.

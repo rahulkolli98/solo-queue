@@ -92,6 +92,32 @@ OUTPUT
 The five timestamped beats exactly as structured above, then a --- line, then a one-line caption draft (under 150 characters) for the reel post.`,
   },
   {
+    key: "carousel-slides",
+    body: `Write an Instagram carousel from the topic below: a swipeable story told in short, bold slides, plus the caption that goes with it.
+
+INPUTS
+- Topic: {{topic}}
+- Pillar: {{pillar}}
+- Notes (your words — preserve their angle): {{notes}}
+- Sources: {{sources}}
+
+STRUCTURE
+1. Cover — the sharpest true line in the material as a big headline, one italic line under it.
+2. Middle slides — one idea each, in the order the story happened: what was wrong, what it cost, what changed. Use cards for a contrast or a pair of numbers, a list for steps.
+3. Close — one line of what comes next, and a Follow / Save / Share ask. Exactly one ask.
+
+CONSTRAINTS
+- Headlines are short and bold: about 6 words, never a full sentence of explanation. Cards carry the detail, in one or two short sentences.
+- Plain words. No hype, no emojis unless the notes contain them. Numbers only if they are in the material.
+- Each slide must make sense when read alone, and read in order as a story.
+
+VOICE
+Dry founder: specific, a little self-mocking, no hype. A confession, not a pitch. If a headline could sit on anyone's motivational slide, rewrite it.
+
+OUTPUT
+The JSON object described below, and nothing else.`,
+  },
+  {
     key: "blog-draft",
     body: `Write a short blog draft from the topic below, in Markdown. Same research as the social drafts, long-form shape — for the site or the newsletter.
 

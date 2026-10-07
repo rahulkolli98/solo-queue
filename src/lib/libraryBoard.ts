@@ -4,6 +4,9 @@
  */
 
 import { numberWord } from "@/lib/researchBoard";
+import { STYLE_MAX } from "../../convex/lib/framesModel";
+
+export { STYLE_MAX };
 
 // ---------- time (the founder's zone, 24-hour) ----------
 
@@ -166,6 +169,8 @@ export interface FrameDraft {
   beats: { label: string; hint: string }[];
   fits: FrameFit[];
   color: string;
+  /** Carousel look, tone and references; "" when none. Absent on drafts made before the field existed. */
+  style?: string;
 }
 
 export function emptyFrame(color: string): FrameDraft {
@@ -178,6 +183,7 @@ export function emptyFrame(color: string): FrameDraft {
     ],
     fits: ["thread"],
     color,
+    style: "",
   };
 }
 
@@ -189,6 +195,42 @@ export function duplicateFrame(frame: FrameDraft): FrameDraft {
     name: `${frame.name} copy`.slice(0, 60),
     beats: frame.beats.map((b) => ({ ...b })),
     fits: [...frame.fits],
+    style: frame.style ?? "",
+  };
+}
+
+/** True when the frame fits a carousel, the only place the style note is used. */
+export function fitsCarousel(fits: FrameFit[]): boolean {
+  return fits.includes("carousel");
+}
+
+/** "1,204 / 2,000" for the live count under the style field. */
+export function styleCount(style: string): string {
+  return `${style.length.toLocaleString("en-US")} / ${STYLE_MAX.toLocaleString("en-US")}`;
+}
+
+export const STYLE_TOO_LONG = `The style notes can be up to ${STYLE_MAX.toLocaleString("en-US")} characters.`;
+
+/**
+ * The style to send with a save: the trimmed note when the frame fits a carousel and it is not blank,
+ * otherwise undefined (the backend clears the style when none is sent, so a hidden note never lingers).
+ */
+export function styleToSave(draft: Pick<FrameDraft, "fits" | "style">): string | undefined {
+  if (!fitsCarousel(draft.fits)) return undefined;
+  const text = (draft.style ?? "").trim();
+  return text ? text : undefined;
+}
+
+/** The arguments of `api.frames.save` for a draft; `style` is present only when there is a note to keep. */
+export function frameSaveArgs(draft: FrameDraft, key: string) {
+  const style = styleToSave(draft);
+  return {
+    key,
+    name: draft.name.trim(),
+    beats: draft.beats.map((b) => ({ label: b.label.trim(), hint: b.hint.trim() })),
+    fits: draft.fits,
+    color: draft.color,
+    ...(style !== undefined ? { style } : {}),
   };
 }
 
@@ -229,6 +271,7 @@ export interface FrameFormErrors {
   name?: string;
   beats?: string;
   fits?: string;
+  style?: string;
 }
 
 /** Plain-language problems with a frame form, before anything is sent. */
@@ -241,6 +284,7 @@ export function frameFormErrors(draft: FrameDraft): FrameFormErrors {
     errors.beats = "Every beat needs a name.";
   }
   if (draft.fits.length === 0) errors.fits = "Choose at least one place it fits.";
+  if (fitsCarousel(draft.fits) && (draft.style ?? "").length > STYLE_MAX) errors.style = STYLE_TOO_LONG;
   return errors;
 }
 

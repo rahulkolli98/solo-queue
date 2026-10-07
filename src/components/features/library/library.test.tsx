@@ -248,6 +248,15 @@ function button(out: string, label: string): string | null {
 
 const countOf = (out: string, text: string) => out.split(text).length - 1;
 
+describe("FramesTab opens a saved carousel frame with its style note", () => {
+  it("loads the style text into the editor, so saving the frame does not clear it", () => {
+    const withStyle = frame({ key: "slides", name: "Slides", fits: ["carousel"], style: "Short bold headlines. Dry, no hype." } as Partial<Frame>);
+    const out = framesTab("slides", voice(), [FRAMES[0], withStyle]);
+    expect(out).toContain("Short bold headlines. Dry, no hype.");
+    expect(out).toContain("Style and references");
+  });
+});
+
 describe("FramesTab default chips", () => {
   it("shows one DEFAULT · FORMAT chip per format the frame is the effective default for", () => {
     const out = framesTab("confession", voice({ formatDefaults: { caption: { frameKey: "hot-take" } } }));
@@ -392,10 +401,17 @@ describe("new frame: choose the format first", () => {
     expect(framesTab("hot-take", voice())).not.toContain("This frame is for");
   });
 
-  const editor = (fits: Frame["fits"], key: string | null = null) =>
+  const editor = (fits: Frame["fits"], key: string | null = null, style?: string) =>
     renderToStaticMarkup(
       <FrameEditor
-        initial={{ key, name: "", beats: [{ label: "", hint: "" }, { label: "", hint: "" }], fits, color: "pillar-build" }}
+        initial={{
+          key,
+          name: "",
+          beats: [{ label: "", hint: "" }, { label: "", hint: "" }],
+          fits,
+          color: "pillar-build",
+          style,
+        }}
         usedCount={0}
         takenKeys={[]}
         colors={["pillar-build"]}
@@ -417,6 +433,48 @@ describe("new frame: choose the format first", () => {
   it("a caption or reel frame words the hint for it", () => {
     expect(editor(["single"])).toContain("Each beat is one part of the caption.");
     expect(editor(["reel"])).toContain("Each beat is one moment of the script.");
+  });
+
+  describe("style and references", () => {
+    it("shows the field, its helper text and a zero count only for a frame that fits a carousel", () => {
+      const out = editor(["carousel"]);
+      expect(out).toContain("Style and references");
+      expect(out).toContain("<textarea");
+      expect(out).toContain(
+        "How the carousel should look and sound: tone, example carousels you like (describe them), things to avoid. Optional."
+      );
+      expect(out).toContain("0 / 2,000");
+      expect(editor(["thread", "carousel"])).toContain("Style and references");
+    });
+
+    it("hides the field for a frame that does not fit a carousel", () => {
+      for (const fits of [["thread"], ["single"], ["reel"], ["thread", "reel"]] as Frame["fits"][]) {
+        const out = editor(fits, null, "Short bold headlines.");
+        expect(out).not.toContain("Style and references");
+        expect(out).not.toContain("<textarea");
+        expect(out).not.toContain("/ 2,000");
+      }
+    });
+
+    it("loads the saved note and counts it", () => {
+      const out = editor(["carousel"], "ig-carousel", "Short bold headlines.");
+      expect(out).toContain("Short bold headlines.");
+      expect(out).toContain("21 / 2,000");
+      expect(out).not.toContain("The style notes can be up to");
+    });
+
+    it("keeps working for a saved frame that has no style", () => {
+      const out = editor(["carousel"], "ig-carousel", undefined);
+      expect(out).toContain("0 / 2,000");
+    });
+
+    it("says so, in red, when the note is over the limit", () => {
+      const out = editor(["carousel"], null, "x".repeat(2001));
+      expect(out).toContain("2,001 / 2,000");
+      expect(out).toContain("The style notes can be up to 2,000 characters.");
+      expect(out).toContain("is-over");
+      expect(editor(["carousel"], null, "x".repeat(2000))).not.toContain("is-over");
+    });
   });
 
   it("keeps the beat limits: Add beat is available below five and Remove stops at two", () => {

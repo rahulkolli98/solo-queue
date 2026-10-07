@@ -6,14 +6,14 @@ import { newTest } from "../src/test-utils/convex";
 const confession = DEFAULT_FRAMES[0];
 
 describe("framesModel", () => {
-  it("ships eight valid default frames with 2 to 5 beats each", () => {
-    expect(DEFAULT_FRAMES).toHaveLength(8);
+  it("ships nine valid default frames with 2 to 5 beats each", () => {
+    expect(DEFAULT_FRAMES).toHaveLength(9);
     for (const f of DEFAULT_FRAMES) {
       expect(validateFrame(f).ok, f.key).toBe(true);
       expect(f.beats.length).toBeGreaterThanOrEqual(2);
       expect(f.beats.length).toBeLessThanOrEqual(5);
     }
-    expect(new Set(DEFAULT_FRAMES.map((f) => f.key)).size).toBe(8);
+    expect(new Set(DEFAULT_FRAMES.map((f) => f.key)).size).toBe(9);
   });
 
   it("refuses bad keys, too few or too many beats, and empty fits", () => {
@@ -33,9 +33,9 @@ describe("framesModel", () => {
 });
 
 describe("frames functions", () => {
-  it("ensureDefaults seeds the eight frames once and never overwrites an edit", async () => {
+  it("ensureDefaults seeds the nine frames once and never overwrites an edit", async () => {
     const t = newTest();
-    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(8);
+    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(9);
     await t.mutation(api.frames.save, { ...confession, name: "My confession" });
     expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(0);
     const frame = await t.query(api.frames.getByKey, { key: "confession" });
@@ -81,7 +81,7 @@ describe("frames functions", () => {
     await t.mutation(api.frames.setActive, { key: "teardown", isActive: false });
     const keys = (await t.query(api.frames.list, {})).map((f) => f.key);
     expect(keys).not.toContain("teardown");
-    expect(keys).toHaveLength(7);
+    expect(keys).toHaveLength(8);
     expect((await t.query(api.frames.getByKey, { key: "teardown" }))?.isActive).toBe(false);
     await expect(t.mutation(api.frames.setActive, { key: "nope", isActive: true })).rejects.toThrow(
       /FRAME_NOT_FOUND/

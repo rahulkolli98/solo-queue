@@ -94,10 +94,12 @@ export function frameOptions(
 }
 
 /** The formats the "Defaults by format" table has a row for (the carousel arrives later). */
-export const FORMAT_ROW_KINDS: readonly SetupKind[] = ["threads", "caption", "reel", "blog"];
+export const FORMAT_ROW_KINDS: readonly SetupKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 
 /** Posts a thread default can name; 0 (not listed) means "follow the story frame". */
 export const THREAD_POST_CHOICES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+/** Slides in a written carousel. */
+export const CAROUSEL_SLIDE_CHOICES: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export interface FormatFrameLike {
   key: string;
@@ -149,8 +151,11 @@ export function formatDefaultRows(voice: Voice, frames: readonly FormatFrameLike
       takesFrame,
       frameKey,
       frames: takesFrame ? fitting : [],
-      takesCount: kind === "threads",
-      count: kind === "threads" ? (resolveCount({ kind, defaults: voice.formatDefaults, legacyPostCount: voice.defaultPostCount }) ?? 0) : 0,
+      takesCount: kind === "threads" || kind === "carousel",
+      count:
+        kind === "threads" || kind === "carousel"
+          ? (resolveCount({ kind, defaults: voice.formatDefaults, legacyPostCount: voice.defaultPostCount }) ?? 0)
+          : 0,
     };
   });
 }

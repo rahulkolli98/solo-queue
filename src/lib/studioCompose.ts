@@ -6,6 +6,7 @@
  */
 import { MAX_THREAD_POSTS, addPost, movePost, parseThread, removePost, serializeThread } from "@/lib/draftText";
 import { KIND_META, generateFormatOf, type DraftKind, type GenerateFormat } from "@/lib/studioModel";
+import { clampSlideCount } from "../../convex/lib/carouselDraft";
 import type { GenerateSetup as RunSetup } from "@/lib/studioSetup";
 
 /** The fewest and most posts the model may be asked for (matches `drafting.generate`). */
@@ -40,6 +41,9 @@ export function generateArgs(input: { topicId: string; kinds: DraftKind[]; setup
   }
   if (s?.caption && input.kinds.includes("caption")) setup.caption = s.caption;
   if (s?.reel && input.kinds.includes("reel")) setup.reel = s.reel;
+  if (s?.carousel && input.kinds.includes("carousel")) {
+    setup.carousel = { ...s.carousel, ...(s.carousel.count !== undefined ? { count: clampSlideCount(s.carousel.count) } : {}) };
+  }
   if (Object.keys(setup).length) args.setup = setup;
   return args;
 }

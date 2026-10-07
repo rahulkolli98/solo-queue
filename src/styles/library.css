@@ -1415,6 +1415,23 @@
   }
 }
 
+/* ---------- frame editor: carousel style and references ---------- */
+.lb-style-field {
+  min-width: 0;
+}
+.lb-style-field textarea {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 112px;
+}
+.lb-style-count {
+  align-self: flex-end;
+  color: var(--color-muted-on-chrome);
+}
+.lb-style-count.is-over {
+  color: var(--color-instagram);
+}
+
 /* ---------- story frame proposer (Library "Learn from a post", Research "Make a story frame") ---------- */
 /* the "Learn from a post" card is a real button now: same look as "New frame" */
 .lb-fc-learn {

@@ -63,7 +63,7 @@ export default function AnglesRow({
                     Draft this
                   </Link>
                 ) : (
-                  <span className="t-meta rs-angle-draft rs-angle-soon">Carousels arrive in a later update.</span>
+                  <span className="t-meta rs-angle-draft rs-angle-soon">Studio cannot draft this format yet.</span>
                 );
               })()}
             </div>

@@ -8,6 +8,7 @@ const frames: SetupFrame[] = [
   { key: "receipt", name: "The receipt", fits: ["single", "carousel"], beats: beats(3) },
   { key: "ig-caption", name: "Caption: hook, value, ask", fits: ["single"], beats: beats(3) },
   { key: "ig-reel", name: "Reel: hook, beats, close", fits: ["reel"], beats: beats(4) },
+  { key: "ig-carousel", name: "Carousel: cover, story, close", fits: ["carousel"], beats: beats(4) },
 ];
 const base: SetupInput = { choices: {}, defaults: undefined, legacyDefaultKey: "confession", legacyPostCount: undefined, frames };
 const row = (input: SetupInput, kind: string) => buildSetupRows(input).find((r) => r.kind === kind)!;
@@ -16,7 +17,7 @@ describe("an untouched run follows the defaults", () => {
   it("ticks threads, caption and reel, not the blog, and picks a frame that fits each", () => {
     const rows = buildSetupRows(base);
     expect(includedKinds(rows)).toEqual(["threads", "caption", "reel"]);
-    expect(rows.map((r) => r.frame?.key)).toEqual(["confession", "ig-caption", "confession", undefined]);
+    expect(rows.map((r) => r.frame?.key)).toEqual(["confession", "ig-caption", "confession", "ig-carousel", undefined]);
     expect(rows.every((r) => !r.changed)).toBe(true);
     expect(row(base, "threads").count).toBe(4);
   });
@@ -91,6 +92,41 @@ describe("saved defaults and this run's changes", () => {
     expect(setupSummary(rows)).toBe("Nothing is ticked to write.");
     expect(includedKinds(rows)).toEqual([]);
     expect(setupToSend(rows, input)).toEqual({});
+  });
+});
+
+describe("the carousel row", () => {
+  it("is not ticked by default, shows 6 slides and the seeded carousel frame, and is not sent until ticked", () => {
+    const rows = buildSetupRows(base);
+    const carousel = rows.find((r) => r.kind === "carousel")!;
+    expect(carousel.include).toBe(false);
+    expect(carousel.frame?.key).toBe("ig-carousel");
+    expect(carousel.count).toBe(6);
+    expect(carousel.frameOptions.map((f) => f.key)).toEqual(["receipt", "ig-carousel"]);
+    expect(setupToSend(rows, base).carousel).toBeUndefined();
+  });
+
+  it("ticking it names the frame, sends a slide count only when it differs, and the summary says slides", () => {
+    const ticked = { ...base, choices: { carousel: { include: true } } };
+    expect(setupToSend(buildSetupRows(ticked), ticked).carousel).toEqual({ frameKey: "ig-carousel" });
+    expect(setupSummary(buildSetupRows(ticked))).toContain("Carousel · Carousel: cover, story, close · 6 slides");
+    const eight = { ...base, choices: { carousel: { include: true, count: 8 } } };
+    expect(setupToSend(buildSetupRows(eight), eight).carousel).toEqual({ frameKey: "ig-carousel", count: 8 });
+    const one = { ...base, choices: { carousel: { include: true, count: 1 } } };
+    expect(setupToSend(buildSetupRows(one), one).carousel).toEqual({ frameKey: "ig-carousel", count: 1 });
+    expect(setupSummary(buildSetupRows(one))).toContain("Carousel · Carousel: cover, story, close · 1 slide");
+    expect(buildSetupRows(eight).find((r) => r.kind === "carousel")?.changed).toBe(true);
+  });
+
+  it("a saved default frame and slide count are used, and keep the slide count inside 1 to 10", () => {
+    const saved = { ...base, defaults: { carousel: { frameKey: "receipt", count: 8, include: true } } };
+    const row = buildSetupRows(saved).find((r) => r.kind === "carousel")!;
+    expect(row.include).toBe(true);
+    expect(row.frame?.key).toBe("receipt");
+    expect(row.count).toBe(8);
+    expect(buildSetupRows({ ...base, choices: { carousel: { count: 0 } } }).find((r) => r.kind === "carousel")?.count).toBe(1);
+    expect(buildSetupRows({ ...base, choices: { carousel: { count: 1, include: true } } }).find((r) => r.kind === "carousel")?.count).toBe(1);
+    expect(buildSetupRows({ ...base, choices: { carousel: { count: 40 } } }).find((r) => r.kind === "carousel")?.count).toBe(10);
   });
 });
 

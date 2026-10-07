@@ -6,21 +6,24 @@ import { InstagramAvatar } from "@/components/features/studio/glyphs";
 import StudioTabs, { useTabIds } from "@/components/features/studio/StudioTabs";
 import { instagramFooter } from "@/lib/studioModel";
 
-export type IgTab = "reel" | "caption";
+export type IgTab = "reel" | "caption" | "carousel";
 
-/** Board 02 / 07c-07e: the cream Instagram column with its Reel script / Caption tabs. */
+/** Board 02 / 07c-07e: the cream Instagram column with its Reel script / Caption / Carousel tabs. */
 export default function InstagramColumn({
   tab,
   onTab,
   panels,
+  carousel,
   draftCount,
   needCount = 0,
   notice,
 }: {
   tab: IgTab;
   onTab: (tab: IgTab) => void;
-  /** Props for each tab's panel. */
-  panels: Record<IgTab, IgPanelProps>;
+  /** Props for the Reel script and Caption panels. */
+  panels: Record<"reel" | "caption", IgPanelProps>;
+  /** The Carousel tab's panel (the slide editor), or null when the carousel is not shown. */
+  carousel?: ReactNode;
   draftCount: number;
   /** Instagram drafts that cannot be queued yet (over the limit, media, a failed write). */
   needCount?: number;
@@ -47,6 +50,7 @@ export default function InstagramColumn({
         tabs={[
           { id: "reel", label: "Reel script" },
           { id: "caption", label: "Caption" },
+          ...(carousel === undefined ? [] : [{ id: "carousel" as const, label: "Carousel" }]),
         ]}
       />
       <div
@@ -56,7 +60,7 @@ export default function InstagramColumn({
         aria-labelledby={tabId(tab)}
         tabIndex={-1}
       >
-        <IgPanel key={tab} {...panels[tab]} />
+        {tab === "carousel" ? carousel : <IgPanel key={tab} {...panels[tab]} />}
       </div>
       {needCount > 0 && (
         <div className="studio-colfoot">

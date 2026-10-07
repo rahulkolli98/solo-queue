@@ -23,6 +23,7 @@ function toDraft(frame: Frame): FrameDraft {
     beats: frame.beats.map((b) => ({ ...b })),
     fits: [...frame.fits],
     color: frame.color,
+    style: frame.style ?? "",
   };
 }
 

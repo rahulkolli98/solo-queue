@@ -66,6 +66,13 @@ describe("generateArgs (what drafting.generate receives)", () => {
     expect(args.setup).toEqual({ caption: { frameKey: "receipt" } });
   });
 
+  it("sends the carousel frame and slide count, clamped to 4 to 10, only when a carousel is written", () => {
+    const args = generateArgs({ topicId: "t1", kinds: ["carousel"], setup: { carousel: { frameKey: "ig-carousel", count: 40 } } });
+    expect(args.formats).toEqual(["instagram-carousel"]);
+    expect(args.setup).toEqual({ carousel: { frameKey: "ig-carousel", count: 10 } });
+    expect(generateArgs({ topicId: "t1", kinds: ["threads"], setup: { carousel: { frameKey: "ig-carousel" } } }).setup).toBeUndefined();
+  });
+
   it("clamps an out-of-range count", () => {
     expect(generateArgs({ topicId: "t1", kinds: ["threads"], setup: { threads: { count: 50 } } }).setup?.threads?.count).toBe(POSTS_MAX);
   });

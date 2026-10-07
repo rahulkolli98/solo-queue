@@ -1917,3 +1917,311 @@ body:has(.studio-bar) {
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* ---------- carousel editor panel (.studio-cr-*) ---------- */
+.studio-cr,
+.studio-cr-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.studio-cr-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* filmstrip: wraps onto rows instead of scrolling sideways */
+.studio-cr-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 72px));
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.studio-cr-strip > li {
+  min-width: 0;
+}
+.studio-cr-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--color-line);
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+  cursor: pointer;
+}
+.studio-cr-thumb[aria-current="true"] {
+  border-color: var(--color-on-surface);
+  box-shadow: 0 0 0 2px var(--color-surface-raised), 0 0 0 4px var(--color-on-surface);
+}
+.studio-cr-thumb[data-bad] {
+  border-color: var(--color-primary);
+}
+.studio-cr-thumb:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.studio-cr-thumb-n {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  min-width: 18px;
+  padding: 0 var(--space-4);
+  border-radius: var(--rounded-pill);
+  background: var(--color-on-surface);
+  color: var(--color-surface);
+  font: 500 11px/18px var(--font-mono), "DM Mono", monospace;
+  text-align: center;
+}
+.studio-cr-thumb[data-bad] .studio-cr-thumb-n {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* one drawn slide: 4:5, whatever the width */
+.studio-cr-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: var(--rounded-sm);
+  background: var(--color-line-soft);
+}
+.studio-cr-preview-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.studio-cr-preview[data-pending] .studio-cr-preview-img {
+  opacity: 0.55;
+}
+.studio-cr-preview-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+.studio-cr-preview-note {
+  position: absolute;
+  inset: auto 0 0 0;
+  margin: 0;
+  padding: var(--space-8) var(--space-10);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-on-surface);
+}
+.studio-cr-preview-note:not(.studio-cr-preview-drawing) {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-primary-deep);
+}
+.studio-cr-thumb .studio-cr-preview-note {
+  font-size: 0;
+}
+.studio-cr-thumb .studio-cr-preview-note::before {
+  content: "!";
+  font: 700 18px/1 var(--font-mono), "DM Mono", monospace;
+}
+
+.studio-cr-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+.studio-cr-stage {
+  width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
+}
+.studio-cr-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.studio-cr-limits {
+  margin: 0;
+}
+.studio-cr-problems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* the slide form */
+.studio-cr-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.studio-cr-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+.studio-cr-row-end {
+  align-items: end;
+}
+.studio-cr-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.studio-cr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+.studio-cr-input {
+  min-width: 0;
+}
+.studio-cr-hint {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted-on-surface);
+}
+.studio-cr-count {
+  align-self: flex-end;
+  font: 500 12px/1.2 var(--font-mono), "DM Mono", monospace;
+  color: var(--color-muted-on-surface);
+}
+.studio-cr-count[data-over] {
+  font-weight: 700;
+  color: var(--color-primary-deep);
+}
+.studio-cr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.studio-cr-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-12) var(--space-14) var(--space-14);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--rounded-md);
+}
+.studio-cr-group > legend {
+  padding: 0 var(--space-6);
+  font-size: 13px;
+  font-weight: 700;
+}
+.studio-cr-pillrow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+.studio-cr-pillrow > .studio-cr-field {
+  flex: 1;
+}
+
+/* the caption */
+.studio-cr-caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.studio-cr-caption-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 132px;
+  padding: var(--space-12) var(--space-14);
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* status, the Draw button and the downloads */
+.studio-cr-statusbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding-top: var(--space-14);
+  border-top: 1.5px solid var(--color-line);
+}
+.studio-cr-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.studio-cr-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted-on-surface);
+}
+.studio-cr-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+}
+.studio-cr-downloads ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.studio-cr-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+/* waiting and empty */
+.studio-cr-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+.studio-cr-skeleton-row {
+  display: flex;
+  gap: var(--space-8);
+}
+.studio-cr-skeleton-tile {
+  width: 56px;
+  aspect-ratio: 4 / 5;
+}
+.studio-cr-empty {
+  align-items: flex-start;
+}
+
+@media (max-width: 767px) {
+  .studio-cr-btn,
+  .studio-cr-link {
+    min-height: 44px;
+  }
+  .studio-cr-thumb {
+    min-height: 70px;
+  }
+}
+@media (max-width: 420px) {
+  .studio-cr-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -65,14 +65,15 @@ describe("Research -> Studio hand-off", () => {
 });
 
 describe("Draft this on an angle card", () => {
-  it("maps an angle to the Studio format it drafts by platform and format, and the carousel to none", () => {
+  it("maps an angle to the Studio format it drafts by platform and format, and an unknown format to none", () => {
     expect(angleSetup({ platform: "threads", format: "thread", frameKey: "confession" })).toEqual({ kind: "threads", frameKey: "confession" });
     // A single post on Threads is a Threads post; a single on Instagram is a caption.
     expect(angleSetup({ platform: "threads", format: "single", frameKey: "hot-take" })?.kind).toBe("threads");
     expect(angleSetup({ platform: "instagram", format: "single", frameKey: "receipt" })?.kind).toBe("caption");
     expect(angleSetup({ platform: "instagram", format: "caption", frameKey: "receipt" })?.kind).toBe("caption");
     expect(angleSetup({ platform: "instagram", format: "reel", frameKey: "teardown" })?.kind).toBe("reel");
-    expect(angleSetup({ platform: "instagram", format: "carousel", frameKey: "receipt" })).toBeNull();
+    expect(angleSetup({ platform: "instagram", format: "carousel", frameKey: "receipt" })).toEqual({ kind: "carousel", frameKey: "receipt" });
+    expect(angleSetup({ platform: "instagram", format: "story", frameKey: "receipt" })).toBeNull();
   });
 
   it("builds a Studio link that names the Studio format and frame and never asks for generation", () => {
@@ -80,7 +81,8 @@ describe("Draft this on an angle card", () => {
     expect(href).toBe("/studio/abc123?from=research&angle=reel&frame=teardown");
     expect(href).not.toContain("draft=1");
     expect(studioAngleHref("abc123", { platform: "threads", format: "single", frameKey: "hot-take" })).toBe("/studio/abc123?from=research&angle=threads&frame=hot-take");
-    expect(studioAngleHref("abc123", { platform: "instagram", format: "carousel", frameKey: "receipt" })).toBeNull();
+    expect(studioAngleHref("abc123", { platform: "instagram", format: "carousel", frameKey: "receipt" })).toBe("/studio/abc123?from=research&angle=carousel&frame=receipt");
+    expect(studioAngleHref("abc123", { platform: "instagram", format: "story", frameKey: "receipt" })).toBeNull();
     // A frame key that is not a plain key is left out of the link.
     expect(studioAngleHref("abc123", { platform: "threads", format: "thread", frameKey: "Bad Key&x=1" })).toBe("/studio/abc123?from=research&angle=threads");
   });
@@ -90,7 +92,8 @@ describe("Draft this on an angle card", () => {
     expect(parseAngle(q({ angle: "caption", frame: "receipt" }))).toEqual({ kind: "caption", frameKey: "receipt" });
     expect(parseAngle(q({ angle: "threads" }))).toEqual({ kind: "threads", frameKey: undefined });
     expect(parseAngle(q({ angle: "threads", frame: "../x" }))).toEqual({ kind: "threads", frameKey: undefined });
-    expect(parseAngle(q({ angle: "carousel" }))).toBeNull();
+    expect(parseAngle(q({ angle: "carousel" }))).toEqual({ kind: "carousel", frameKey: undefined });
+    expect(parseAngle(q({ angle: "story" }))).toBeNull();
     expect(parseAngle(q({ angle: "thread" }))).toBeNull();
     expect(parseAngle(q({}))).toBeNull();
   });

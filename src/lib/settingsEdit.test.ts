@@ -117,11 +117,12 @@ describe("per-format defaults", () => {
   ];
   const row = (rows: ReturnType<typeof formatDefaultRows>, kind: string) => rows.find((r) => r.kind === kind)!;
 
-  it("makes a row each for threads, caption, reel and blog (no carousel)", () => {
+  it("makes a row each for threads, caption, reel, carousel and blog", () => {
     const rows = formatDefaultRows(DEFAULT_SETTINGS.voice, frames);
-    expect(rows.map((r) => r.kind)).toEqual(["threads", "caption", "reel", "blog"]);
-    expect(rows.map((r) => r.label)).toEqual(["Threads", "Caption", "Reel script", "Blog"]);
-    expect(rows.map((r) => r.include)).toEqual([true, true, true, false]);
+    expect(rows.map((r) => r.kind)).toEqual(["threads", "caption", "reel", "carousel", "blog"]);
+    expect(rows.map((r) => r.label)).toEqual(["Threads", "Caption", "Reel script", "Carousel", "Blog"]);
+    expect(rows.map((r) => r.include)).toEqual([true, true, true, false, false]);
+    expect(rows.map((r) => r.takesCount)).toEqual([true, false, false, true, false]);
   });
 
   it("lists only active frames that fit, and the blog gets none", () => {
