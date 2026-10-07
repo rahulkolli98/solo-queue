@@ -88,6 +88,29 @@ describe("VoiceSection", () => {
     expect(out).not.toContain("threadstopictag");
   });
 
+  it("shows About you and the style guide with live counts and a Load from file button", () => {
+    voice = { ...voice, aboutMe: "Solo founder.", styleGuide: "Open with a confession." };
+    const out = render();
+    expect(out).toContain("Solo founder.");
+    expect(out).toContain("13/1500");
+    expect(out).toContain("Open with a confession.");
+    expect(out).toContain("23/20,000");
+    expect(out).toContain("Load from file");
+    expect(out).toContain("Sent with every draft");
+    expect(out).toContain(">Clear</button>");
+    expect(out).toContain('accept=".md,.markdown,.txt,text/markdown,text/plain"');
+    // Nothing to save until the text is edited.
+    expect(out).not.toContain("Save style guide");
+  });
+
+  it("is optional: empty fields show placeholders, no Clear button and no error", () => {
+    const out = render();
+    expect(out).toContain("Paste a style guide here.");
+    expect(out).toContain("0/20,000");
+    expect(out).not.toContain(">Clear</button>");
+    expect(out).not.toContain("sq-formfield-error");
+  });
+
   it("shows a loading line until settings arrive", () => {
     loaded = false;
     expect(render()).toContain("Loading voice settings");

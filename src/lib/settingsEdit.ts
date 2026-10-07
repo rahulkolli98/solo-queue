@@ -12,6 +12,8 @@ export type Voice = AppSettings["voice"];
 
 export const VOICE_DESCRIPTION_MAX = 600;
 export const SIGN_OFF_MAX = 80;
+export const ABOUT_ME_MAX = 1500;
+export const STYLE_GUIDE_MAX = 20000;
 export const BANNED_WORDS_MAX = 50;
 export const BANNED_WORD_MAX_LENGTH = 40;
 export const PILLAR_NAME_MAX = 40;
@@ -92,6 +94,12 @@ export function mergeVoice(current: Voice, change: Partial<Voice>): Voice {
   } else {
     next.signOff = next.signOff.trim();
   }
+  // Blank about-you and style-guide text removes the field instead of saving an empty string.
+  for (const key of ["aboutMe", "styleGuide"] as const) {
+    const value = next[key];
+    if (typeof value !== "string" || value.trim() === "") delete next[key];
+    else next[key] = value.trim();
+  }
   return next;
 }
 
@@ -100,6 +108,26 @@ export function validateDescription(text: string): string | null {
   return text.length > VOICE_DESCRIPTION_MAX
     ? `The description can be up to ${VOICE_DESCRIPTION_MAX} characters.`
     : null;
+}
+
+export function validateAboutMe(text: string): string | null {
+  return text.trim().length > ABOUT_ME_MAX ? `About you can be up to ${ABOUT_ME_MAX} characters.` : null;
+}
+
+/** A style guide that is too long is refused with its size, so the founder knows how much to cut. */
+export function validateStyleGuide(text: string): string | null {
+  const n = text.trim().length;
+  return n > STYLE_GUIDE_MAX
+    ? `The style guide is ${n.toLocaleString("en-US")} characters; the limit is ${STYLE_GUIDE_MAX.toLocaleString("en-US")}. Cut it down, then save.`
+    : null;
+}
+
+/** Files the style guide can be loaded from: plain text or Markdown, small enough to read in the browser. */
+export const STYLE_GUIDE_FILE_MAX_BYTES = 200_000;
+export function checkStyleGuideFile(file: { name: string; size: number }): string | null {
+  if (!/\.(md|markdown|txt)$/i.test(file.name)) return "Load a .md or .txt file.";
+  if (file.size > STYLE_GUIDE_FILE_MAX_BYTES) return "That file is too large for a style guide. Keep it under 200 KB.";
+  return null;
 }
 
 export function validateSignOff(text: string): string | null {

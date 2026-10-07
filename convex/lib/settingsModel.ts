@@ -38,6 +38,10 @@ export interface AppSettings {
     threadsTopicTag: "auto" | "off";
     igHashtagMax: number;
     signOff?: string;
+    /** Who the founder is; sent to the model with every draft. */
+    aboutMe?: string;
+    /** A style guide (pasted or loaded from a file); sent to the model with every draft. */
+    styleGuide?: string;
     bannedWords: string[];
   };
   pillars: Pillar[];
@@ -123,6 +127,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dismissedNudges: [],
 };
 
+/** Longest "about you" and style guide the founder can save (the whole style guide goes into every request). */
+export const ABOUT_ME_MAX = 1500;
+export const STYLE_GUIDE_MAX = 20000;
+
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM");
 
 /** Sorted, de-duplicated list of HH:MM times, at most 8 per platform. */
@@ -187,6 +195,8 @@ export const sectionSchemas = {
     threadsTopicTag: z.enum(["auto", "off"]),
     igHashtagMax: z.number().int().min(0).max(30),
     signOff: z.string().max(80).optional(),
+    aboutMe: z.string().max(ABOUT_ME_MAX).optional(),
+    styleGuide: z.string().max(STYLE_GUIDE_MAX).optional(),
     bannedWords: z
       .array(z.string().trim().toLowerCase().min(1).max(40))
       .max(50)

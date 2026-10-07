@@ -376,6 +376,18 @@
   width: 100%;
   min-height: 88px;
 }
+.st-context {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.st-guide {
+  min-height: 200px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
 .st-count-row {
   display: flex;
   align-items: center;
@@ -611,6 +623,7 @@
     height: 44px;
   }
   .st-add-row .sq-btn,
+  .st-context .sq-btn,
   .st-retrain {
     min-height: 44px;
   }

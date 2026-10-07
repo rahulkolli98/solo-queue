@@ -138,3 +138,17 @@ export function buildVoiceSuggestPrompt(currentDescription: string, posts: strin
     "Write the updated voice description.";
   return { system, prompt };
 }
+
+/**
+ * The founder's own context as labelled blocks for the drafting system prompt: who they are, and a style
+ * guide (pasted or loaded from a file). Blank or missing fields add nothing. Static for a given founder, so
+ * it sits in the stable front part of the prompt (where a provider cache can reuse it later).
+ */
+export function voiceContextBlocks(voice: { aboutMe?: string; styleGuide?: string }): string[] {
+  const blocks: string[] = [];
+  const about = voice.aboutMe?.trim();
+  if (about) blocks.push(`About the founder:\n${about}`);
+  const guide = voice.styleGuide?.trim();
+  if (guide) blocks.push(`Style guide (match how they write, not what they say):\n${guide}`);
+  return blocks;
+}
