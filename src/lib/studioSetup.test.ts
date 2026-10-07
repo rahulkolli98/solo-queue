@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSetupRows, includedKinds, setupSummary, setupToSend, type SetupFrame, type SetupInput } from "@/lib/studioSetup";
+import { buildSetupRows, choicesForAngle, includedKinds, setupSummary, setupToSend, type SetupFrame, type SetupInput } from "@/lib/studioSetup";
 
 const beats = (n: number) => Array.from({ length: n }, (_, i) => ({ label: `B${i + 1}` }));
 const frames: SetupFrame[] = [
@@ -91,5 +91,28 @@ describe("saved defaults and this run's changes", () => {
     expect(setupSummary(rows)).toBe("Nothing is ticked to write.");
     expect(includedKinds(rows)).toEqual([]);
     expect(setupToSend(rows, input)).toEqual({});
+  });
+});
+
+describe("Draft this on an angle card", () => {
+  it("ticks only the angle's format and picks its frame", () => {
+    const input = { ...base, choices: choicesForAngle({ kind: "caption", frameKey: "receipt" }) };
+    const rows = buildSetupRows(input);
+    expect(includedKinds(rows)).toEqual(["caption"]);
+    expect(rows.find((r) => r.kind === "caption")?.frame?.key).toBe("receipt");
+    expect(setupSummary(rows)).toBe("Caption · The receipt");
+    expect(setupToSend(rows, input)).toEqual({ caption: { frameKey: "receipt" } });
+  });
+
+  it("an angle frame that does not fit the format falls back to the saved default", () => {
+    const input = { ...base, choices: choicesForAngle({ kind: "reel", frameKey: "hot-take" }) };
+    const rows = buildSetupRows(input);
+    expect(includedKinds(rows)).toEqual(["reel"]);
+    expect(rows.find((r) => r.kind === "reel")?.frame?.key).toBe("confession");
+  });
+
+  it("the blog is left out even when a blog draft exists", () => {
+    const input = { ...base, hasDraft: { blog: true }, choices: choicesForAngle({ kind: "threads" }) };
+    expect(includedKinds(buildSetupRows(input))).toEqual(["threads"]);
   });
 });

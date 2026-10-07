@@ -1414,3 +1414,197 @@
     text-overflow: clip;
   }
 }
+
+/* ---------- story frame proposer (Library "Learn from a post", Research "Make a story frame") ---------- */
+/* the "Learn from a post" card is a real button now: same look as "New frame" */
+.lb-fc-learn {
+  border-color: var(--color-chrome);
+  color: var(--color-on-surface);
+  cursor: pointer;
+}
+.lb-fc-learn .lb-fc-plus {
+  font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+.lb-fc-learn .lb-fc-name {
+  font-size: 19px;
+}
+.lb-fc-learn[aria-expanded="true"] {
+  outline: 3px solid var(--color-chrome);
+}
+.lb-learn,
+.rs-frame-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1.5px solid var(--color-line-soft);
+  border-radius: var(--rounded-xl);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+}
+.lb-learn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.lb-learn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.lb-learn-head h2 {
+  margin: 0;
+}
+.lb-learn-close {
+  height: 36px;
+  padding: 0 var(--space-14);
+  font-size: 13px;
+}
+
+.fp,
+.fp-step,
+.fp-form,
+.fp-edit,
+.fp-saved {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.fp {
+  color: var(--color-on-surface);
+}
+.fp-step {
+  outline: none;
+}
+.fp-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.fp-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.fp-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+.fp-choice {
+  min-height: 44px;
+  padding: 0 var(--space-14);
+  border-radius: var(--rounded-pill);
+  border: 1.5px solid var(--color-on-surface);
+  background: transparent;
+  color: var(--color-on-surface);
+  font: 600 14px var(--font-body), "DM Sans", sans-serif;
+  cursor: pointer;
+}
+.fp-choice[aria-checked="true"] {
+  background: var(--color-chrome);
+  border-color: var(--color-chrome);
+  color: var(--color-on-chrome-strong);
+}
+.fp-choice:focus-visible {
+  outline: 2px solid var(--color-on-surface);
+  outline-offset: 2px;
+}
+.fp-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  color: var(--color-muted-on-surface);
+}
+.fp-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+/* buttons may wrap their words and never push past the panel */
+.fp .sq-btn {
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: var(--space-8) var(--space-16);
+  white-space: normal;
+  text-align: center;
+}
+.fp-beats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fp-beat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-8);
+  align-items: start;
+  padding: var(--space-10);
+  border-radius: var(--rounded-md);
+  background: var(--color-surface);
+}
+.fp-beat-num {
+  padding-top: var(--space-14);
+  font-family: var(--font-mono), "DM Mono", monospace;
+  font-size: 12px;
+  color: var(--color-muted-on-surface);
+}
+.fp-beat-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.fp-add {
+  align-self: flex-start;
+  border-style: dashed;
+}
+.fp-saved-text {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .lb-fc-learn {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .lb-fc-learn .lb-fc-plus {
+    font-size: 20px;
+  }
+  .lb-fc-learn .lb-fc-name {
+    font-size: 17px;
+  }
+  .lb-learn,
+  .rs-frame-panel {
+    padding: var(--space-12);
+  }
+  /* the number and the two fields share a row; Remove sits under the fields, full 44px tall */
+  .fp-beat {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .fp-beat-num {
+    padding-top: var(--space-12);
+  }
+  .fp-remove {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .fp-actions .sq-btn {
+    flex: 1 1 auto;
+  }
+}

@@ -276,7 +276,7 @@ describe("FramesTab default chips", () => {
     expect(out).toContain("ADMIT → COST");
     expect(out).toContain("EDITING");
     expect(out).toContain("Learn from a post");
-    expect(out).toContain('aria-disabled="true"');
+    expect(out).not.toContain("COMING LATER");
   });
 
   it("shows no chips while the settings are loading", () => {
