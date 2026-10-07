@@ -1414,3 +1414,20 @@
     text-overflow: clip;
   }
 }
+
+/* ---------- frame editor: carousel style and references ---------- */
+.lb-style-field {
+  min-width: 0;
+}
+.lb-style-field textarea {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 112px;
+}
+.lb-style-count {
+  align-self: flex-end;
+  color: var(--color-muted-on-chrome);
+}
+.lb-style-count.is-over {
+  color: var(--color-instagram);
+}

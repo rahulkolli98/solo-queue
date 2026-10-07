@@ -9,6 +9,7 @@ import {
   emptyFrame,
   fitsLine,
   frameFormErrors,
+  frameSaveArgs,
   keyFromName,
   libraryHeadline,
   matchesDraftFilter,
@@ -18,6 +19,9 @@ import {
   mimeFromUrl,
   moveBeat,
   postcardMeta,
+  STYLE_MAX,
+  styleCount,
+  styleToSave,
   tiltFor,
   toggleFit,
   whenLabel,
@@ -102,6 +106,7 @@ describe("story frames", () => {
     const f = emptyFrame("pillar-build");
     expect(f.key).toBeNull();
     expect(f.beats).toHaveLength(2);
+    expect(f.style).toBe("");
   });
   it("duplicates into an unsaved copy", () => {
     const copy = duplicateFrame({
@@ -114,6 +119,54 @@ describe("story frames", () => {
     expect(copy.key).toBeNull();
     expect(copy.name).toBe("Confession copy");
     expect(copy.beats[0]).toEqual({ label: "Admit", hint: "h" });
+    expect(copy.style).toBe("");
+  });
+  it("carries the style note into a duplicate", () => {
+    const copy = duplicateFrame({
+      key: "ig-carousel",
+      name: "Carousel",
+      beats: [{ label: "Cover", hint: "" }, { label: "Close", hint: "" }],
+      fits: ["carousel"],
+      color: "pillar-tools",
+      style: "Short bold headlines.",
+    });
+    expect(copy.style).toBe("Short bold headlines.");
+  });
+  describe("the style note on save", () => {
+    const base = {
+      ...emptyFrame("pillar-build"),
+      key: "ig-carousel",
+      name: " Carousel ",
+      beats: [{ label: " Cover ", hint: " h " }, { label: "Close", hint: "" }],
+    };
+    it("sends the trimmed style for a carousel frame", () => {
+      const args = frameSaveArgs({ ...base, fits: ["carousel"], style: "  Dry and specific.  " }, "ig-carousel");
+      expect(args).toEqual({
+        key: "ig-carousel",
+        name: "Carousel",
+        beats: [{ label: "Cover", hint: "h" }, { label: "Close", hint: "" }],
+        fits: ["carousel"],
+        color: "pillar-build",
+        style: "Dry and specific.",
+      });
+    });
+    it("sends no style when it is blank or the frame is not a carousel", () => {
+      expect("style" in frameSaveArgs({ ...base, fits: ["carousel"], style: "   " }, "k")).toBe(false);
+      expect("style" in frameSaveArgs({ ...base, fits: ["carousel"] }, "k")).toBe(false);
+      expect("style" in frameSaveArgs({ ...base, fits: ["thread"], style: "stale text" }, "k")).toBe(false);
+      expect(styleToSave({ fits: ["thread", "carousel"], style: "x" })).toBe("x");
+    });
+    it("flags a note over the limit only while it applies", () => {
+      const long = "x".repeat(STYLE_MAX + 1);
+      const ok = { ...base, fits: ["carousel" as const] };
+      expect(frameFormErrors({ ...ok, style: "x".repeat(STYLE_MAX) })).toEqual({});
+      expect(frameFormErrors({ ...ok, style: long }).style).toBe("The style notes can be up to 2,000 characters.");
+      expect(frameFormErrors({ ...ok, fits: ["thread"], style: long })).toEqual({});
+    });
+    it("formats the count", () => {
+      expect(styleCount("")).toBe("0 / 2,000");
+      expect(styleCount("x".repeat(1204))).toBe("1,204 / 2,000");
+    });
   });
   it("explains what is missing in a frame form", () => {
     const base = emptyFrame("pillar-build");

@@ -12,12 +12,13 @@ import {
   resolveFrameKey,
   type FormatDefaults,
 } from "../../convex/lib/formatSetup";
+import { DEFAULT_SLIDE_COUNT, clampSlideCount } from "../../convex/lib/carouselDraft";
 import type { FrameFit } from "../../convex/lib/framesModel";
 import { POSTS_FALLBACK, clampPosts } from "@/lib/studioCompose";
 import { KIND_META, type DraftKind } from "@/lib/studioModel";
 
-/** The formats Studio can write now, in display order. The carousel arrives later. */
-export const SETUP_ROWS: readonly DraftKind[] = ["threads", "caption", "reel", "blog"];
+/** The formats Studio can write, in display order. */
+export const SETUP_ROWS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 
 export interface SetupFrame {
   key: string;
@@ -55,7 +56,7 @@ export interface SetupRow {
   frame: { key: string; name: string } | undefined;
   /** Frames that fit this format, for the select. Empty for the blog. */
   frameOptions: { key: string; name: string; isDefault: boolean }[];
-  /** Threads only: posts in the thread. */
+  /** Threads: posts in the thread. Carousel: slides. */
   count: number | undefined;
   /** Differs from what is saved, so "Make default" has something to save. */
   changed: boolean;
@@ -95,7 +96,9 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
     const count =
       kind === "threads"
         ? clampPosts(choice.count ?? savedCount ?? (frameSteps && frameSteps > 0 ? frameSteps : POSTS_FALLBACK))
-        : undefined;
+        : kind === "carousel"
+          ? clampSlideCount(choice.count ?? savedCount ?? DEFAULT_SLIDE_COUNT)
+          : undefined;
 
     const frameOptions = hasFrame
       ? input.frames
@@ -105,11 +108,14 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
 
     // What the thread length would be with nothing changed: the saved length, else the saved frame's steps.
     const savedFrame = savedFrameKey ? input.frames.find((f) => f.key === savedFrameKey) : undefined;
-    const savedBaseline = clampPosts(savedCount ?? (savedFrame && savedFrame.beats.length > 0 ? savedFrame.beats.length : POSTS_FALLBACK));
+    const savedBaseline =
+      kind === "carousel"
+        ? clampSlideCount(savedCount ?? DEFAULT_SLIDE_COUNT)
+        : clampPosts(savedCount ?? (savedFrame && savedFrame.beats.length > 0 ? savedFrame.beats.length : POSTS_FALLBACK));
     const changed =
       (choice.include !== undefined && choice.include !== savedInclude) ||
       (hasFrame && frameKey !== undefined && frameKey !== savedFrameKey) ||
-      (kind === "threads" && count !== undefined && count !== savedBaseline);
+      ((kind === "threads" || kind === "carousel") && count !== undefined && count !== savedBaseline);
     return {
       kind,
       label: KIND_META[kind].label,
@@ -130,6 +136,7 @@ export function setupSummary(rows: readonly SetupRow[]): string {
       const bits = [r.label];
       if (r.frame) bits.push(r.frame.name);
       if (r.kind === "threads" && r.count !== undefined) bits.push(`${r.count} posts`);
+      if (r.kind === "carousel" && r.count !== undefined) bits.push(r.count === 1 ? "1 slide" : `${r.count} slides`);
       return bits.join(" · ");
     });
   return parts.length === 0 ? "Nothing is ticked to write." : parts.join("   ");
@@ -145,6 +152,7 @@ export interface GenerateSetup {
   threads?: { frameKey?: string; count?: number };
   caption?: { frameKey?: string };
   reel?: { frameKey?: string };
+  carousel?: { frameKey?: string; count?: number };
 }
 
 /**
@@ -166,6 +174,13 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
       if (Object.keys(entry).length) out.threads = entry;
     } else if (row.kind === "caption" || row.kind === "reel") {
       if (row.frame) out[row.kind] = { frameKey: row.frame.key };
+    } else if (row.kind === "carousel") {
+      const saved = resolveCount({ kind: "carousel", defaults: input.defaults });
+      const baseline = clampSlideCount(saved ?? DEFAULT_SLIDE_COUNT);
+      const entry: NonNullable<GenerateSetup["carousel"]> = {};
+      if (row.frame) entry.frameKey = row.frame.key;
+      if (row.count !== undefined && row.count !== baseline) entry.count = row.count;
+      if (Object.keys(entry).length) out.carousel = entry;
     }
   }
   return out;

@@ -134,17 +134,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export const ABOUT_ME_MAX = 1500;
 export const STYLE_GUIDE_MAX = 20000;
 
-const formatDefaultSchema = z.object({
-  include: z.boolean().optional(),
-  frameKey: z.string().min(1).max(60).optional(),
-  count: z.number().int().min(2).max(12).optional(),
-});
+/** One format's saved default. `count` is the thread length (2 to 12) or the carousel's slides (1 to 10). */
+const formatDefaultSchema = (min: number, max: number) =>
+  z.object({
+    include: z.boolean().optional(),
+    frameKey: z.string().min(1).max(60).optional(),
+    count: z.number().int().min(min).max(max).optional(),
+  });
 const formatDefaultsSchema = z.object({
-  threads: formatDefaultSchema.optional(),
-  caption: formatDefaultSchema.optional(),
-  reel: formatDefaultSchema.optional(),
-  carousel: formatDefaultSchema.optional(),
-  blog: formatDefaultSchema.optional(),
+  threads: formatDefaultSchema(2, 12).optional(),
+  caption: formatDefaultSchema(2, 12).optional(),
+  reel: formatDefaultSchema(2, 12).optional(),
+  carousel: formatDefaultSchema(1, 10).optional(),
+  blog: formatDefaultSchema(2, 12).optional(),
 });
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM");

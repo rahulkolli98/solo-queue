@@ -14,7 +14,7 @@ import {
   threadOverBy,
 } from "@/lib/draftText";
 
-export type DraftKind = "threads" | "caption" | "reel" | "blog";
+export type DraftKind = "threads" | "caption" | "reel" | "carousel" | "blog";
 
 /** The three formats `slots.queueTopic` can queue, in lane order. */
 export const QUEUE_KINDS: readonly DraftKind[] = ["threads", "caption", "reel"];
@@ -41,6 +41,12 @@ export const KIND_META: Record<
     label: "Reel script",
     noun: "reel script",
   },
+  carousel: {
+    templateKey: "carousel-slides",
+    generateFormat: "instagram-carousel",
+    label: "Carousel",
+    noun: "carousel",
+  },
   blog: {
     templateKey: "blog-draft",
     generateFormat: "blog",
@@ -49,7 +55,7 @@ export const KIND_META: Record<
   },
 };
 
-export type GenerateFormat = "threads" | "instagram-caption" | "instagram-reel" | "blog";
+export type GenerateFormat = "threads" | "instagram-caption" | "instagram-reel" | "instagram-carousel" | "blog";
 
 export function generateFormatOf(kind: DraftKind): GenerateFormat {
   return KIND_META[kind].generateFormat as GenerateFormat;
@@ -142,11 +148,11 @@ export function readiness(input: {
     const over = threadOverBy(parseThread(input.body), THREADS_POST_LIMIT);
     if (over > 0) return make("over", over);
   }
-  if (input.kind === "caption") {
+  if (input.kind === "caption" || input.kind === "carousel") {
     const over = charLen(input.body.trim()) - CAPTION_LIMIT;
     if (over > 0) return make("over", over);
   }
-  if (input.kind === "caption" || input.kind === "reel") {
+  if (input.kind === "caption" || input.kind === "reel" || input.kind === "carousel") {
     if (input.media === "none") return make("media_required");
     if (input.media === "missing") return make("media_missing");
     if (input.media === "unverified") return make("media_unverified");

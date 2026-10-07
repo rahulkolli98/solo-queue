@@ -44,7 +44,7 @@ export function filenameFromUrl(url: string): string {
 /** Drafts that use an asset (bounded scan: a personal library). */
 async function draftsUsing(ctx: QueryCtx, assetId: Id<"mediaAssets">): Promise<Doc<"drafts">[]> {
   const drafts = await ctx.db.query("drafts").order("desc").take(1000);
-  return drafts.filter((d) => d.mediaAssetId === assetId);
+  return drafts.filter((d) => d.mediaAssetId === assetId || (d.mediaAssetIds ?? []).includes(assetId));
 }
 
 /** Newest assets first, bounded, each with how many drafts use it. */
@@ -55,7 +55,9 @@ export const list = operatorQuery({
     const drafts = await ctx.db.query("drafts").order("desc").take(1000);
     const uses = new Map<string, number>();
     for (const d of drafts) {
-      if (d.mediaAssetId) uses.set(d.mediaAssetId, (uses.get(d.mediaAssetId) ?? 0) + 1);
+      for (const id of new Set([d.mediaAssetId, ...(d.mediaAssetIds ?? [])])) {
+        if (id) uses.set(id, (uses.get(id) ?? 0) + 1);
+      }
     }
     return assets.map((a) => ({ ...a, usedBy: uses.get(a._id) ?? 0 }));
   },
@@ -266,8 +268,9 @@ export const cleanupPublished = internalMutation({
     if (drafts.length > CLEANUP_MAX_DRAFTS) return { status: "skipped", reason: "too_many_drafts" };
     const byAsset = new Map<Id<"mediaAssets">, Doc<"drafts">[]>();
     for (const d of drafts) {
-      if (!d.mediaAssetId) continue;
-      byAsset.set(d.mediaAssetId, [...(byAsset.get(d.mediaAssetId) ?? []), d]);
+      for (const id of new Set([d.mediaAssetId, ...(d.mediaAssetIds ?? [])])) {
+        if (id) byAsset.set(id, [...(byAsset.get(id) ?? []), d]);
+      }
     }
     if (byAsset.size === 0) return { status: "done", deleted: 0 };
 

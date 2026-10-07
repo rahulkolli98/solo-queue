@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { operatorMutation, operatorQuery } from "./lib/operator";
+import { slideValidator } from "./lib/carouselValidators";
+import { MAX_SLIDES, MIN_SLIDES, validateSlide } from "./lib/carouselSlides";
 import { checkEditedBody } from "./lib/drafting";
 import { assertFileNotRemoved, refusal } from "./lib/slots";
 
@@ -126,6 +128,80 @@ export const attachMedia = operatorMutation({
       assertFileNotRemoved(asset);
     }
     await ctx.db.patch(args.id, { mediaAssetId: args.mediaAssetId ?? undefined });
+    return null;
+  },
+});
+
+/** A carousel that already has a post (queued, published or failed) must be changed in the Queue first. */
+async function assertNotQueued(ctx: { db: import("./_generated/server").QueryCtx["db"] }, draftId: import("./_generated/dataModel").Id<"drafts">) {
+  const slot = await ctx.db
+    .query("slots")
+    .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+    .first();
+  if (slot) {
+    throw refusal("CAROUSEL_QUEUED", "This carousel already has a post in the Queue. Cancel that post first, then change the slides.");
+  }
+}
+
+/**
+ * Save the founder's edits to a carousel's slides (2 to 10, each within the slide limits). The rendered images no
+ * longer match once a slide changes, so they are detached: render the slides again, then attach.
+ */
+export const updateSlides = operatorMutation({
+  args: { id: v.id("drafts"), slides: v.array(slideValidator) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel has slides.");
+    if (args.slides.length < MIN_SLIDES || args.slides.length > MAX_SLIDES) {
+      throw refusal("BAD_SLIDE_COUNT", `A carousel has ${MIN_SLIDES} to ${MAX_SLIDES} slides. This one has ${args.slides.length}.`);
+    }
+    const slides = [];
+    for (let i = 0; i < args.slides.length; i += 1) {
+      const checked = validateSlide(args.slides[i]);
+      if (!checked.ok) throw refusal("INVALID_SLIDE", `Slide ${i + 1}: ${checked.message}`);
+      slides.push(JSON.parse(JSON.stringify(checked.slide)));
+    }
+    await assertNotQueued(ctx, args.id);
+    await ctx.db.patch(args.id, { slides, mediaAssetIds: undefined, mediaAssetId: undefined });
+    return null;
+  },
+});
+
+/**
+ * Attach the rendered slide images to a carousel: one image per slide, in order, each a stored PNG or JPEG. The
+ * first becomes the cover (`mediaAssetId`). An empty list detaches them. Reachability is checked when the
+ * carousel is queued, not here.
+ */
+export const attachCarouselMedia = operatorMutation({
+  args: { id: v.id("drafts"), mediaAssetIds: v.array(v.id("mediaAssets")) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel takes slide images.");
+    await assertNotQueued(ctx, args.id);
+    if (args.mediaAssetIds.length === 0) {
+      await ctx.db.patch(args.id, { mediaAssetIds: undefined, mediaAssetId: undefined });
+      return null;
+    }
+    if (args.mediaAssetIds.length !== draft.slides.length) {
+      throw refusal(
+        "SLIDE_IMAGE_COUNT",
+        `This carousel has ${draft.slides.length} slides, so it needs ${draft.slides.length} images. You sent ${args.mediaAssetIds.length}.`
+      );
+    }
+    if (new Set(args.mediaAssetIds).size !== args.mediaAssetIds.length) {
+      throw refusal("SLIDE_IMAGE_DUPLICATE", "Each slide needs its own image.");
+    }
+    for (const id of args.mediaAssetIds) {
+      const asset = await ctx.db.get(id);
+      if (!asset) throw refusal("MEDIA_MISSING", "A slide image is gone. Render the slides again.");
+      assertFileNotRemoved(asset);
+      if (asset.mimeType !== "image/png" && asset.mimeType !== "image/jpeg") {
+        throw refusal("SLIDE_IMAGE_TYPE", "Slide images must be PNG or JPEG files.");
+      }
+    }
+    await ctx.db.patch(args.id, { mediaAssetIds: args.mediaAssetIds, mediaAssetId: args.mediaAssetIds[0] });
     return null;
   },
 });

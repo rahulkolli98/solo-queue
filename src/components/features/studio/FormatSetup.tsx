@@ -5,7 +5,8 @@ import { FRAME_EXPLAINER, type DraftKind } from "@/lib/studioModel";
 import { POSTS_MAX, POSTS_MIN } from "@/lib/studioCompose";
 import { setupSummary, type SetupRow } from "@/lib/studioSetup";
 
-const COUNTS = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
+const POST_COUNTS = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
+const SLIDE_COUNTS = Array.from({ length: 10 }, (_, i) => 1 + i);
 
 /**
  * What this run writes. One line says it all (the defaults, so Generate works untouched); Change opens one
@@ -83,16 +84,16 @@ export default function FormatSetup({
                   {row.kind === "blog" ? "No story frame" : "No story frame fits yet"}
                 </span>
               )}
-              {row.kind === "threads" && row.count !== undefined ? (
+              {(row.kind === "threads" || row.kind === "carousel") && row.count !== undefined ? (
                 <label className="studio-setup-count">
-                  <span className="t-meta">Posts</span>
+                  <span className="t-meta">{row.kind === "carousel" ? "Slides" : "Posts"}</span>
                   <select
                     className="sq-input studio-setup-select studio-setup-num"
                     value={row.count}
                     disabled={disabled || !row.include}
                     onChange={(e) => onCount(row.kind, Number(e.target.value))}
                   >
-                    {COUNTS.map((n) => (
+                    {(row.kind === "carousel" ? SLIDE_COUNTS : POST_COUNTS).map((n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>
@@ -112,9 +113,6 @@ export default function FormatSetup({
               </button>
             </div>
           ))}
-          <p className="studio-setup-row studio-setup-soon sq-muted" data-kind="carousel">
-            Carousel: arrives in a later update.
-          </p>
         </div>
       )}
     </section>

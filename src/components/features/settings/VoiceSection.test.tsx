@@ -39,9 +39,9 @@ const selectOf = (out: string, label: string) => {
   if (!m) throw new Error(`no select "${label}"`);
   return m[0];
 };
-/** The markup of one format row, up to the next row or the Carousel note. */
+/** The markup of one format row, up to the next row or the end of the card. */
 const rowOf = (out: string, label: string) => {
-  const m = out.match(new RegExp(`aria-label="${label} defaults">.*?(?=role="group"|Carousels arrive)`));
+  const m = out.match(new RegExp(`aria-label="${label} defaults">.*?(?=role="group"|</section>)`));
   if (!m) throw new Error(`no row "${label}"`);
   return m[0];
 };
@@ -84,14 +84,13 @@ describe("VoiceSection", () => {
     expect(render()).toMatch(/<option value="7" selected="">7<\/option>/);
   });
 
-  it("has a Defaults by format card with a row each for Threads, Caption, Reel script and Blog, and a Carousel note", () => {
+  it("has a Defaults by format card with a row each for Threads, Caption, Reel script, Carousel and Blog", () => {
     const out = render();
     expect(out).toContain('aria-label="Defaults by format"');
-    for (const label of ["Threads", "Caption", "Reel script", "Blog"]) {
+    for (const label of ["Threads", "Caption", "Reel script", "Carousel", "Blog"]) {
       expect(out).toContain(`aria-label="${label} defaults"`);
     }
-    expect(out).toContain("Carousels arrive in a later update.");
-    expect(out).not.toContain('aria-label="Carousel defaults"');
+    expect(out).not.toContain("arrive in a later update");
     expect(out).not.toContain("Default story frame");
   });
 
@@ -154,6 +153,20 @@ describe("VoiceSection", () => {
     expect(rowOf(out, "Blog")).not.toContain("<select");
     expect(rowOf(out, "Caption")).not.toContain('aria-label="Threads posts"');
     expect(rowOf(out, "Reel script")).not.toContain('aria-label="Threads posts"');
+  });
+
+  it("gives the Carousel a story frame and a slides select of 1 to 10, defaulting to 6, and no carousel is written by default", () => {
+    const out = render();
+    const row = rowOf(out, "Carousel");
+    expect(row).toContain('aria-label="Carousel story frame"');
+    const slides = selectOf(out, "Carousel slides");
+    expect(slides).toMatch(/<option value="0" selected="">6 slides \(default\)<\/option>/);
+    expect(slides).toContain('<option value="1">1 slide (single statement)</option>');
+    expect(slides).toContain('<option value="4">4 slides</option>');
+    expect(slides).toContain('<option value="10">10 slides</option>');
+    expect(slides).not.toContain('value="0"></option>');
+    expect(slides).not.toContain('value="11"');
+    expect(row).not.toMatch(/type="checkbox"[^>]*checked=""/);
   });
 
   it("offers Follow the story frame plus 2 to 12 posts, selected from the saved count", () => {

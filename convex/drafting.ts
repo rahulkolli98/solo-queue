@@ -14,6 +14,8 @@ import {
   stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
+import { carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
+import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
@@ -24,6 +26,7 @@ const FORMATS = {
   threads: { templateKey: "threads-hook-story", platform: "threads", draftFormat: "thread", fit: "thread" },
   "instagram-caption": { templateKey: "ig-caption-beats", platform: "instagram", draftFormat: "caption", fit: "single" },
   "instagram-reel": { templateKey: "reel-script", platform: "instagram", draftFormat: "reel", fit: "reel" },
+  "instagram-carousel": { templateKey: "carousel-slides", platform: "instagram", draftFormat: "carousel", fit: "carousel" },
   blog: { templateKey: "blog-draft", platform: "blog", draftFormat: "blog", fit: null },
 } as const satisfies Record<
   string,
@@ -37,6 +40,7 @@ const SETUP_KIND: Record<Format, SetupKind> = {
   threads: "threads",
   "instagram-caption": "caption",
   "instagram-reel": "reel",
+  "instagram-carousel": "carousel",
   blog: "blog",
 };
 
@@ -46,6 +50,7 @@ const formatArg = v.union(
   v.literal("threads"),
   v.literal("instagram-caption"),
   v.literal("instagram-reel"),
+  v.literal("instagram-carousel"),
   v.literal("blog")
 );
 
@@ -93,6 +98,8 @@ export const storeDraft = internalMutation({
     constraintOk: v.boolean(),
     frameKey: v.optional(v.string()),
     format: v.optional(v.string()),
+    /** A carousel's slides; `body` is then its caption. */
+    slides: v.optional(v.array(slideValidator)),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -132,7 +139,9 @@ export const storeDraft = internalMutation({
       templateVersion: args.templateVersion,
       frameKey: args.frameKey,
       format: args.format,
-      mediaAssetId: args.platform === "instagram" ? carriedMedia : undefined,
+      // A regenerated carousel has new slides, so its old rendered images are not carried over.
+      mediaAssetId: args.platform === "instagram" && !args.slides ? carriedMedia : undefined,
+      slides: args.slides,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -165,10 +174,15 @@ export const generate = operatorAction({
         threads: v.optional(formatSetupArg),
         caption: v.optional(formatSetupArg),
         reel: v.optional(formatSetupArg),
+        carousel: v.optional(formatSetupArg),
       })
     ),
   },
   handler: async (ctx, args) => {
+    const slides = args.setup?.carousel?.count;
+    if (slides !== undefined && (!Number.isInteger(slides) || slides < 1 || slides > 10)) {
+      throw refusal("BAD_SLIDE_COUNT", "A carousel can have 1 to 10 slides when it is written for you.");
+    }
     for (const count of [args.postCount, args.setup?.threads?.count]) {
       if (count !== undefined && (!Number.isInteger(count) || count < 2 || count > 12)) {
         throw refusal("BAD_POST_COUNT", "A thread can have 2 to 12 posts when it is written for you.");
@@ -200,13 +214,17 @@ export const generate = operatorAction({
         legacyPostCount: settings.voice.defaultPostCount,
       });
 
+    const slideCount = clampSlideCount(
+      args.setup?.carousel?.count ?? resolveCount({ kind: "carousel", defaults: settings.voice.formatDefaults })
+    );
+
     // One story frame per format: this run's pick, else the saved default for the format. A pick that does not
     // suit its format is refused here, before any model call is paid for.
     const frames = await ctx.runQuery(api.frames.list, {});
     const frameFor = new Map<Format, (typeof frames)[number]>();
     for (const format of formats) {
       const kind = SETUP_KIND[format];
-      const picked = kind === "threads" || kind === "caption" || kind === "reel" ? args.setup?.[kind]?.frameKey : undefined;
+      const picked = kind === "threads" || kind === "caption" || kind === "reel" || kind === "carousel" ? args.setup?.[kind]?.frameKey : undefined;
       let key: string | undefined;
       if (picked) {
         const frame = frames.find((f) => f.key === picked);
@@ -276,8 +294,38 @@ export const generate = operatorAction({
         format === "threads" && postCount
           ? `${withFrame}\n\nWrite exactly ${postCount} posts, separated by --- lines. Ignore any other number of posts mentioned above, and spread the story across all ${postCount} posts.`
           : withFrame;
-      const prompt =
+      const withHashtags =
         platform === "instagram" ? `${withCount}\n\n${hashtagInstruction(settings.voice.igHashtagMax)}` : withCount;
+      // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
+      const prompt =
+        format === "instagram-carousel"
+          ? `${withHashtags}\n\nThe beats above are the arc of the story: spread them across the slides.\n\n${carouselInstructions({ count: slideCount, style: frame?.style })}`
+          : withHashtags;
+
+      if (format === "instagram-carousel") {
+        const reply = await withLlmErrors(async () => (await generateText({ model, system, prompt })).text);
+        const written = parseCarousel(reply, slideCount);
+        if (!written) {
+          throw refusal("BAD_CAROUSEL", "The AI model did not send back a usable carousel. Try again.");
+        }
+        const caption = limitHashtags(written.caption, settings.voice.igHashtagMax);
+        const check = captionConstraint(caption);
+        const id: string = await ctx.runMutation(internal.drafting.storeDraft, {
+          topicId: args.topicId,
+          platform,
+          templateKey,
+          templateVersion: template.version,
+          body: caption,
+          charCount: check.charCount,
+          constraintOk: check.constraintOk,
+          frameKey: useFrame ? frame.key : undefined,
+          format: draftFormat,
+          slides: written.slides,
+        });
+        if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
+        results.push({ id, format, templateKey, templateVersion: template.version, ...check });
+        return;
+      }
 
       const modelBody: string = await withLlmErrors(async () => {
       let body: string;

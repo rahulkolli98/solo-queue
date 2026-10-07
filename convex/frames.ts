@@ -82,6 +82,7 @@ export const save = operatorMutation({
     beats: v.array(beatArg),
     fits: v.array(fitArg),
     color: v.string(),
+    style: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const checked = validateFrame(args);

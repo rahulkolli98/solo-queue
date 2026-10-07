@@ -8,6 +8,7 @@ const frames: SetupFrame[] = [
   { key: "confession", name: "Confession", fits: ["thread", "reel"], beats: beats(4) },
   { key: "hot-take", name: "Hot take", fits: ["thread"], beats: beats(3) },
   { key: "ig-caption", name: "Caption: hook, value, ask", fits: ["single"], beats: beats(3) },
+  { key: "ig-carousel", name: "Carousel: cover, story, close", fits: ["carousel"], beats: beats(4) },
 ];
 const rows = (choices = {}) =>
   buildSetupRows({ choices, defaults: undefined, legacyDefaultKey: "confession", legacyPostCount: undefined, frames });
@@ -32,7 +33,7 @@ describe("FormatSetup", () => {
   it("open: a row per format with a tick, a frame list that fits it, and Posts for threads only", () => {
     const out = render({ open: true });
     expect(out).toContain('aria-expanded="true"');
-    expect(out.match(/type="checkbox"/g)).toHaveLength(4);
+    expect(out.match(/type="checkbox"/g)).toHaveLength(5);
     expect(out).toContain('aria-label="Threads story frame"');
     expect(out).toContain('aria-label="Caption story frame"');
     expect(out).toContain("Confession (default)");
@@ -41,22 +42,26 @@ describe("FormatSetup", () => {
     expect(caption).toContain("Caption: hook, value, ask");
     expect(caption).not.toContain("Hot take");
     expect(out.match(/>Posts</g)).toHaveLength(1);
+    expect(out.match(/>Slides</g)).toHaveLength(1);
+    expect(out).toContain('aria-label="Carousel story frame"');
     expect(out).toContain('<option value="12">12</option>');
+    expect(out).toContain('<option value="10">10</option>');
+    expect(out.slice(out.indexOf('aria-label="Carousel story frame"'))).toContain('<option value="1">1</option>');
     expect(out).toContain("No story frame");
     expect(out).toContain("A story frame is the shape of the post");
-    expect(out).toContain("Carousel: arrives in a later update.");
+    expect(out).not.toContain("arrives in a later update");
   });
 
   it("Make default is disabled until a row differs from the saved default", () => {
-    expect(disabledDefaults(render({ open: true }))).toBe(4);
-    expect(disabledDefaults(render({ open: true, rows: rows({ caption: { include: false } }) }))).toBe(3);
+    expect(disabledDefaults(render({ open: true }))).toBe(5);
+    expect(disabledDefaults(render({ open: true, rows: rows({ caption: { include: false } }) }))).toBe(4);
   });
 
   it("a row that is not ticked cannot pick a frame, and everything is locked while writing", () => {
     const off = render({ open: true, rows: rows({ caption: { include: false } }) });
     expect(off).toMatch(/aria-label="Caption story frame"[^>]*disabled/);
     const busy = render({ open: true, disabled: true });
-    expect((busy.match(/<input[^>]*checkbox[^>]*disabled/g) ?? []).length).toBe(4);
+    expect((busy.match(/<input[^>]*checkbox[^>]*disabled/g) ?? []).length).toBe(5);
   });
 
   it("with nothing ticked the line says so", () => {

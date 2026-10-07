@@ -19,6 +19,8 @@ export interface FrameInput {
   beats: FrameBeat[];
   fits: FrameFit[];
   color: string;
+  /** A carousel frame's look, tone and references. */
+  style?: string;
 }
 
 export const DEFAULT_FRAMES: FrameInput[] = [
@@ -113,7 +115,24 @@ export const DEFAULT_FRAMES: FrameInput[] = [
     fits: ["reel"],
     color: "pillar-screen",
   },
+  {
+    key: "ig-carousel",
+    name: "Carousel: cover, story, close",
+    beats: [
+      { label: "Cover", hint: "The sharpest true line as a big headline, one italic line under it." },
+      { label: "Problem", hint: "What was wrong or expensive, with the number if the notes have one." },
+      { label: "Turn", hint: "What changed. One concrete thing." },
+      { label: "Close", hint: "What comes next and one ask: follow, save or share." },
+    ],
+    fits: ["carousel"],
+    color: "pillar-tools",
+    style:
+      "Short bold headlines, one idea per slide. Use cards for a contrast or a pair of numbers and a list for steps. Dry and specific, no hype.",
+  },
 ];
+
+/** The longest style and references note a carousel frame keeps. */
+export const STYLE_MAX = 2000;
 
 const fitSchema = z.enum(["thread", "single", "reel", "carousel"]);
 
@@ -134,6 +153,11 @@ export const frameInputSchema = z.object({
     .min(1, "Choose at least one place the frame fits")
     .transform((list) => [...new Set(list)]),
   color: z.string().regex(/^pillar-[a-z]+$/, "Use a pillar color token"),
+  style: z
+    .string()
+    .max(STYLE_MAX, `The style notes can be up to ${STYLE_MAX} characters.`)
+    .transform((t) => t.trim() || undefined)
+    .optional(),
 });
 
 export type FrameValidation =

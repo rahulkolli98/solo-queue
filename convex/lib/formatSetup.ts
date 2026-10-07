@@ -43,6 +43,7 @@ export type FormatDefaults = Partial<Record<SetupKind, FormatDefault>>;
 export const FALLBACK_FRAME: Partial<Record<SetupKind, string>> = {
   caption: "ig-caption",
   reel: "ig-reel",
+  carousel: "ig-carousel",
 };
 
 /** What is written when nothing is saved: the three queueable formats, not the blog. The carousel arrives later. */
@@ -98,7 +99,8 @@ export function resolveCount(input: {
   legacyPostCount?: number;
 }): number | undefined {
   const saved = input.defaults?.[input.kind]?.count;
-  if (saved !== undefined && saved >= 2) return saved;
+  // A carousel can be a single slide; a thread needs at least two posts.
+  if (saved !== undefined && saved >= (input.kind === "carousel" ? 1 : 2)) return saved;
   if (input.kind === "threads" && input.legacyPostCount !== undefined && input.legacyPostCount >= 2) {
     return input.legacyPostCount;
   }

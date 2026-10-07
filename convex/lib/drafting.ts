@@ -166,6 +166,6 @@ export function checkEditedBody(
   body: string
 ): { charCount: number; constraintOk: boolean } {
   if (platform === "threads") return threadsConstraint(body);
-  if (templateKey === "ig-caption-beats") return captionConstraint(body);
+  if (templateKey === "ig-caption-beats" || templateKey === "carousel-slides") return captionConstraint(body);
   return plainConstraint(body);
 }

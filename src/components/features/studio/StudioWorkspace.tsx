@@ -8,6 +8,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
 import BlogPanel from "@/components/features/studio/BlogPanel";
+import CarouselPanel from "@/components/features/studio/CarouselPanel";
 import FormatSetup from "@/components/features/studio/FormatSetup";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
 import PlatformNotice from "@/components/features/studio/PlatformNotice";
@@ -136,7 +137,12 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     legacyDefaultKey: settings?.voice.defaultFrameKey,
     legacyPostCount: settings?.voice.defaultPostCount,
     frames: frames ?? [],
-    usedFrame: { threads: threadsFrameKey, caption: latest.caption?.frameKey, reel: latest.reel?.frameKey },
+    usedFrame: {
+      threads: threadsFrameKey,
+      caption: latest.caption?.frameKey,
+      reel: latest.reel?.frameKey,
+      carousel: latest.carousel?.frameKey,
+    },
     hasDraft: { blog: Boolean(latest.blog) },
   });
   const threadsRow = rows.find((r) => r.kind === "threads");
@@ -191,8 +197,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   }
 
   const kindsToWrite = includedKinds(rows);
-  const setupArgs = () =>
-    setupToSend(rows, {
+  // `force` ticks a format for this call only (the carousel's own Write button writes it even when it is not ticked).
+  const setupArgs = (force: DraftKind[] = []) =>
+    setupToSend(rows.map((r) => (force.includes(r.kind) ? { ...r, include: true } : r)), {
       defaults: settings?.voice.formatDefaults,
       legacyPostCount: settings?.voice.defaultPostCount,
       frames: frames ?? [],
@@ -200,6 +207,11 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const generateAll = () => {
     const kinds = kindsToWrite;
     askThenRun(kinds, () => {
+      // A run that writes only a carousel shows the carousel.
+      if (kinds.length > 0 && kinds.every((k) => k === "carousel")) {
+        setPane("instagram");
+        setIgTab("carousel");
+      }
       void generation.start(kinds, setupArgs(), existingIds);
     });
   };
@@ -341,7 +353,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   }
 
   /** "Write it myself": store the text as the topic's draft; the editor takes over once it exists. */
-  async function saveManual(kind: DraftKind, text: string): Promise<void> {
+  async function saveManual(kind: Exclude<DraftKind, "carousel">, text: string): Promise<void> {
     await createManual({ topicId: id, kind, body: text });
     setManualText((m) => ({ ...m, [kind]: false }));
   }
@@ -383,7 +395,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   );
   const generateButton = (
     <GenerateControls
-      hasDrafts={hasDrafts}
+      hasDrafts={hasDrafts || Boolean(latest.carousel)}
       running={generation.running}
       onGenerate={generateAll}
       nothingToWrite={kindsToWrite.length === 0}
@@ -514,6 +526,16 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
             ) : undefined
           }
           panels={{ reel: igPanel("reel"), caption: igPanel("caption") }}
+          carousel={
+            <CarouselPanel
+              draft={latest.carousel}
+              gen={gen("carousel")}
+              onWrite={() =>
+                askThenRun(["carousel"], () => void generation.start(["carousel"], setupArgs(["carousel"]), existingIds))
+              }
+              bannedWords={settings?.voice.bannedWords}
+            />
+          }
         />
         <BlogPanel
           view={viewOf("blog")}

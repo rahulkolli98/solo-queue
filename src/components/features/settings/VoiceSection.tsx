@@ -11,6 +11,7 @@ import {
   STYLE_GUIDE_MAX,
   VOICE_DESCRIPTION_MAX,
   addBannedWord,
+  CAROUSEL_SLIDE_CHOICES,
   THREAD_POST_CHOICES,
   checkStyleGuideFile,
   formatDefaultChange,
@@ -401,7 +402,26 @@ export default function VoiceSection() {
               ) : (
                 <span className="sq-muted st-fmt-none">No story frame</span>
               )}
-              {row.takesCount && (
+              {row.takesCount && row.kind === "carousel" && (
+                <select
+                  id={`fmt-${row.kind}-count`}
+                  className="sq-input st-select st-fmt-count"
+                  aria-label="Carousel slides"
+                  value={String(row.count)}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    changeFormat(row.kind, { count: n >= 1 ? n : null });
+                  }}
+                >
+                  <option value="0">6 slides (default)</option>
+                  {CAROUSEL_SLIDE_CHOICES.map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n === 1 ? "1 slide (single statement)" : `${n} slides`}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {row.takesCount && row.kind === "threads" && (
                 <select
                   id={`fmt-${row.kind}-count`}
                   className="sq-input st-select st-fmt-count"
@@ -422,7 +442,6 @@ export default function VoiceSection() {
               )}
             </div>
           ))}
-          <p className="sq-muted st-fmt-later">Carousels arrive in a later update.</p>
         </div>
       </section>
 
