@@ -7,6 +7,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import type { GenState } from "@/components/features/studio/types";
 import { refusalCode } from "@/lib/refusalText";
 import { generateArgs } from "@/lib/studioCompose";
+import type { GenerateSetup as GenerateSetupChoices } from "@/lib/studioSetup";
 import { studioErrorText } from "@/lib/studioErrors";
 import {
   formatElapsed,
@@ -23,9 +24,8 @@ interface Run {
   kinds: DraftKind[];
   beforeIds: ReadonlySet<string>;
   startedAt: number;
-  frameKey?: string;
-  /** Posts asked for in the thread; unset = whatever the story frame has. */
-  postCount?: number;
+  /** The story frame per format and the thread length chosen for this run (a retry uses the same). */
+  setup?: GenerateSetupChoices;
 }
 
 /**
@@ -59,22 +59,17 @@ export function useGeneration({
     return () => clearInterval(id);
   }, [running, run]);
 
-  async function start(
-    kinds: DraftKind[],
-    frameKey: string | undefined,
-    existingIds: string[],
-    postCount?: number
-  ): Promise<void> {
+  async function start(kinds: DraftKind[], setup: GenerateSetupChoices | undefined, existingIds: string[]): Promise<void> {
     if (runningRef.current || kinds.length === 0) return;
     runningRef.current = true;
-    const next: Run = { kinds, beforeIds: new Set(existingIds), startedAt: nowMs(), frameKey, postCount };
+    const next: Run = { kinds, beforeIds: new Set(existingIds), startedAt: nowMs(), setup };
     setRun(next);
     setElapsedMs(0);
     setFailure(null);
     setFailureCode(null);
     setRunning(true);
     try {
-      const args = generateArgs({ topicId, kinds, frameKey, postCount });
+      const args = generateArgs({ topicId, kinds, setup });
       await generate({ ...args, topicId: topicId as Id<"topics"> });
       onDone();
     } catch (e) {
@@ -97,7 +92,7 @@ export function useGeneration({
       errorCode: !running && failure && requested && !fresh ? failureCode : null,
       elapsed: formatElapsed(elapsedMs),
       retrying: running && requested && !fresh,
-      onRetry: () => void start([kind], run?.frameKey, existingIds, run?.postCount),
+      onRetry: () => void start([kind], run?.setup, existingIds),
     };
   }
 
@@ -120,9 +115,9 @@ export function useGeneration({
     freshIds,
     failure,
     failedKinds,
-    retryFailed: (existingIds: string[]) => start(failedKinds, run?.frameKey, existingIds, run?.postCount),
+    retryFailed: (existingIds: string[]) => start(failedKinds, run?.setup, existingIds),
     /** Posts the running (or last) generation was asked for; undefined = the frame's own. */
-    postCount: run?.postCount,
+    postCount: run?.setup?.threads?.count,
     elapsed: formatElapsed(elapsedMs),
   };
 }

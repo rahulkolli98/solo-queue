@@ -10,9 +10,10 @@ import {
   tiltFor,
   type FrameDraft,
 } from "@/lib/libraryBoard";
+import { defaultChipLabel, effectiveDefaultKinds } from "@/lib/frameDefaults";
 import FrameEditor from "./FrameEditor";
 import { PostcardSkeletons } from "./PublishedTab";
-import type { Frame, LibraryFilters, Pillar } from "./types";
+import type { Frame, LibraryFilters, Pillar, Voice } from "./types";
 
 function toDraft(frame: Frame): FrameDraft {
   return {
@@ -28,11 +29,14 @@ function FrameCard({
   frame,
   index,
   selected,
+  defaultFor,
   onSelect,
 }: {
   frame: Frame;
   index: number;
   selected: boolean;
+  /** The formats this frame is the effective default for (one chip each). */
+  defaultFor: ReturnType<typeof effectiveDefaultKinds>;
   onSelect: () => void;
 }) {
   return (
@@ -60,6 +64,15 @@ function FrameCard({
           </span>
         ))}
       </span>
+      {defaultFor.length > 0 && (
+        <span className="lb-fc-defaults">
+          {defaultFor.map((kind) => (
+            <span key={kind} className="lb-pill lb-pill-ink">
+              {defaultChipLabel(kind)}
+            </span>
+          ))}
+        </span>
+      )}
       <span className="t-tag-sm lb-fc-fits">{fitsLine(frame.fits)}</span>
     </button>
   );
@@ -73,10 +86,13 @@ export default function FramesTab({
   filters,
   pillars,
   frames,
+  voice,
 }: {
   filters: LibraryFilters;
   pillars: Pillar[];
   frames: Frame[] | undefined;
+  /** The saved voice settings: the per-format default frames live here. */
+  voice?: Voice;
 }) {
   const searchParams = useSearchParams();
   const param = searchParams.get("frame");
@@ -127,6 +143,7 @@ export default function FramesTab({
                   frame={f}
                   index={i}
                   selected={f.key === editingKey}
+                  defaultFor={effectiveDefaultKinds(f.key, voice, frames ?? [])}
                   onSelect={() => select(f.key)}
                 />
               ))}
@@ -166,6 +183,8 @@ export default function FramesTab({
           usedCount={editor.usedCount}
           takenKeys={(frames ?? []).map((f) => f.key)}
           colors={colors}
+          frames={frames ?? []}
+          voice={voice}
           onSaved={(key) => select(key)}
           onDuplicate={(draft) => {
             setSeed({ id: Date.now(), draft: duplicateFrame(draft) });

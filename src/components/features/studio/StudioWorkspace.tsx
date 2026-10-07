@@ -8,6 +8,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import AttachMediaDialog from "@/components/features/studio/AttachMediaDialog";
 import BlogPanel from "@/components/features/studio/BlogPanel";
+import FormatSetup from "@/components/features/studio/FormatSetup";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
 import PlatformNotice from "@/components/features/studio/PlatformNotice";
 import ReplaceConfirm from "@/components/features/studio/ReplaceConfirm";
@@ -25,14 +26,10 @@ import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
 import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
-import {
-  defaultPostCount,
-  kindsAtRisk,
-  postCountToSend,
-  replaceQuestion,
-  savedPostCount,
-  studioEntry,
-} from "@/lib/studioCompose";
+import { kindsAtRisk, replaceQuestion, studioEntry } from "@/lib/studioCompose";
+import { DEFAULT_FRAMES } from "../../../../convex/lib/framesModel";
+import { withFormatDefault } from "../../../../convex/lib/formatSetup";
+import { buildSetupRows, includedKinds, setupToSend, type SetupChoice, type SetupChoices } from "@/lib/studioSetup";
 import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
 import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, researchBanner } from "@/lib/studioHandoff";
@@ -47,7 +44,6 @@ import {
   latestByKind,
   mediaState,
   openSlots,
-  pickFrameKey,
   readiness,
   saveLabel,
   studioGuide,
@@ -86,15 +82,14 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
 
   const [pane, setPane] = useState<Pane>("threads");
   const [igTab, setIgTab] = useState<IgTab>("reel");
-  const [chosenFrame, setChosenFrame] = useState<string | null>(null);
-  const [blogOn, setBlogOn] = useState(false);
+  // What the founder changed for this run, per format; anything not here follows the saved defaults.
+  const [choices, setChoices] = useState<SetupChoices>({});
+  const [setupOpen, setSetupOpen] = useState(false);
   const [attachKind, setAttachKind] = useState<"reel" | "caption" | null>(null);
   const [manualText, setManualText] = useState<Record<string, boolean>>({});
   const [researchDismissed, setResearchDismissed] = useState(false);
   // `?write=1` opens the Threads column straight into the writer; nothing is generated.
   const [writerOpen, setWriterOpen] = useState(() => studioEntry(search, 1).write);
-  // How many posts to ask for; null = the story frame's own count (nothing is sent).
-  const [postsChosen, setPostsChosen] = useState<number | null>(null);
   // "This replaces the thread you have written. Replace it?" while it waits for an answer.
   const [confirm, setConfirm] = useState<{ message: string; run: () => void } | null>(null);
   const confirmFrom = useRef<HTMLElement | null>(null);
@@ -127,35 +122,51 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   // The default frames are created the first time the picker has nothing to show.
   const ensured = useRef(false);
   useEffect(() => {
-    if (frames && frames.length === 0 && !ensured.current) {
+    // Also when a newer default frame (such as the Instagram ones) is missing from an older install.
+    if (frames && DEFAULT_FRAMES.some((d) => !frames.some((f) => f.key === d.key)) && !ensured.current) {
       ensured.current = true;
       void ensureDefaults();
     }
   }, [frames, ensureDefaults]);
 
   const threadsFrameKey = latest.threads?.frameKey;
-  const defaultFrameKey = settings?.voice.defaultFrameKey;
-  const frameValue = pickFrameKey({ chosen: chosenFrame, threadsFrameKey, defaultKey: defaultFrameKey, frames });
-  const beatsFrame = useQuery(
-    api.frames.getByKey,
-    (threadsFrameKey ?? frameValue) ? { key: (threadsFrameKey ?? frameValue) as string } : "skip"
-  );
-  const pickedFrame = useQuery(api.frames.getByKey, frameValue ? { key: frameValue } : "skip");
+  const rows = buildSetupRows({
+    choices,
+    defaults: settings?.voice.formatDefaults,
+    legacyDefaultKey: settings?.voice.defaultFrameKey,
+    legacyPostCount: settings?.voice.defaultPostCount,
+    frames: frames ?? [],
+    usedFrame: { threads: threadsFrameKey, caption: latest.caption?.frameKey, reel: latest.reel?.frameKey },
+    hasDraft: { blog: Boolean(latest.blog) },
+  });
+  const threadsRow = rows.find((r) => r.kind === "threads");
+  const beatsKey = threadsFrameKey ?? threadsRow?.frame?.key;
+  const beatsFrame = useQuery(api.frames.getByKey, beatsKey ? { key: beatsKey } : "skip");
+  const blogRow = rows.find((r) => r.kind === "blog");
 
-  const blogKinds: DraftKind[] = blogOn || latest.blog ? ["blog"] : [];
-  const frameSteps = (beatsFrame?.beats ?? pickedFrame?.beats)?.length;
-  const frameDefaultPosts = defaultPostCount(frameSteps);
-  // The founder's saved default (Settings, or "Make it my default") beats the story frame's step count.
-  const savedPosts = savedPostCount(settings?.voice.defaultPostCount);
-  const effectiveDefaultPosts = savedPosts ?? frameDefaultPosts;
-  const postsShown = postsChosen ?? effectiveDefaultPosts;
+  function choose(kind: DraftKind, change: SetupChoice) {
+    setChoices((c) => ({ ...c, [kind]: { ...c[kind], ...change } }));
+  }
 
-  /** Save (or, with 0, clear) the default thread length. A settings patch replaces the whole voice section. */
-  async function saveDefaultPosts(count: number): Promise<void> {
-    if (!settings) return;
+  /** Keep this row as the default for next time. A settings patch replaces the whole voice section. */
+  async function makeDefault(kind: DraftKind): Promise<void> {
+    const row = rows.find((r) => r.kind === kind);
+    if (!settings || !row) return;
+    const formatDefaults = withFormatDefault(settings.voice.formatDefaults, kind, {
+      include: row.include,
+      frameKey: row.frame?.key,
+      // Only a length the founder picked is kept; otherwise the thread keeps following its story frame.
+      count: kind === "threads" ? choices.threads?.count : undefined,
+    });
+    const { formatDefaults: previous, ...rest } = settings.voice;
+    void previous;
     try {
-      await updateSettings({ patch: { voice: { ...settings.voice, defaultPostCount: count } } });
-      setPostsChosen(null);
+      await updateSettings({ patch: { voice: formatDefaults ? { ...rest, formatDefaults } : rest } });
+      setChoices((c) => {
+        const { [kind]: gone, ...others } = c;
+        void gone;
+        return others;
+      });
     } catch (e) {
       toast({ title: "Couldn't save your default", detail: studioErrorText(e, "Try again."), tone: "bad" });
     }
@@ -179,15 +190,17 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     if (back?.isConnected) back.focus();
   }
 
+  const kindsToWrite = includedKinds(rows);
+  const setupArgs = () =>
+    setupToSend(rows, {
+      defaults: settings?.voice.formatDefaults,
+      legacyPostCount: settings?.voice.defaultPostCount,
+      frames: frames ?? [],
+    });
   const generateAll = () => {
-    const kinds = [...QUEUE_KINDS, ...blogKinds];
+    const kinds = kindsToWrite;
     askThenRun(kinds, () => {
-      void generation.start(
-        kinds,
-        chosenFrame ?? (frameValue || undefined),
-        existingIds,
-        postCountToSend(postsChosen, effectiveDefaultPosts)
-      );
+      void generation.start(kinds, setupArgs(), existingIds);
     });
   };
 
@@ -195,13 +208,13 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   // for a topic with no drafts. `?write=1` and `?from=research` never start the model.
   const entryHandled = useRef(false);
   useEffect(() => {
-    if (entryHandled.current || !topic || !drafts) return;
+    if (entryHandled.current || !topic || !drafts || !settings) return;
     if (search.get("draft") !== "1" && search.get("write") !== "1") return;
     entryHandled.current = true;
     const entry = studioEntry(search, drafts.length);
     router.replace(`/studio/${topicId}`);
-    if (entry.generate) void generation.start([...QUEUE_KINDS], undefined, []);
-  }, [topic, drafts, search, router, topicId, generation]);
+    if (entry.generate) void generation.start(includedKinds(rows), setupArgs(), []);
+  }, [topic, drafts, settings, search, router, topicId, generation, rows]);
 
   if (topic === undefined || drafts === undefined) return <StudioSkeleton />;
   if (topic === null) {
@@ -298,7 +311,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const hasDrafts = Boolean(latest.threads || latest.caption || latest.reel || latest.blog);
   const threadPosts = latest.threads ? parseThread(bodyOf("threads") ?? "").length : 0;
   const igCount = (latest.caption ? 1 : 0) + (latest.reel ? 1 : 0);
-  const beatLabels = (beatsFrame?.beats ?? pickedFrame?.beats ?? []).map((b) => b.label);
+  const beatLabels = (beatsFrame?.beats ?? []).map((b) => b.label);
   const attachDraft = attachKind ? latest[attachKind] : undefined;
   const threadBody = bodyOf("threads");
   const arrivedFromResearch = search.get(RESEARCH_HANDOFF_PARAM) === RESEARCH_HANDOFF_VALUE;
@@ -373,14 +386,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       hasDrafts={hasDrafts}
       running={generation.running}
       onGenerate={generateAll}
-      posts={{
-        value: postsShown,
-        steps: frameSteps,
-        onChange: (n) => setPostsChosen(n === effectiveDefaultPosts ? null : n),
-        saved: savedPosts,
-        onMakeDefault: (n) => void saveDefaultPosts(n),
-        onClearDefault: () => void saveDefaultPosts(0),
-      }}
+      nothingToWrite={kindsToWrite.length === 0}
     />
   );
 
@@ -411,6 +417,16 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         attention={{ threads: threadsNeed > 0 && pane !== "threads", instagram: igNeed > 0 && pane !== "instagram" }}
       />
       <StudioGuideStrip steps={guide.steps} />
+      <FormatSetup
+        rows={rows}
+        open={setupOpen}
+        onToggle={() => setSetupOpen((v) => !v)}
+        disabled={generation.running}
+        onInclude={(kind, include) => choose(kind, { include })}
+        onFrame={(kind, frameKey) => choose(kind, { frameKey })}
+        onCount={(kind, count) => choose(kind, { count })}
+        onMakeDefault={(kind) => void makeDefault(kind)}
+      />
 
       {confirm && (
         <ReplaceConfirm
@@ -463,13 +479,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           topic={topic}
           sources={sources}
           pillarName={settings?.pillars.find((p) => p.key === topic.pillar)?.name ?? topic.pillar}
-          frames={frames}
-          frameValue={frameValue}
-          defaultFrameKey={defaultFrameKey}
-          onFrame={setChosenFrame}
-          beatLabels={beatLabels}
           voice={settings?.voice.description}
-          busy={generation.running}
         />
         <ThreadsColumn
           view={viewOf("threads")}
@@ -518,7 +528,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           }}
           gen={gen("blog")}
           writing={generation.running}
-          onWrite={() => void generation.start(["blog"], chosenFrame ?? undefined, existingIds)}
+          onWrite={() => void generation.start(["blog"], undefined, existingIds)}
           onSaveManual={(text) => saveManual("blog", text)}
         />
       </div>
@@ -527,9 +537,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         summary={summary}
         slots={chips}
         slotsLoading={board === undefined}
-        blogChecked={blogOn || Boolean(latest.blog)}
-        blogLocked={Boolean(latest.blog)}
-        onBlog={setBlogOn}
+        blogChecked={blogRow?.include ?? false}
+        blogLocked={false}
+        onBlog={(on) => choose("blog", { include: on })}
         onQueue={() => void queueWeek.queue(latest)}
         queuing={queueWeek.queuing}
         nextStep={guide.text}

@@ -7,7 +7,7 @@ import BlogPanel from "@/components/features/studio/BlogPanel";
 import BlogPreview from "@/components/features/studio/BlogPreview";
 import InstagramColumn from "@/components/features/studio/InstagramColumn";
 import PlatformNotice from "@/components/features/studio/PlatformNotice";
-import { PostsControl, StudioToolbar } from "@/components/features/studio/StudioActions";
+import { StudioToolbar } from "@/components/features/studio/StudioActions";
 import type { IgPanelProps } from "@/components/features/studio/IgPanel";
 import type { DraftView, GenState } from "@/components/features/studio/types";
 import type { Draft, Readiness } from "@/lib/studioModel";
@@ -119,16 +119,5 @@ describe("platform notice, switch ring and Instagram footer", () => {
     };
     expect(html(<InstagramColumn {...props} needCount={2} />)).toContain("2 INSTAGRAM DRAFTS NEED YOU");
     expect(html(<InstagramColumn {...props} />)).not.toContain("NEED YOU");
-  });
-});
-
-describe("Posts control on a phone", () => {
-  it("keeps the helper line and the default link, behind a More button that starts closed", () => {
-    const out = html(<PostsControl value={5} steps={4} disabled={false} onChange={vi.fn()} onMakeDefault={vi.fn()} />);
-    expect(out).toContain("More");
-    expect(out).toContain('aria-expanded="false"');
-    expect(out).toContain("Make 5 my default");
-    expect(out).toContain("A story frame has 4 steps");
-    expect(out).not.toContain("data-open");
   });
 });

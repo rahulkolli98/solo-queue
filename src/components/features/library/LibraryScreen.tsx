@@ -70,7 +70,7 @@ export default function LibraryScreen({ tab }: { tab: LibraryTab }) {
       </div>
       {tab === "published" && <PublishedTab filters={applied} pillars={settings.pillars} tz={tz} {...common} />}
       {tab === "drafts" && <DraftsTab filters={applied} pillars={settings.pillars} tz={tz} {...common} />}
-      {tab === "frames" && <FramesTab filters={applied} pillars={settings.pillars} frames={frames} />}
+      {tab === "frames" && <FramesTab filters={applied} pillars={settings.pillars} frames={frames} voice={settings.voice} />}
       {tab === "media" && <MediaTab filters={applied} tz={tz} {...common} />}
     </>
   );

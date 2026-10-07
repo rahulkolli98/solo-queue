@@ -90,6 +90,29 @@ export const DEFAULT_FRAMES: FrameInput[] = [
     fits: ["carousel"],
     color: "pillar-tools",
   },
+  {
+    key: "ig-caption",
+    name: "Caption: hook, value, ask",
+    beats: [
+      { label: "Hook", hint: "The first line, the one that shows before the fold. Specific, no setup." },
+      { label: "Value", hint: "The one thing worth knowing, in short lines." },
+      { label: "Ask", hint: "One small question or next step." },
+    ],
+    fits: ["single"],
+    color: "pillar-craft",
+  },
+  {
+    key: "ig-reel",
+    name: "Reel: hook, beats, close",
+    beats: [
+      { label: "Hook", hint: "Said in the first two seconds. A claim or a result." },
+      { label: "Beats", hint: "Two or three short spoken points, one idea each." },
+      { label: "Payoff", hint: "What it means or what to do with it." },
+      { label: "Close", hint: "One line to end on, no pitch." },
+    ],
+    fits: ["reel"],
+    color: "pillar-screen",
+  },
 ];
 
 const fitSchema = z.enum(["thread", "single", "reel", "carousel"]);

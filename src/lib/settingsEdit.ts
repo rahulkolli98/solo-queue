@@ -1,4 +1,15 @@
 import type { AppSettings, Pillar } from "../../convex/lib/settingsModel";
+import {
+  KIND_LABEL,
+  defaultInclude,
+  frameFitsKind,
+  resolveCount,
+  resolveFrameKey,
+  withFormatDefault,
+  type FormatDefaults,
+  type SetupKind,
+} from "../../convex/lib/formatSetup";
+import type { FrameFit } from "../../convex/lib/framesModel";
 
 /**
  * Pure helpers for the Voice & writing and Content pillars Settings sections:
@@ -82,10 +93,99 @@ export function frameOptions(
   return options;
 }
 
+/** The formats the "Defaults by format" table has a row for (the carousel arrives later). */
+export const FORMAT_ROW_KINDS: readonly SetupKind[] = ["threads", "caption", "reel", "blog"];
+
+/** Posts a thread default can name; 0 (not listed) means "follow the story frame". */
+export const THREAD_POST_CHOICES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+export interface FormatFrameLike {
+  key: string;
+  name: string;
+  isActive?: boolean;
+  fits: readonly FrameFit[];
+}
+
+export interface FormatRow {
+  kind: SetupKind;
+  label: string;
+  include: boolean;
+  /** False for the blog, which takes no story frame. */
+  takesFrame: boolean;
+  /** The frame the format uses now, or "" when none applies. */
+  frameKey: string;
+  /** Active frames that fit this format. */
+  frames: FrameOption[];
+  /** Threads only: pick the number of posts. */
+  takesCount: boolean;
+  /** Posts in the thread, or 0 to follow the story frame. */
+  count: number;
+}
+
+/**
+ * The rows of the "Defaults by format" table, from the saved voice settings and the story frames.
+ * A saved frame that is retired or does not fit falls through to the next default, as `resolveFrameKey` does
+ * everywhere else, so the select always shows what a run would really use.
+ */
+export function formatDefaultRows(voice: Voice, frames: readonly FormatFrameLike[] | undefined): FormatRow[] {
+  const list = frames ?? [];
+  return FORMAT_ROW_KINDS.map((kind) => {
+    const fitting = list
+      .filter((f) => f.isActive !== false && frameFitsKind(f, kind))
+      .map((f) => ({ key: f.key, label: f.name }));
+    const takesFrame = kind !== "blog";
+    const frameKey = takesFrame
+      ? (resolveFrameKey({
+          kind,
+          defaults: voice.formatDefaults,
+          legacyDefaultKey: voice.defaultFrameKey,
+          frames: list.map((f) => ({ key: f.key, isActive: f.isActive, fits: f.fits })),
+        }) ?? "")
+      : "";
+    return {
+      kind,
+      label: KIND_LABEL[kind],
+      include: defaultInclude(kind, voice.formatDefaults),
+      takesFrame,
+      frameKey,
+      frames: takesFrame ? fitting : [],
+      takesCount: kind === "threads",
+      count: kind === "threads" ? (resolveCount({ kind, defaults: voice.formatDefaults, legacyPostCount: voice.defaultPostCount }) ?? 0) : 0,
+    };
+  });
+}
+
+/**
+ * The voice change for one format's default. `count: null` for Threads (back to "follow the story frame")
+ * also sets the older `defaultPostCount` to 0, which would otherwise still apply.
+ */
+export function formatDefaultChange(
+  current: Voice,
+  kind: SetupKind,
+  change: { include?: boolean | null; frameKey?: string | null; count?: number | null }
+): Partial<Voice> {
+  const out: Partial<Voice> = { formatDefaults: withFormatDefault(current.formatDefaults, kind, change) };
+  if (kind === "threads" && change.count === null) out.defaultPostCount = 0;
+  return out;
+}
+
+/** A formatDefaults object without empty entries, or undefined when nothing is left. */
+function cleanFormatDefaults(raw: FormatDefaults | undefined): FormatDefaults | undefined {
+  if (!raw) return undefined;
+  const out: FormatDefaults = {};
+  for (const [kind, entry] of Object.entries(raw) as [SetupKind, FormatDefaults[SetupKind]][]) {
+    if (!entry) continue;
+    const kept = Object.fromEntries(Object.entries(entry).filter(([, v]) => v !== undefined));
+    if (Object.keys(kept).length > 0) out[kind] = kept;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /**
  * The next complete `voice` object: the current one with `change` laid over
  * it. An empty or blank sign-off removes the field (the schema's optional
- * string), instead of saving an empty string.
+ * string), instead of saving an empty string. An empty `formatDefaults` (or a
+ * format with nothing set) is removed the same way.
  */
 export function mergeVoice(current: Voice, change: Partial<Voice>): Voice {
   const next: Voice = { ...current, ...change };
@@ -100,6 +200,9 @@ export function mergeVoice(current: Voice, change: Partial<Voice>): Voice {
     if (typeof value !== "string" || value.trim() === "") delete next[key];
     else next[key] = value.trim();
   }
+  const formatDefaults = cleanFormatDefaults(next.formatDefaults);
+  if (formatDefaults) next.formatDefaults = formatDefaults;
+  else delete next.formatDefaults;
   return next;
 }
 

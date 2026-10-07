@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   FRAME_EXPLAINER,
-  frameBeatsLine,
-  pickFrameKey,
   studioGuide,
   studioHomeGuide,
   type DraftKind,
@@ -194,26 +192,8 @@ describe("studioGuide: the one sentence of what to do next", () => {
   });
 });
 
-describe("story frame defaults and wording", () => {
-  const frames = [{ key: "confession" }, { key: "receipt" }];
-
-  it("preselects your pick, else the thread's frame, else the voice default, else the first frame", () => {
-    expect(pickFrameKey({ chosen: "receipt", threadsFrameKey: "confession", defaultKey: "confession", frames })).toBe("receipt");
-    expect(pickFrameKey({ chosen: null, threadsFrameKey: "receipt", defaultKey: "confession", frames })).toBe("receipt");
-    expect(pickFrameKey({ chosen: null, defaultKey: "confession", frames })).toBe("confession");
-    expect(pickFrameKey({ chosen: null, defaultKey: "deleted-frame", frames })).toBe("confession");
-    expect(pickFrameKey({ chosen: null, frames })).toBe("confession");
-    expect(pickFrameKey({ chosen: null, frames: undefined })).toBe("");
-  });
-
-  it("keeps the voice default while the frame list is still loading", () => {
-    expect(pickFrameKey({ chosen: null, defaultKey: "confession", frames: undefined })).toBe("confession");
-  });
-
-  it("lists a frame's beats and explains what a frame is", () => {
-    expect(frameBeatsLine({ beats: [{ label: "Admit" }, { label: "Cost" }, { label: "Fix" }, { label: "Invite" }] })).toBe(
-      "Admit, Cost, Fix, Invite"
-    );
+describe("story frame wording", () => {
+  it("explains what a frame is", () => {
     expect(FRAME_EXPLAINER).toContain("A story frame is the shape of the post");
     expect(FRAME_EXPLAINER).toContain("Pick one, or leave the default.");
   });

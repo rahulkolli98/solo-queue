@@ -108,15 +108,6 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
-/* Text links and buttons that would otherwise show only the browser's own ring (near-black, lost on ink). */
-.studio-posts-link:focus-visible,
-.studio-voice a:focus-visible,
-.studio-more-link:focus-visible,
-.studio-inbox-empty a:focus-visible,
-.studio-open:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
 /* The next-step sentence takes focus (never by Tab) after Queue, so the bar shows where focus is. */
 .studio-bar-next:focus-visible {
   outline: 2px solid var(--color-threads);
@@ -1390,59 +1381,6 @@ body:has(.studio-bar) {
   flex-wrap: wrap;
   gap: var(--space-12);
 }
-.studio-posts-ctl {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  justify-content: start;
-  column-gap: var(--space-8);
-  row-gap: var(--space-4);
-  max-width: 260px;
-}
-.studio-posts-label {
-  color: var(--color-on-surface);
-}
-.studio-posts-select.sq-input {
-  width: auto;
-  min-width: 68px;
-  min-height: 44px;
-  padding: 0 var(--space-10);
-}
-.studio-posts-hint {
-  grid-column: 1 / -1;
-  font-size: 12.5px;
-  line-height: 1.35;
-  color: var(--color-muted-on-surface);
-}
-
-/* "More" (phone only): opens the helper line and the default link */
-.studio-posts-more {
-  display: none;
-  align-items: center;
-  gap: var(--space-4);
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 0;
-  background: none;
-  color: var(--color-on-surface);
-  font: 600 13px var(--font-body), "DM Sans", sans-serif;
-  cursor: pointer;
-}
-.studio-posts-more svg {
-  width: 14px;
-  height: 14px;
-}
-.studio-posts-more[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-.studio-posts-more:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: var(--rounded-sm);
-}
-.studio-posts-extra {
-  display: contents;
-}
 
 /* "Instagram: 2 drafts need you": phone only, at the top of the pane that is showing */
 .studio-notice {
@@ -1560,12 +1498,6 @@ body:has(.studio-bar) {
     flex-direction: column;
     align-items: stretch;
   }
-  .studio-posts-ctl {
-    max-width: none;
-  }
-  .studio-posts-hint {
-    grid-column: 1 / -1;
-  }
   .studio-post-tool {
     min-height: 44px;
     min-width: 44px;
@@ -1588,27 +1520,6 @@ body:has(.studio-bar) {
   .studio-confirm .studio-actions-row .sq-btn {
     flex: 1;
   }
-}
-
-/* Posts control: save the shown count as the default, or let the story frame decide again */
-.studio-posts-link {
-  align-self: flex-start;
-  border: 0;
-  padding: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.studio-posts-link:hover:not(:disabled) {
-  text-decoration-thickness: 2px;
-}
-.studio-posts-link:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Upload straight from the attach dialog */
@@ -1714,42 +1625,14 @@ body:has(.studio-bar) {
     letter-spacing: 0.06em;
   }
 
-  /* posts + Regenerate share a row; the helper line and default link follow */
+  /* the Generate button fills the row */
   .studio-actions-phone .studio-gen {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
-    align-items: center;
-    column-gap: var(--space-8);
-    row-gap: var(--space-4);
-  }
-  .studio-actions-phone .studio-posts-ctl {
-    display: contents;
-  }
-  /* the helper line and the default link sit behind "More" until it is opened */
-  .studio-actions-phone .studio-posts-more {
-    grid-area: 1 / 4;
-    display: inline-flex;
-  }
-  .studio-actions-phone .studio-posts-extra:not([data-open]) {
-    display: none;
-  }
-  .studio-actions-phone .studio-posts-label {
-    grid-area: 1 / 1;
-  }
-  .studio-actions-phone .studio-posts-select {
-    grid-area: 1 / 2;
+    display: block;
   }
   .studio-actions-phone .studio-gen > .sq-btn {
-    grid-area: 1 / 3;
     width: 100%;
     min-width: 0;
     padding: 0 var(--space-12);
-  }
-  .studio-actions-phone .studio-posts-hint {
-    grid-area: 2 / 1 / 3 / -1;
-  }
-  .studio-actions-phone .studio-posts-link {
-    grid-column: 1 / -1;
   }
 
   /* touch targets: 44px */
@@ -1759,13 +1642,6 @@ body:has(.studio-bar) {
   .studio-col .sq-btn-sm,
   .studio-col .studio-open,
   .studio-col .studio-tabs .sq-seg,
-  .studio-actions-phone .studio-posts-link {
-    min-height: 44px;
-  }
-  .studio-actions-phone .studio-posts-link {
-    display: inline-flex;
-    align-items: center;
-  }
   .studio-col .studio-open {
     min-width: 44px;
     justify-content: center;
@@ -1914,4 +1790,130 @@ body:has(.studio-bar) {
   .studio-confirm-text {
     flex: 0 1 auto;
   }
+}
+
+/* ---------- what to write: one line, Change opens a row per format ---------- */
+.studio-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: var(--space-12) 0;
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--color-line);
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+}
+.studio-setup-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+.studio-setup-line {
+  margin: 0;
+  flex: 1 1 240px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.studio-setup-change {
+  margin-left: 0;
+  font-weight: 600;
+}
+.studio-setup-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-line-soft);
+}
+.studio-setup-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 140px) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-12);
+  margin: 0;
+}
+.studio-setup-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 44px;
+  font-weight: 600;
+}
+.studio-setup-select.sq-input {
+  width: 100%;
+  min-height: 44px;
+}
+.studio-setup-select.studio-setup-num {
+  width: auto;
+  min-width: 68px;
+}
+.studio-setup-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.studio-setup-none,
+.studio-setup-soon {
+  font-size: 13px;
+}
+.studio-setup-default {
+  margin-left: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+.studio-setup-default:disabled {
+  opacity: 0.45;
+  cursor: default;
+  text-decoration: none;
+}
+.studio-setup-soon {
+  display: block;
+}
+@media (max-width: 767px) {
+  .studio-setup {
+    padding: var(--space-12);
+  }
+  .studio-setup-change {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--space-4);
+  }
+  /* a row is: tick and Make default on one line, then the frame, then Posts */
+  .studio-setup-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-4);
+  }
+  .studio-setup-check {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .studio-setup-default {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .studio-setup-select.sq-input,
+  .studio-setup-none {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .studio-setup-count {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .studio-setup-row > span[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+.studio-setup-help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
 }

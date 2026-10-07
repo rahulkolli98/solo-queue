@@ -96,6 +96,28 @@ describe("applyPatch", () => {
     expect(ok({ voice }).voice.bannedWords).toEqual(["crush it", "unlock"]);
   });
 
+  it("accepts a valid per-format voice default and refuses an out-of-range one", () => {
+    const voice = (formatDefaults: unknown) => ({ ...DEFAULT_SETTINGS.voice, formatDefaults });
+    const good = {
+      threads: { include: true, frameKey: "confession", count: 6 },
+      caption: { include: false },
+      reel: { frameKey: "ig-reel" },
+      blog: { include: true },
+    };
+    expect(ok({ voice: voice(good) }).voice.formatDefaults).toEqual(good);
+    expect(ok({ voice: voice({ threads: { count: 2 } }) }).voice.formatDefaults).toEqual({ threads: { count: 2 } });
+    expect(ok({ voice: voice({ threads: { count: 12 } }) }).voice.formatDefaults).toEqual({ threads: { count: 12 } });
+    // The field is optional.
+    expect(ok({ voice: DEFAULT_SETTINGS.voice }).voice.formatDefaults).toBeUndefined();
+
+    expect(refused({ voice: voice({ threads: { count: 1 } }) }).section).toBe("voice");
+    expect(refused({ voice: voice({ threads: { count: 13 } }) }).section).toBe("voice");
+    expect(refused({ voice: voice({ threads: { count: 2.5 } }) }).section).toBe("voice");
+    expect(refused({ voice: voice({ caption: { frameKey: "" } }) }).section).toBe("voice");
+    expect(refused({ voice: voice({ caption: { frameKey: "x".repeat(61) } }) }).section).toBe("voice");
+    expect(refused({ voice: voice({ caption: { include: "yes" } }) }).section).toBe("voice");
+  });
+
   it("requires unique pillar keys and a pillar color token", () => {
     const [a, b] = DEFAULT_SETTINGS.pillars;
     expect(refused({ pillars: [a, { ...b, key: a.key }] }).section).toBe("pillars");

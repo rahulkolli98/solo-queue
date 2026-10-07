@@ -6,12 +6,9 @@ import {
   POSTS_MIN,
   addToThread,
   clampPosts,
-  defaultPostCount,
   generateArgs,
   kindsAtRisk,
   moveInThread,
-  postCountToSend,
-  postsHelper,
   postsLabel,
   removeConfirmText,
   removeFromThread,
@@ -21,33 +18,13 @@ import {
 
 const params = (q: Record<string, string>) => ({ get: (k: string) => q[k] ?? null });
 
-describe("posts control", () => {
+describe("post counts", () => {
   it("keeps the count inside what the backend accepts", () => {
     expect(clampPosts(1)).toBe(POSTS_MIN);
     expect(clampPosts(40)).toBe(POSTS_MAX);
     expect(clampPosts(6)).toBe(6);
     expect(clampPosts(5.6)).toBe(6);
     expect(clampPosts(Number.NaN)).toBe(POSTS_FALLBACK);
-  });
-
-  it("starts on the frame steps, or 4 when they are not known", () => {
-    expect(defaultPostCount(undefined)).toBe(4);
-    expect(defaultPostCount(0)).toBe(4);
-    expect(defaultPostCount(5)).toBe(5);
-    expect(defaultPostCount(30)).toBe(POSTS_MAX);
-  });
-
-  it("sends postCount only when the founder changed it away from the frame default", () => {
-    expect(postCountToSend(null, 4)).toBeUndefined();
-    expect(postCountToSend(4, 4)).toBeUndefined();
-    expect(postCountToSend(6, 4)).toBe(6);
-    expect(postCountToSend(99, 4)).toBe(POSTS_MAX);
-  });
-
-  it("says how many steps the frame has", () => {
-    expect(postsHelper(4)).toBe("A story frame has 4 steps; more posts stretch them.");
-    expect(postsHelper(undefined)).toBe("A story frame has 4 steps; more posts stretch them.");
-    expect(postsHelper(5)).toBe("A story frame has 5 steps; more posts stretch them.");
   });
 
   it("labels the thread length against the 25 post limit", () => {
@@ -64,26 +41,33 @@ describe("removeConfirmText (what a screen reader hears while Remove waits for i
 });
 
 describe("generateArgs (what drafting.generate receives)", () => {
-  it("leaves postCount out when none is set", () => {
-    const args = generateArgs({ topicId: "t1", kinds: ["threads", "caption", "reel"], frameKey: "confession" });
-    expect(args).toEqual({
+  it("sends only the formats and no setup when nothing was chosen", () => {
+    const args = generateArgs({ topicId: "t1", kinds: ["threads", "caption", "reel"] });
+    expect(args).toEqual({ topicId: "t1", formats: ["threads", "instagram-caption", "instagram-reel"] });
+    expect("setup" in args).toBe(false);
+  });
+
+  it("names each format's story frame", () => {
+    const args = generateArgs({
       topicId: "t1",
-      formats: ["threads", "instagram-caption", "instagram-reel"],
-      frameKey: "confession",
+      kinds: ["threads", "caption", "reel"],
+      setup: { threads: { frameKey: "confession", count: 6 }, caption: { frameKey: "receipt" }, reel: { frameKey: "teardown" } },
     });
-    expect("postCount" in args).toBe(false);
+    expect(args.setup).toEqual({
+      threads: { frameKey: "confession", count: 6 },
+      caption: { frameKey: "receipt" },
+      reel: { frameKey: "teardown" },
+    });
   });
 
-  it("passes postCount with a thread", () => {
-    expect(generateArgs({ topicId: "t1", kinds: ["threads"], postCount: 6 }).postCount).toBe(6);
-  });
-
-  it("does not send postCount for formats that are not a thread", () => {
-    expect("postCount" in generateArgs({ topicId: "t1", kinds: ["caption"], postCount: 6 })).toBe(false);
+  it("drops choices for formats this run does not write", () => {
+    const args = generateArgs({ topicId: "t1", kinds: ["caption"], setup: { threads: { frameKey: "confession", count: 6 }, caption: { frameKey: "receipt" } } });
+    expect(args.formats).toEqual(["instagram-caption"]);
+    expect(args.setup).toEqual({ caption: { frameKey: "receipt" } });
   });
 
   it("clamps an out-of-range count", () => {
-    expect(generateArgs({ topicId: "t1", kinds: ["threads"], postCount: 50 }).postCount).toBe(POSTS_MAX);
+    expect(generateArgs({ topicId: "t1", kinds: ["threads"], setup: { threads: { count: 50 } } }).setup?.threads?.count).toBe(POSTS_MAX);
   });
 });
 

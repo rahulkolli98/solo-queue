@@ -700,25 +700,6 @@ export function studioGuide(input: GuideInput): StudioGuide {
   return made(`All set: press ${queueWord}.`, "go");
 }
 
-/** The story frame to preselect: your pick, the thread's frame, the voice default, else the first frame. */
-export function pickFrameKey(input: {
-  chosen: string | null;
-  threadsFrameKey?: string;
-  defaultKey?: string;
-  frames: { key: string }[] | undefined;
-}): string {
-  if (input.chosen) return input.chosen;
-  if (input.threadsFrameKey) return input.threadsFrameKey;
-  const keys = (input.frames ?? []).map((f) => f.key);
-  if (input.defaultKey && (keys.length === 0 || keys.includes(input.defaultKey))) return input.defaultKey;
-  return keys[0] ?? input.defaultKey ?? "";
-}
-
-/** "Admit, Cost, Fix, Invite" for a frame's option label. */
-export function frameBeatsLine(frame: { beats: { label: string }[] }): string {
-  return frame.beats.map((b) => b.label).join(", ");
-}
-
 /** What a story frame is, in one plain sentence (shown beside the picker). */
 export const FRAME_EXPLAINER =
   "A story frame is the shape of the post, for example Confession: admit it, what it cost, the fix, the invite. Pick one, or leave the default.";

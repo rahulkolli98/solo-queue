@@ -714,6 +714,12 @@
 .lb-fc-fits {
   margin-top: auto;
 }
+/* DEFAULT · THREADS chips: one per format the frame is the default for */
+.lb-fc-defaults {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
 .lb-fc-new,
 .lb-fc-learn {
   background: transparent;
@@ -857,10 +863,15 @@
   letter-spacing: 0.06em;
   cursor: pointer;
 }
-.lb-tgl[aria-pressed="true"] {
+.lb-tgl[aria-pressed="true"],
+.lb-tgl[aria-checked="true"] {
   background: var(--color-threads);
   border-color: var(--color-threads);
   color: var(--color-on-surface);
+}
+.lb-tgl:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .lb-tgl-add {
   border-style: dashed;
@@ -1261,6 +1272,13 @@
   .lb-fc .lb-fc-fits {
     grid-column: 1;
     grid-row: 3;
+  }
+  .lb-fc .lb-fc-defaults {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .lb-fc[aria-pressed="true"] .lb-fc-defaults {
+    grid-row: 4;
   }
   .lb-fc:not([aria-pressed="true"]) .lb-beats,
   .lb-fc:not([aria-pressed="true"]) .lb-fc-fits {

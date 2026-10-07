@@ -16,19 +16,33 @@ import {
   type FrameDraft,
   type FrameFormErrors,
 } from "@/lib/libraryBoard";
+import {
+  beatsHint,
+  defaultToggles,
+  fitsForFormat,
+  formatOfFits,
+  type FrameFormat,
+} from "@/lib/frameDefaults";
 import { refusalText } from "@/lib/refusalText";
 import { api } from "../../../../convex/_generated/api";
+import { FrameDefaultToggles, FrameFormatChoice } from "./FrameDefaultToggles";
+import type { Frame, Voice } from "./types";
+import { useFrameDefaultSave } from "./useFrames";
 
 /**
  * The frame editor rail (board 07o): name, two to five beats with a hint
- * each (reorder with the arrows), where the frame fits, Save and Duplicate.
- * The key of an existing frame never changes; a new one is made from its name.
+ * each (reorder with the arrows), where the frame fits, which formats it is
+ * the default for, Save and Duplicate. A new frame starts by choosing its
+ * format (Threads is pre-selected). The key of an existing frame never
+ * changes; a new one is made from its name.
  */
 export default function FrameEditor({
   initial,
   usedCount,
   takenKeys,
   colors,
+  frames = [],
+  voice,
   onSaved,
   onDuplicate,
 }: {
@@ -36,6 +50,10 @@ export default function FrameEditor({
   usedCount: number;
   takenKeys: string[];
   colors: string[];
+  /** Every active frame: "default for" is judged against them. */
+  frames?: Frame[];
+  /** The saved voice settings (holds the per-format defaults). Undefined while loading. */
+  voice?: Voice;
   onSaved: (key: string) => void;
   onDuplicate: (draft: FrameDraft) => void;
 }) {
@@ -45,7 +63,22 @@ export default function FrameEditor({
   const [errors, setErrors] = useState<FrameFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState<FrameFormat>(() => formatOfFits(initial.fits));
+  const defaults = useFrameDefaultSave();
   const isNew = draft.key === null;
+  // Defaults count only what is saved: a format counts once the saved frame fits it.
+  const savedFits = frames.find((f) => f.key === draft.key)?.fits ?? initial.fits;
+  const toggles = defaultToggles({ key: draft.key ?? "", fits: isNew ? draft.fits : savedFits }, voice, frames);
+
+  function chooseFormat(kind: FrameFormat) {
+    setFormat(kind);
+    patch({ fits: fitsForFormat(kind) });
+  }
+
+  function onToggleDefault(kind: FrameFormat, on: boolean) {
+    if (!voice || draft.key === null) return;
+    void defaults.setDefault(voice, kind, draft.key, on);
+  }
 
   function patch(next: Partial<FrameDraft>) {
     setDraft((d) => ({ ...d, ...next }));
@@ -95,6 +128,8 @@ export default function FrameEditor({
         {!isNew && <span className="t-meta lb-rail-count">USED {usedCount}×</span>}
       </div>
 
+      {isNew && <FrameFormatChoice format={format} onChoose={chooseFormat} />}
+
       <FormField label="Name" error={errors.name}>
         <input type="text" value={draft.name} maxLength={60} onChange={(e) => patch({ name: e.target.value })} />
       </FormField>
@@ -103,6 +138,7 @@ export default function FrameEditor({
         <span className="lb-field-title" id="lb-beats-title">
           Beats
         </span>
+        <p className="lb-hint">{beatsHint(draft.fits)}</p>
         <ol className="lb-beat-list">
           {draft.beats.map((beat, i) => (
             <li key={i} className="lb-beat-row">
@@ -197,6 +233,14 @@ export default function FrameEditor({
           </span>
         )}
       </div>
+
+      <FrameDefaultToggles
+        toggles={toggles}
+        unsaved={isNew}
+        busy={defaults.busy || voice === undefined}
+        error={defaults.error}
+        onToggle={onToggleDefault}
+      />
 
       <div className="lb-field" role="group" aria-labelledby="lb-color-title">
         <span className="lb-field-title" id="lb-color-title">

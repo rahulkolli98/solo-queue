@@ -8,6 +8,8 @@ import {
   addPillarLink,
   checkStyleGuideFile,
   clampShare,
+  formatDefaultChange,
+  formatDefaultRows,
   frameOptions,
   igHashtagOptions,
   learnedFromText,
@@ -102,6 +104,108 @@ describe("voice helpers", () => {
   it("checks the sign-off length", () => {
     expect(validateSignOff("x".repeat(80))).toBeNull();
     expect(validateSignOff("x".repeat(81))).toContain("80");
+  });
+});
+
+describe("per-format defaults", () => {
+  const frames = [
+    { key: "confession", name: "Confession", isActive: true, fits: ["thread", "reel"] as const },
+    { key: "hook-payoff", name: "Hook to payoff", isActive: true, fits: ["thread"] as const },
+    { key: "ig-caption", name: "IG caption", isActive: true, fits: ["single", "carousel"] as const },
+    { key: "ig-reel", name: "IG reel", isActive: true, fits: ["reel"] as const },
+    { key: "old-thread", name: "Old", isActive: false, fits: ["thread"] as const },
+  ];
+  const row = (rows: ReturnType<typeof formatDefaultRows>, kind: string) => rows.find((r) => r.kind === kind)!;
+
+  it("makes a row each for threads, caption, reel and blog (no carousel)", () => {
+    const rows = formatDefaultRows(DEFAULT_SETTINGS.voice, frames);
+    expect(rows.map((r) => r.kind)).toEqual(["threads", "caption", "reel", "blog"]);
+    expect(rows.map((r) => r.label)).toEqual(["Threads", "Caption", "Reel script", "Blog"]);
+    expect(rows.map((r) => r.include)).toEqual([true, true, true, false]);
+  });
+
+  it("lists only active frames that fit, and the blog gets none", () => {
+    const rows = formatDefaultRows(DEFAULT_SETTINGS.voice, frames);
+    expect(row(rows, "threads").frames.map((f) => f.key)).toEqual(["confession", "hook-payoff"]);
+    expect(row(rows, "caption").frames.map((f) => f.key)).toEqual(["ig-caption"]);
+    expect(row(rows, "reel").frames.map((f) => f.key)).toEqual(["confession", "ig-reel"]);
+    expect(row(rows, "blog")).toMatchObject({ takesFrame: false, frameKey: "", frames: [] });
+  });
+
+  it("resolves the frame like a run does: saved, then the older default, then the seeded frame", () => {
+    const voice = { ...DEFAULT_SETTINGS.voice, formatDefaults: { threads: { frameKey: "hook-payoff" }, reel: { frameKey: "gone" } } };
+    const rows = formatDefaultRows(voice, frames);
+    expect(row(rows, "threads").frameKey).toBe("hook-payoff");
+    expect(row(rows, "caption").frameKey).toBe("ig-caption");
+    expect(row(rows, "reel").frameKey).toBe("confession");
+    // A retired older default does not count.
+    const retired = formatDefaultRows({ ...DEFAULT_SETTINGS.voice, defaultFrameKey: "old-thread" }, frames);
+    expect(row(retired, "threads").frameKey).toBe("");
+  });
+
+  it("reads the posts from the per-format count, then the older count, else 0 (follow the frame)", () => {
+    expect(row(formatDefaultRows(DEFAULT_SETTINGS.voice, frames), "threads").count).toBe(0);
+    expect(row(formatDefaultRows({ ...DEFAULT_SETTINGS.voice, defaultPostCount: 5 }, frames), "threads").count).toBe(5);
+    const both = { ...DEFAULT_SETTINGS.voice, defaultPostCount: 5, formatDefaults: { threads: { count: 9 } } };
+    expect(row(formatDefaultRows(both, frames), "threads").count).toBe(9);
+    expect(row(formatDefaultRows(DEFAULT_SETTINGS.voice, frames), "threads").takesCount).toBe(true);
+    expect(row(formatDefaultRows(DEFAULT_SETTINGS.voice, frames), "caption").takesCount).toBe(false);
+  });
+
+  it("copes with frames still loading", () => {
+    const rows = formatDefaultRows(DEFAULT_SETTINGS.voice, undefined);
+    expect(row(rows, "threads")).toMatchObject({ frames: [], frameKey: "" });
+  });
+
+  it("writes a frame, an explicit include and a count into formatDefaults", () => {
+    const v = DEFAULT_SETTINGS.voice;
+    expect(formatDefaultChange(v, "caption", { frameKey: "ig-caption" }).formatDefaults).toEqual({ caption: { frameKey: "ig-caption" } });
+    expect(formatDefaultChange(v, "blog", { include: true }).formatDefaults).toEqual({ blog: { include: true } });
+    expect(formatDefaultChange(v, "caption", { include: false }).formatDefaults).toEqual({ caption: { include: false } });
+    const threads = formatDefaultChange(v, "threads", { count: 6 });
+    expect(threads.formatDefaults).toEqual({ threads: { count: 6 } });
+    expect("defaultPostCount" in threads).toBe(false);
+  });
+
+  it("clears the Threads count AND the older post count when set back to follow the frame", () => {
+    const v = { ...DEFAULT_SETTINGS.voice, defaultPostCount: 5, formatDefaults: { threads: { count: 6 } } };
+    const change = formatDefaultChange(v, "threads", { count: null });
+    expect(change.formatDefaults).toBeUndefined();
+    expect(change.defaultPostCount).toBe(0);
+    const next = mergeVoice(v, change);
+    expect(next).not.toHaveProperty("formatDefaults");
+    expect(next.defaultPostCount).toBe(0);
+    expect(row(formatDefaultRows(next, frames), "threads").count).toBe(0);
+  });
+
+  it("keeps the other formats' saved defaults when one changes", () => {
+    const v = { ...DEFAULT_SETTINGS.voice, formatDefaults: { caption: { include: false }, threads: { count: 4 } } };
+    const next = mergeVoice(v, formatDefaultChange(v, "threads", { frameKey: "hook-payoff" }));
+    expect(next.formatDefaults).toEqual({ caption: { include: false }, threads: { count: 4, frameKey: "hook-payoff" } });
+    expect(sectionSchemas.voice.safeParse(next).success).toBe(true);
+  });
+
+  it("mergeVoice removes an empty or all-empty formatDefaults instead of saving {}", () => {
+    const base = DEFAULT_SETTINGS.voice;
+    expect(mergeVoice(base, { formatDefaults: {} })).not.toHaveProperty("formatDefaults");
+    expect(mergeVoice(base, { formatDefaults: undefined })).not.toHaveProperty("formatDefaults");
+    expect(mergeVoice(base, { formatDefaults: { caption: {}, blog: {} } })).not.toHaveProperty("formatDefaults");
+    expect(mergeVoice(base, { formatDefaults: { caption: { include: undefined } } })).not.toHaveProperty("formatDefaults");
+    const existing = { ...base, formatDefaults: { caption: { include: false } } };
+    expect(mergeVoice(existing, { formatDefaults: undefined })).not.toHaveProperty("formatDefaults");
+  });
+
+  it("mergeVoice drops empty per-format entries and keeps the rest", () => {
+    const next = mergeVoice(DEFAULT_SETTINGS.voice, {
+      formatDefaults: { caption: {}, reel: { frameKey: "ig-reel", count: undefined }, blog: { include: false } },
+    });
+    expect(next.formatDefaults).toEqual({ reel: { frameKey: "ig-reel" }, blog: { include: false } });
+    expect("count" in next.formatDefaults!.reel!).toBe(false);
+  });
+
+  it("leaves formatDefaults alone when an unrelated field changes", () => {
+    const base = { ...DEFAULT_SETTINGS.voice, formatDefaults: { threads: { count: 3 } } };
+    expect(mergeVoice(base, { igHashtagMax: 2 }).formatDefaults).toEqual({ threads: { count: 3 } });
   });
 });
 

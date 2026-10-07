@@ -1,6 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+/** One format's saved default in Settings (see convex/lib/formatSetup.ts). */
+const formatDefaultValidator = v.object({
+  include: v.optional(v.boolean()),
+  frameKey: v.optional(v.string()),
+  count: v.optional(v.number()),
+});
+
 const platform = v.union(v.literal("threads"), v.literal("instagram"));
 
 export default defineSchema({
@@ -193,6 +200,16 @@ export default defineSchema({
       igHashtagMax: v.number(),
       signOff: v.optional(v.string()),
       /** Who the founder is, for the drafting prompt (added 2026-10-06). */
+      /** Per-format defaults for Studio: include, story frame, thread length / slide count (added 2026-10-07). */
+      formatDefaults: v.optional(
+        v.object({
+          threads: v.optional(formatDefaultValidator),
+          caption: v.optional(formatDefaultValidator),
+          reel: v.optional(formatDefaultValidator),
+          carousel: v.optional(formatDefaultValidator),
+          blog: v.optional(formatDefaultValidator),
+        })
+      ),
       aboutMe: v.optional(v.string()),
       /** A style guide pasted or loaded from a file, sent with every generation (added 2026-10-06). */
       styleGuide: v.optional(v.string()),

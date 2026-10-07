@@ -1,12 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactElement, ReactNode } from "react";
+import { FrameDefaultToggles } from "./FrameDefaultToggles";
+import FrameEditor from "./FrameEditor";
+import FramesTab from "./FramesTab";
 import LibraryRail, { FramesStrip } from "./LibraryRail";
 import LibraryTopbar from "./LibraryTopbar";
 import MediaTab, { MediaTile } from "./MediaTab";
 import MediaThumb from "./MediaThumb";
-import type { Frame, LibraryFilters, MediaAsset, Pillar } from "./types";
+import type { Frame, LibraryFilters, MediaAsset, Pillar, Voice } from "./types";
 
-const { useQueryMock } = vi.hoisted(() => ({ useQueryMock: vi.fn() }));
+const { useQueryMock, searchParams } = vi.hoisted(() => ({
+  useQueryMock: vi.fn(),
+  searchParams: { value: "" },
+}));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(searchParams.value) }));
 vi.mock("convex/react", () => ({
   useQuery: useQueryMock,
   useMutation: () => vi.fn(),
@@ -212,5 +220,209 @@ describe("MediaTab add by URL", () => {
     );
     expect(out).toContain('aria-describedby="lb-url-help"');
     expect(out).toContain("READY FOR INSTAGRAM");
+  });
+});
+
+// ---------- story frames: defaults per format ----------
+
+const voice = (over: Partial<Voice> = {}): Voice =>
+  ({ description: "", learnedFromCount: 0, defaultFrameKey: "confession", bannedWords: [], ...over }) as Voice;
+
+const FRAMES = [
+  frame({ key: "confession", name: "Confession", fits: ["thread"] }),
+  frame({ key: "hot-take", name: "Hot take", fits: ["thread", "single"] }),
+  frame({ key: "ig-reel", name: "IG reel", fits: ["reel"] }),
+  frame({ key: "slides", name: "Slides", fits: ["carousel"] }),
+];
+
+function framesTab(param: string, v: Voice | undefined, frames: Frame[] = FRAMES) {
+  searchParams.value = param ? `frame=${param}` : "";
+  return renderToStaticMarkup(<FramesTab filters={filters} pillars={pillars} frames={frames} voice={v} />);
+}
+
+/** The opening tag of the button with this exact text, or null. */
+function button(out: string, label: string): string | null {
+  const m = new RegExp(`<button[^>]*>${label}</button>`).exec(out);
+  return m ? m[0] : null;
+}
+
+const countOf = (out: string, text: string) => out.split(text).length - 1;
+
+describe("FramesTab default chips", () => {
+  it("shows one DEFAULT · FORMAT chip per format the frame is the effective default for", () => {
+    const out = framesTab("confession", voice({ formatDefaults: { caption: { frameKey: "hot-take" } } }));
+    // confession: the older default, for Threads. hot-take: the saved Caption pick. ig-reel: the seeded Reel frame.
+    expect(countOf(out, "DEFAULT · THREADS")).toBe(1);
+    expect(countOf(out, "DEFAULT · CAPTION")).toBe(1);
+    expect(countOf(out, "DEFAULT · REEL SCRIPT")).toBe(1);
+    expect(out).not.toContain("DEFAULT · CAROUSEL");
+    expect(out).toContain('class="lb-pill lb-pill-ink">DEFAULT · THREADS');
+  });
+
+  it("gives a frame that is the default for two formats two chips", () => {
+    const out = framesTab(
+      "slides",
+      voice({ formatDefaults: { threads: { frameKey: "hot-take" }, caption: { frameKey: "hot-take" } } })
+    );
+    const card = out.split("Hot take</span>")[1].split("</button>")[0];
+    expect(card).toContain("DEFAULT · THREADS");
+    expect(card).toContain("DEFAULT · CAPTION");
+  });
+
+  it("keeps the existing card markup (used count, fits line, beat chain)", () => {
+    const out = framesTab("slides", voice());
+    expect(out).toContain("USED 9×");
+    expect(out).toContain("FITS · THREADS THREAD · SINGLE");
+    expect(out).toContain("ADMIT → COST");
+    expect(out).toContain("EDITING");
+    expect(out).toContain("Learn from a post");
+    expect(out).toContain('aria-disabled="true"');
+  });
+
+  it("shows no chips while the settings are loading", () => {
+    expect(framesTab("slides", undefined)).not.toContain("DEFAULT ·");
+  });
+});
+
+describe("frame editor: Default for toggles", () => {
+  it("is on for the formats this frame is the effective default for, off for the rest", () => {
+    const out = framesTab("hot-take", voice({ formatDefaults: { caption: { frameKey: "hot-take" } } }));
+    expect(out).toContain("Default for");
+    expect(button(out, "Caption")).toContain('aria-pressed="true"');
+    expect(button(out, "Caption")).not.toContain("disabled");
+    expect(button(out, "Threads")).toContain('aria-pressed="false"');
+    expect(button(out, "Threads")).not.toContain("disabled");
+    // a frame that does not fit a format offers no toggle for it
+    expect(button(out, "Reel script")).toBeNull();
+    expect(button(out, "Carousel")).toBeNull();
+  });
+
+  it("disables a toggle that is on only through the older default and says how to change it", () => {
+    const out = framesTab("confession", voice());
+    expect(button(out, "Threads")).toContain('aria-pressed="true"');
+    expect(button(out, "Threads")).toContain("disabled");
+    expect(out).toContain("Pick another frame as the default to change this.");
+  });
+
+  it("lets a saved pick be turned off, with no older-default note", () => {
+    const out = framesTab("hot-take", voice({ formatDefaults: { threads: { frameKey: "hot-take" } } }));
+    expect(button(out, "Threads")).toContain('aria-pressed="true"');
+    expect(button(out, "Threads")).not.toContain("disabled");
+    expect(out).not.toContain("Pick another frame as the default to change this.");
+  });
+
+  it("is on for a carousel frame only when it is the saved carousel default", () => {
+    expect(button(framesTab("slides", voice()), "Carousel")).toContain('aria-pressed="false"');
+    const on = framesTab("slides", voice({ formatDefaults: { carousel: { frameKey: "slides" } } }));
+    expect(button(on, "Carousel")).toContain('aria-pressed="true"');
+    expect(countOf(on, "DEFAULT · CAROUSEL")).toBe(1);
+  });
+
+  it("disables the toggles for a new unsaved frame and says to save first", () => {
+    const out = framesTab("new", voice());
+    expect(out).toContain("Save the frame first.");
+    const toggles = out.split('id="lb-defaults-title"')[1];
+    expect(button(toggles, "Threads")).toContain("disabled");
+    expect(button(toggles, "Threads")).toContain('aria-pressed="false"');
+  });
+
+  it("disables the toggles while the settings load", () => {
+    const out = framesTab("hot-take", undefined);
+    expect(button(out, "Threads")).toContain("disabled");
+    expect(button(out, "Caption")).toContain("disabled");
+  });
+
+  it("shows the save error readably", () => {
+    const out = renderToStaticMarkup(
+      <FrameDefaultToggles
+        toggles={[{ kind: "threads", label: "Threads", on: false, inherited: false }]}
+        unsaved={false}
+        busy={false}
+        error="voice: formatDefaults is not valid."
+        onToggle={() => {}}
+      />
+    );
+    expect(out).toContain('role="alert"');
+    expect(out).toContain("voice: formatDefaults is not valid.");
+  });
+
+  it("turns on a toggle that is off and off a toggle that is on", () => {
+    const onToggle = vi.fn();
+    const tree = FrameDefaultToggles({
+      toggles: [
+        { kind: "threads", label: "Threads", on: true, inherited: false },
+        { kind: "caption", label: "Caption", on: false, inherited: false },
+      ],
+      unsaved: false,
+      busy: false,
+      error: null,
+      onToggle,
+    });
+    type El = ReactElement<{ onClick?: () => void; children?: ReactNode }>;
+    const buttons: El[] = [];
+    (function walk(node: ReactNode) {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!node || typeof node !== "object" || !("props" in node)) return;
+      const el = node as El;
+      if (el.type === "button") buttons.push(el);
+      walk(el.props.children);
+    })(tree);
+    buttons[0].props.onClick?.();
+    buttons[1].props.onClick?.();
+    expect(onToggle).toHaveBeenNthCalledWith(1, "threads", false);
+    expect(onToggle).toHaveBeenNthCalledWith(2, "caption", true);
+  });
+});
+
+describe("new frame: choose the format first", () => {
+  it("offers Threads, Caption, Reel script and Carousel with Threads pre-selected", () => {
+    const out = framesTab("new", voice());
+    expect(out).toContain("This frame is for");
+    expect(out).toContain('role="radiogroup"');
+    expect(button(out, "Threads")).toContain('aria-checked="true"');
+    for (const label of ["Caption", "Reel script", "Carousel"]) {
+      expect(button(out, label)).toContain('role="radio"');
+      expect(button(out, label)).toContain('aria-checked="false"');
+    }
+    expect(button(out, "THREAD")).toContain('aria-pressed="true"');
+    expect(out).toContain("Each beat is one post in the thread.");
+  });
+
+  it("does not offer the choice when editing a saved frame", () => {
+    expect(framesTab("hot-take", voice())).not.toContain("This frame is for");
+  });
+
+  const editor = (fits: Frame["fits"], key: string | null = null) =>
+    renderToStaticMarkup(
+      <FrameEditor
+        initial={{ key, name: "", beats: [{ label: "", hint: "" }, { label: "", hint: "" }], fits, color: "pillar-build" }}
+        usedCount={0}
+        takenKeys={[]}
+        colors={["pillar-build"]}
+        frames={FRAMES}
+        voice={voice()}
+        onSaved={() => {}}
+        onDuplicate={() => {}}
+      />
+    );
+
+  it("a carousel frame says each beat is one slide and starts with the carousel fit", () => {
+    const out = editor(["carousel"]);
+    expect(button(out, "Carousel")).toContain('aria-checked="true"');
+    expect(button(out, "THREAD")).toContain('aria-pressed="false"');
+    expect(button(out, "CAROUSEL")).toContain('aria-pressed="true"');
+    expect(out).toContain("Each beat is one slide.");
+  });
+
+  it("a caption or reel frame words the hint for it", () => {
+    expect(editor(["single"])).toContain("Each beat is one part of the caption.");
+    expect(editor(["reel"])).toContain("Each beat is one moment of the script.");
+  });
+
+  it("keeps the beat limits: Add beat is available below five and Remove stops at two", () => {
+    const out = editor(["thread"]);
+    expect(button(out, "\\+ Add beat")).not.toContain("disabled");
+    expect(out).toContain('aria-label="Remove beat 1"');
+    expect(out.match(/aria-label="Remove beat \d"[^>]*disabled/g)).toHaveLength(2);
   });
 });

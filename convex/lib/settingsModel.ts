@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FormatDefaults } from "./formatSetup";
 
 /**
  * The typed settings singleton (table `appSettings`): defaults, per-section
@@ -38,6 +39,8 @@ export interface AppSettings {
     threadsTopicTag: "auto" | "off";
     igHashtagMax: number;
     signOff?: string;
+    /** Per-format defaults (include, frame, count); a format with none follows the single defaults above. */
+    formatDefaults?: FormatDefaults;
     /** Who the founder is; sent to the model with every draft. */
     aboutMe?: string;
     /** A style guide (pasted or loaded from a file); sent to the model with every draft. */
@@ -131,6 +134,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export const ABOUT_ME_MAX = 1500;
 export const STYLE_GUIDE_MAX = 20000;
 
+const formatDefaultSchema = z.object({
+  include: z.boolean().optional(),
+  frameKey: z.string().min(1).max(60).optional(),
+  count: z.number().int().min(2).max(12).optional(),
+});
+const formatDefaultsSchema = z.object({
+  threads: formatDefaultSchema.optional(),
+  caption: formatDefaultSchema.optional(),
+  reel: formatDefaultSchema.optional(),
+  carousel: formatDefaultSchema.optional(),
+  blog: formatDefaultSchema.optional(),
+});
+
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM");
 
 /** Sorted, de-duplicated list of HH:MM times, at most 8 per platform. */
@@ -195,6 +211,7 @@ export const sectionSchemas = {
     threadsTopicTag: z.enum(["auto", "off"]),
     igHashtagMax: z.number().int().min(0).max(30),
     signOff: z.string().max(80).optional(),
+    formatDefaults: formatDefaultsSchema.optional(),
     aboutMe: z.string().max(ABOUT_ME_MAX).optional(),
     styleGuide: z.string().max(STYLE_GUIDE_MAX).optional(),
     bannedWords: z
