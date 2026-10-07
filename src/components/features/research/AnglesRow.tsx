@@ -1,9 +1,11 @@
 "use client";
 
 import { useAction } from "convex/react";
+import Link from "next/link";
 import { useState } from "react";
 import { angleLabel } from "@/lib/researchBoard";
 import { researchFailure, type ResearchFailure } from "@/lib/researchErrors";
+import { studioAngleHref } from "@/lib/studioHandoff";
 import ResearchStatus from "./ResearchStatus";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -54,6 +56,16 @@ export default function AnglesRow({
             <div key={`${a.frameKey}-${i}`} className={`rs-angle rs-angle-${i}`}>
               <span className="t-meta rs-angle-kind">{angleLabel(a, frames)}</span>
               <span className="rs-angle-title">{a.title}</span>
+              {(() => {
+                const href = studioAngleHref(topicId, a);
+                return href ? (
+                  <Link href={href} className="sq-btn sq-btn-sm rs-angle-draft">
+                    Draft this
+                  </Link>
+                ) : (
+                  <span className="t-meta rs-angle-draft rs-angle-soon">Carousels arrive in a later update.</span>
+                );
+              })()}
             </div>
           ))}
         </div>
