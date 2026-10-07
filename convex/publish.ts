@@ -342,6 +342,9 @@ type PublishItem = {
     body: string;
     templateKey: string;
     mediaAssetId?: Id<"mediaAssets">;
+    /** A carousel: how many slides it has, and the images of those slides in order (two or more slides only). */
+    slideCount?: number;
+    slideAssets?: { publicUrl: string; mimeType: string }[];
   };
   asset: { publicUrl: string; mimeType: string; verifiedAt?: number } | null;
   topicTitle: string;
@@ -401,8 +404,13 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   // instagram
   const conn = await ctx.runQuery(internal.connections.getOne, { platform: "instagram" });
   if (!conn) return markPermanent(ctx, slot._id, now, "No Instagram connection — reconnect in Settings.");
-  if (!asset) return markPermanent(ctx, slot._id, now, "Attached media is gone — pick another in the Library.");
-  const kind: InstagramKind = draft.templateKey === "reel-script" ? "reel" : "photo";
+  // A carousel of two or more slides posts every slide image; a one-slide carousel is an ordinary image post.
+  const carousel = draft.slideCount !== undefined && draft.slideCount > 1;
+  if (carousel && (draft.slideAssets?.length ?? 0) !== draft.slideCount) {
+    return markPermanent(ctx, slot._id, now, "A slide image is gone — draw the slides again, then queue the carousel again.");
+  }
+  if (!carousel && !asset) return markPermanent(ctx, slot._id, now, "Attached media is gone — pick another in the Library.");
+  const kind: InstagramKind = carousel ? "carousel" : draft.templateKey === "reel-script" ? "reel" : "photo";
   const out = slot.containerId
     ? await resumeInstagramContainer({
         igUserId: conn.platformUserId,
@@ -413,9 +421,10 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
         igUserId: conn.platformUserId,
         accessToken: conn.accessToken,
         caption: instagramCaption(draft.templateKey, draft.body),
-        mediaUrl: asset.publicUrl,
-        mimeType: asset.mimeType,
+        mediaUrl: carousel ? draft.slideAssets![0].publicUrl : asset!.publicUrl,
+        mimeType: carousel ? draft.slideAssets![0].mimeType : asset!.mimeType,
         kind,
+        mediaItems: carousel ? draft.slideAssets!.map((a) => ({ url: a.publicUrl, mimeType: a.mimeType })) : undefined,
       });
   if (!out.ok && out.containerId) {
     await ctx.runMutation(internal.slotRecovery.setContainer, { id: slot._id, containerId: out.containerId });

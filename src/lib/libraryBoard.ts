@@ -73,14 +73,17 @@ const FORMAT_WORD: Record<string, string> = {
 
 /** "THREADS · 24 SEP" / "REEL · 23 SEP". */
 export function postcardMeta(
-  post: { platform: "threads" | "instagram"; format: string | null; publishedAt: number },
+  post: { platform: "threads" | "instagram"; format: string | null; publishedAt: number; slideCount?: number | null },
   tz: string
 ): string {
+  const word = post.format ? (FORMAT_WORD[post.format] ?? post.format.toUpperCase()) : null;
   const lead =
     post.platform === "threads"
       ? "THREADS"
-      : post.format
-        ? (FORMAT_WORD[post.format] ?? post.format.toUpperCase())
+      : word
+        ? post.format === "carousel" && post.slideCount
+          ? `${word} · ${post.slideCount} ${post.slideCount === 1 ? "SLIDE" : "SLIDES"}`
+          : word
         : "INSTAGRAM";
   return `${lead} · ${dayMonth(post.publishedAt, tz)}`;
 }
@@ -117,9 +120,11 @@ export function matchesDraftFilter(status: DraftStatusKey, filter: DraftFilter):
 }
 
 /** "THREADS · THREAD", "CAROUSEL", "BLOG" for the top line of a draft card. */
-export function draftMeta(platform: "threads" | "instagram" | "blog", format: string | null): string {
+export function draftMeta(platform: "threads" | "instagram" | "blog", format: string | null, slideCount?: number | null): string {
   if (platform === "blog") return "BLOG";
-  const word = format ? (FORMAT_WORD[format] ?? format.toUpperCase()) : null;
+  const base = format ? (FORMAT_WORD[format] ?? format.toUpperCase()) : null;
+  // A carousel says how many slides it has: "CAROUSEL · 6 SLIDES".
+  const word = base && format === "carousel" && slideCount ? `${base} · ${slideCount} ${slideCount === 1 ? "SLIDE" : "SLIDES"}` : base;
   if (platform === "threads") return word ? `THREADS · ${word}` : "THREADS";
   return word ?? "INSTAGRAM";
 }

@@ -16,6 +16,7 @@ import type * as drafts from "../drafts.js";
 import type * as frameProposal from "../frameProposal.js";
 import type * as frames from "../frames.js";
 import type * as lib_carouselDraft from "../lib/carouselDraft.js";
+import type * as lib_carouselMedia from "../lib/carouselMedia.js";
 import type * as lib_carouselSlides from "../lib/carouselSlides.js";
 import type * as lib_carouselValidators from "../lib/carouselValidators.js";
 import type * as lib_connectionRisk from "../lib/connectionRisk.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   frameProposal: typeof frameProposal;
   frames: typeof frames;
   "lib/carouselDraft": typeof lib_carouselDraft;
+  "lib/carouselMedia": typeof lib_carouselMedia;
   "lib/carouselSlides": typeof lib_carouselSlides;
   "lib/carouselValidators": typeof lib_carouselValidators;
   "lib/connectionRisk": typeof lib_connectionRisk;

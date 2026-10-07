@@ -19,6 +19,11 @@ export type DraftKind = "threads" | "caption" | "reel" | "carousel" | "blog";
 /** The three formats `slots.queueTopic` can queue, in lane order. */
 export const QUEUE_KINDS: readonly DraftKind[] = ["threads", "caption", "reel"];
 
+/** The kinds this topic is queued with: the usual three, plus the carousel when the topic has one (most do not). */
+export function queueKindsOf(states: Partial<Record<DraftKind, unknown>>): readonly DraftKind[] {
+  return states.carousel ? [...QUEUE_KINDS, "carousel"] : QUEUE_KINDS;
+}
+
 export const KIND_META: Record<
   DraftKind,
   { templateKey: string; generateFormat: string; label: string; noun: string }
@@ -105,6 +110,25 @@ export function mediaState(
   return "ok";
 }
 
+/**
+ * The media state of a carousel: it has one image per slide, all of them stored, and none checked too long ago.
+ * `assets` are the library rows of its images (by id); an id with no row is a missing image.
+ */
+export function carouselMediaState(
+  draft: { slides?: unknown[]; mediaAssetIds?: string[] } | undefined,
+  assets: ReadonlyMap<string, Pick<Asset, "verifiedAt">>,
+  now: number
+): MediaState {
+  const ids = draft?.mediaAssetIds ?? [];
+  const slides = draft?.slides?.length ?? 0;
+  if (slides === 0 || ids.length !== slides) return "none";
+  const states = ids.map((id) => mediaState(id, assets.get(id), now));
+  for (const worst of ["missing", "unverified", "stale"] as const) {
+    if (states.includes(worst)) return worst;
+  }
+  return "ok";
+}
+
 export type ReadyState =
   | "missing"
   | "ready"
@@ -184,12 +208,13 @@ export function barSummary(input: {
   /** Copy for the "nothing yet" state. */
   emptySub: string;
 }): BarSummary {
-  const entries = QUEUE_KINDS.map((k) => input.states[k]).filter((r): r is Readiness => Boolean(r));
+  const kinds = queueKindsOf(input.states);
+  const entries = kinds.map((k) => input.states[k]).filter((r): r is Readiness => Boolean(r));
   const written = entries.filter((r) => r.state !== "missing");
   const ready = entries.filter((r) => r.state === "ready").length;
   const queued = entries.filter((r) => r.state === "queued").length;
   const problems = entries.filter((r) => r.state !== "ready" && r.state !== "queued");
-  const total = QUEUE_KINDS.length;
+  const total = kinds.length;
   const buttonLabel = ready > 0 ? `Queue ${ready} ${plural(ready, "post", "posts")}` : "Queue posts";
 
   if (input.generating) {
@@ -269,7 +294,7 @@ export function draftsNeedingFix(
   states: Partial<Record<DraftKind, Readiness>>,
   errored: readonly DraftKind[] = []
 ): DraftKind[] {
-  return QUEUE_KINDS.filter((kind) => {
+  return queueKindsOf(states).filter((kind) => {
     const state = states[kind]?.state;
     if (state && BLOCKING.includes(state)) return true;
     return errored.includes(kind) && (state === undefined || state === "missing");
@@ -566,7 +591,7 @@ export interface GuideInput {
 }
 
 const IG_KINDS = ["reel", "caption"] as const;
-const IG_NAME: Record<(typeof IG_KINDS)[number], string> = { reel: "reel", caption: "caption" };
+const IG_NAME: Record<(typeof IG_KINDS)[number] | "carousel", string> = { reel: "reel", caption: "caption", carousel: "carousel" };
 const MEDIA_STATES: ReadyState[] = ["media_required", "media_missing", "media_unverified", "media_stale"];
 
 function listNames(names: string[]): string {
@@ -581,13 +606,14 @@ function listNames(names: string[]): string {
 export function studioGuide(input: GuideInput): StudioGuide {
   const { states } = input;
   const at = (k: DraftKind): ReadyState => states[k]?.state ?? "missing";
-  const written = QUEUE_KINDS.filter((k) => at(k) !== "missing");
+  const kinds = queueKindsOf(states);
+  const written = kinds.filter((k) => at(k) !== "missing");
   const queued = written.filter((k) => at(k) === "queued");
-  const ready = QUEUE_KINDS.filter((k) => at(k) === "ready");
+  const ready = kinds.filter((k) => at(k) === "ready");
   const readyN = ready.length;
 
-  const draftsDone = written.length === QUEUE_KINDS.length;
-  const igWritten = IG_KINDS.filter((k) => at(k) !== "missing");
+  const draftsDone = written.length === kinds.length;
+  const igWritten = (kinds.includes("carousel") ? ([...IG_KINDS, "carousel"] as const) : IG_KINDS).filter((k) => at(k) !== "missing");
   const mediaNeed = igWritten.filter((k) => MEDIA_STATES.includes(at(k)));
   const mediaDone = draftsDone && mediaNeed.length === 0;
   const queueDone = draftsDone && queued.length === written.length;
@@ -666,21 +692,30 @@ export function studioGuide(input: GuideInput): StudioGuide {
     fixes.push(`The caption is over the ${CAPTION_LIMIT.toLocaleString("en-GB")}-character limit: use Trim to fit.`);
   }
   const needsAttach = mediaNeed.filter((k) => at(k) === "media_required");
-  const gone = mediaNeed.filter((k) => at(k) === "media_missing");
-  const unchecked = mediaNeed.filter((k) => at(k) === "media_unverified");
-  const stale = mediaNeed.filter((k) => at(k) === "media_stale");
-  const names = (ks: readonly (typeof IG_KINDS)[number][]) => listNames(ks.map((k) => IG_NAME[k]));
+  const gone = mediaNeed.filter((k) => at(k) === "media_missing" && k !== "carousel");
+  const unchecked = mediaNeed.filter((k) => at(k) === "media_unverified" && k !== "carousel");
+  const stale = mediaNeed.filter((k) => at(k) === "media_stale" && k !== "carousel");
+  const names = (ks: readonly ((typeof IG_KINDS)[number] | "carousel")[]) => listNames(ks.map((k) => IG_NAME[k]));
   const mediaLines: string[] = [];
-  if (needsAttach.length > 0) {
+  // A carousel's images are drawn in Studio, not attached from the library, so it has its own sentences.
+  const carouselNeed = mediaNeed.find((k) => k === "carousel");
+  const plainAttach = needsAttach.filter((k) => k !== "carousel");
+  if (carouselNeed) {
+    const cs = at("carousel");
+    if (cs === "media_required") mediaLines.push("the carousel needs its images: open the Carousel tab and press Draw the slides");
+    else if (cs === "media_missing") mediaLines.push("a slide image of the carousel is gone: press Draw the slides again");
+    else mediaLines.push("press Check the images on the Carousel tab");
+  }
+  if (plainAttach.length > 0) {
     mediaLines.push(
-      `Instagram needs media: attach a photo or video to the ${names(needsAttach)} (press Attach media and upload one right there, or pick one from the library)`
+      `Instagram needs media: attach a photo or video to the ${names(plainAttach)} (press Attach media and upload one right there, or pick one from the library)`
     );
   }
   if (gone.length > 0) mediaLines.push(`the media on the ${names(gone)} is gone: attach another`);
   if (unchecked.length > 0) mediaLines.push(`press Check on the ${names(unchecked)} media`);
   if (stale.length > 0) mediaLines.push(`press Recheck on the ${names(stale)} media, it was checked too long ago`);
 
-  const missing = QUEUE_KINDS.filter((k) => at(k) === "missing");
+  const missing = kinds.filter((k) => at(k) === "missing");
   const missingLine =
     missing.length > 0
       ? `The ${listNames(missing.map((k) => KIND_META[k].noun))} ${missing.length === 1 ? "is" : "are"} not written: press Generate drafts or Retry, or write ${missing.length === 1 ? "it" : "them"} yourself.`

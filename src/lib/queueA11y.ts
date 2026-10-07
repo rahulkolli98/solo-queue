@@ -32,6 +32,8 @@ export interface SlotCardFacts {
   platform: Platform;
   /** The Instagram format (reel, carousel, ...); Threads cards are always "post". */
   format?: string | null;
+  /** A carousel: how many slides it has. */
+  slideCount?: number | null;
   time: string;
   topicTitle: string;
   status: SlotStatus;
@@ -44,7 +46,9 @@ export interface SlotCardFacts {
  * `dayLabel` ("Tue 6 Oct") is left out only where the day is not known.
  */
 export function slotCardLabel(card: SlotCardFacts, dayLabel?: string): string {
-  const kind = card.platform === "instagram" ? (card.format ?? "post") : "post";
+  const base = card.platform === "instagram" ? (card.format ?? "post") : "post";
+  const kind =
+    card.format === "carousel" && card.slideCount ? `carousel of ${card.slideCount} ${card.slideCount === 1 ? "slide" : "slides"}` : base;
   const day = dayLabel ? ` on ${dayLabel}` : "";
   const risk = card.atRisk ? ` At risk: ${card.atRisk}` : "";
   return `${PLATFORM_NAME[card.platform]} ${kind}${day} at ${card.time}, ${card.topicTitle}, ${STATUS_WORD[card.status]}.${risk} Open details.`;

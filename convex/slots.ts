@@ -3,6 +3,7 @@ import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { loadCarouselAssets } from "./lib/carouselMedia";
 import { checkEditedBody, hasPlaceholder, MAX_THREAD_POSTS, splitPosts } from "./lib/drafting";
 import {
   VERIFIED_TTL_MS,
@@ -183,6 +184,15 @@ export const getForPublish = internalQuery({
     const storedAsset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
     // A file the cleanup removed cannot be published: treat it like missing media.
     const asset = storedAsset && storedAsset.fileDeletedAt === undefined ? storedAsset : null;
+    // A carousel of two or more slides posts every slide image, in order; one slide posts as a single image.
+    const slideCount = draft.slides?.length;
+    let slideAssets: { publicUrl: string; mimeType: string }[] | undefined;
+    if (slideCount !== undefined && slideCount > 1) {
+      const docs = await Promise.all((draft.mediaAssetIds ?? []).map((id) => ctx.db.get(id)));
+      slideAssets = docs
+        .filter((d): d is NonNullable<typeof d> => d !== null && d.fileDeletedAt === undefined)
+        .map((d) => ({ publicUrl: d.publicUrl, mimeType: d.mimeType }));
+    }
     return {
       slot: {
         _id: slot._id,
@@ -198,6 +208,8 @@ export const getForPublish = internalQuery({
         body: draft.body,
         templateKey: draft.templateKey,
         mediaAssetId: draft.mediaAssetId ?? undefined,
+        slideCount,
+        slideAssets,
       },
       asset: asset
         ? {
@@ -302,9 +314,6 @@ async function doEnqueue(
     if (!draft)
       throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been deleted.");
     const platform = draft.platform;
-    if (draft.slides) {
-      throw refusal("CAROUSEL_NOT_READY", "Carousels cannot be queued yet. Publishing them to Instagram is the next step.");
-    }
     if (platform === "blog")
       throw refusal(
         "UNSUPPORTED_PLATFORM",
@@ -337,7 +346,11 @@ async function doEnqueue(
       );
 
     let mediaUrl: string | undefined;
-    if (platform === "instagram") {
+    if (platform === "instagram" && draft.slides) {
+      // A carousel needs a fresh, reachable image for every slide; the cover is its payload URL.
+      const assets = await loadCarouselAssets(ctx, draft);
+      mediaUrl = assets[0].publicUrl;
+    } else if (platform === "instagram") {
       if (!draft.mediaAssetId)
         throw refusal(
           "MEDIA_REQUIRED",
@@ -520,6 +533,8 @@ const WEEK_FORMATS = [
   { templateKey: "reel-script", label: "IG reel", platform: "instagram" },
 ] as const;
 
+const CAROUSEL_FORMAT = { templateKey: "carousel-slides", label: "IG carousel", platform: "instagram" } as const;
+
 /**
  * One-gesture "queue this week": assign every queueable draft of a topic to
  * its next free slot. Best-effort per draft — refusals land in `skipped`
@@ -565,7 +580,9 @@ export const queueTopic = operatorMutation({
     const reelDaysTaken = settings.rules.oneReelPerDay ? await reelDays(ctx, zone, now) : new Set<string>();
     const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
     const skipped: { format: string; templateKey: string; code: string; message: string }[] = [];
-    for (const f of WEEK_FORMATS) {
+    // A carousel is queued with the week only when the topic has one (most topics do not).
+    const formats = latestByKey.has(CAROUSEL_FORMAT.templateKey) ? [...WEEK_FORMATS, CAROUSEL_FORMAT] : WEEK_FORMATS;
+    for (const f of formats) {
       const draft = latestByKey.get(f.templateKey);
       if (!draft) {
         skipped.push({

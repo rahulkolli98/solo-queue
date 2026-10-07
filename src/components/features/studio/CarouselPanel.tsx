@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Doc } from "../../../../convex/_generated/dataModel";
@@ -39,7 +39,9 @@ import {
 import { CAPTION_LIMIT, trimToFit } from "@/lib/draftText";
 import { bannedWordsFlag } from "@/lib/studioModel";
 import { studioErrorText } from "@/lib/studioErrors";
+import { useNow } from "@/lib/useNow";
 import { useTwoTap } from "@/lib/useTwoTap";
+import { VERIFIED_TTL_MS } from "../../../../convex/lib/slots";
 
 export interface CarouselPanelProps {
   /** The carousel draft (a `drafts` row with `slides`); undefined until one is written. */
@@ -563,6 +565,10 @@ function CarouselEditor({
   const updateSlides = useMutation(api.drafts.updateSlides);
   const imageIds = draft.mediaAssetIds ?? [];
   const assets = useQuery(api.media.byIds, imageIds.length > 0 ? { ids: imageIds.slice(0, 10) } : "skip");
+  const verifyImage = useAction(api.media.verify);
+  const now = useNow();
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
   const draw = useCarouselRender({ draft });
   const removeTap = useTwoTap();
 
@@ -602,6 +608,20 @@ function CarouselEditor({
   const dirty = !slidesEqual(slides, saved);
   const attached = imageIds.length > 0;
   const busy = draw.state === "rendering" || draw.state === "attaching";
+  // Queueing needs every image checked reachable within the last day (Instagram fetches them itself).
+  const needsCheck = attached && assets !== undefined && assets.some((a) => !a.verifiedAt || now - a.verifiedAt > VERIFIED_TTL_MS);
+
+  async function checkImages() {
+    setChecking(true);
+    setCheckError(null);
+    try {
+      for (const id of imageIds) await verifyImage({ id });
+    } catch (e) {
+      setCheckError(studioErrorText(e, "Couldn't check the images. Try again."));
+    } finally {
+      setChecking(false);
+    }
+  }
 
   function apply(next: Slide[]) {
     slidesRef.current = next;
@@ -690,7 +710,7 @@ function CarouselEditor({
   } else if (dirty) {
     status = "Slide edits are not saved yet.";
   } else if (attached) {
-    status = `${imageIds.length} slide ${imageIds.length === 1 ? "image" : "images"} attached.`;
+    status = `${imageIds.length} slide ${imageIds.length === 1 ? "image" : "images"} attached.${needsCheck ? " They need a check before the carousel can be queued." : ""}`;
   } else {
     status = "No slide images yet. Draw the slides to make them.";
   }
@@ -804,9 +824,9 @@ function CarouselEditor({
         {attached && (
           <p className="studio-cr-note">Editing slides removes the drawn images. Draw the slides again.</p>
         )}
-        {(draw.error || saveError) && (
+        {(draw.error || saveError || checkError) && (
           <p className="studio-inline-error" role="alert">
-            {draw.error ?? saveError}
+            {draw.error ?? saveError ?? checkError}
           </p>
         )}
         <div className="studio-actions-row">
@@ -818,6 +838,11 @@ function CarouselEditor({
           >
             {busy ? "Drawing…" : attached && !dirty ? "Draw the slides again" : "Draw the slides"}
           </button>
+          {needsCheck && !dirty && (
+            <button type="button" className="sq-btn sq-btn-sm sq-btn-primary studio-cr-btn" disabled={checking || busy} onClick={() => void checkImages()}>
+              {checking ? "Checking…" : "Check the images"}
+            </button>
+          )}
           {dirty && (
             <button
               type="button"
