@@ -3,6 +3,7 @@
 import { useAction, useQuery } from "convex/react";
 import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { api } from "../../../../convex/_generated/api";
+import type { SetupKind } from "../../../../convex/lib/formatSetup";
 import { refusalText } from "@/lib/refusalText";
 import {
   ABOUT_ME_MAX,
@@ -10,8 +11,10 @@ import {
   STYLE_GUIDE_MAX,
   VOICE_DESCRIPTION_MAX,
   addBannedWord,
+  THREAD_POST_CHOICES,
   checkStyleGuideFile,
-  frameOptions,
+  formatDefaultChange,
+  formatDefaultRows,
   igHashtagOptions,
   learnedFromText,
   mergeVoice,
@@ -63,7 +66,7 @@ export default function VoiceSection() {
   const aboutMe = aboutDraft ?? voice.aboutMe ?? "";
   const styleGuide = guideDraft ?? voice.styleGuide ?? "";
   const guideUnsaved = guideDraft !== null && guideDraft.trim() !== (voice.styleGuide ?? "");
-  const options = frameOptions(frames, voice.defaultFrameKey);
+  const formatRows = formatDefaultRows(voice, frames);
 
   async function commitDescription() {
     if (descDraft === null || !voice || descDraft === voice.description) {
@@ -101,6 +104,12 @@ export default function VoiceSection() {
   async function changeSelect(change: Parameters<typeof mergeVoice>[1]) {
     setSelectError("");
     const result = await save((cur) => mergeVoice(cur, change));
+    if (!result.ok) setSelectError(result.message);
+  }
+
+  async function changeFormat(kind: SetupKind, change: Parameters<typeof formatDefaultChange>[2]) {
+    setSelectError("");
+    const result = await save((cur) => mergeVoice(cur, formatDefaultChange(cur, kind, change)));
     if (!result.ok) setSelectError(result.message);
   }
 
@@ -298,24 +307,6 @@ export default function VoiceSection() {
         <section className="sq-card st-rows" aria-label="Writing defaults">
           <div className="st-setting">
             <div className="st-setting-text">
-              <label htmlFor="voice-frame">Default story frame</label>
-              <small>Used when you don&apos;t pick one.</small>
-            </div>
-            <select
-              id="voice-frame"
-              className="sq-input st-select"
-              value={voice.defaultFrameKey}
-              onChange={(e) => changeSelect({ defaultFrameKey: e.target.value })}
-            >
-              {options.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="st-setting">
-            <div className="st-setting-text">
               <label htmlFor="voice-hashtags">Instagram hashtags</label>
               <small>Maximum per caption.</small>
             </div>
@@ -364,6 +355,76 @@ export default function VoiceSection() {
         </section>
 
       </div>
+
+      <section className="sq-card st-formats" aria-label="Defaults by format">
+        <div className="st-card-head">
+          <h3 className="st-eyebrow">Defaults by format</h3>
+          <span className="st-mono">Used when you don&apos;t choose</span>
+        </div>
+        <p className="sq-muted st-hint">
+          Optional. Studio and the Library start from these; you can still change them for any one run.
+        </p>
+        <div className="st-fmt-list">
+          {formatRows.map((row) => (
+            <div key={row.kind} className="st-fmt" role="group" aria-label={`${row.label} defaults`}>
+              <span className="st-fmt-name">{row.label}</span>
+              <label className="st-fmt-check" htmlFor={`fmt-${row.kind}-include`}>
+                <input
+                  id={`fmt-${row.kind}-include`}
+                  type="checkbox"
+                  checked={row.include}
+                  onChange={(e) => changeFormat(row.kind, { include: e.target.checked })}
+                />
+                <span>Include by default</span>
+              </label>
+              {row.takesFrame ? (
+                <select
+                  id={`fmt-${row.kind}-frame`}
+                  className="sq-input st-select st-fmt-frame"
+                  aria-label={`${row.label} story frame`}
+                  value={row.frameKey}
+                  disabled={row.frames.length === 0}
+                  onChange={(e) => changeFormat(row.kind, { frameKey: e.target.value })}
+                >
+                  {row.frames.length === 0 && <option value="">No story frames</option>}
+                  {row.frames.length > 0 && row.frameKey === "" && (
+                    <option value="" disabled>
+                      Choose a story frame
+                    </option>
+                  )}
+                  {row.frames.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="sq-muted st-fmt-none">No story frame</span>
+              )}
+              {row.takesCount && (
+                <select
+                  id={`fmt-${row.kind}-count`}
+                  className="sq-input st-select st-fmt-count"
+                  aria-label="Threads posts"
+                  value={String(row.count)}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    changeFormat(row.kind, { count: n >= 2 ? n : null });
+                  }}
+                >
+                  <option value="0">Follow the story frame</option>
+                  {THREAD_POST_CHOICES.map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n} posts
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ))}
+          <p className="sq-muted st-fmt-later">Carousels arrive in a later update.</p>
+        </div>
+      </section>
 
       <section className="sq-card st-context" aria-label="About you and style guide">
         <div className="st-card-head">

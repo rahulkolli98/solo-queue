@@ -9,8 +9,11 @@ vi.mock("convex/react", () => ({
     const name = String(ref);
     if (name === "frames.list") {
       return [
-        { key: "confession", name: "Confession" },
-        { key: "hook-payoff", name: "Hook to payoff" },
+        { key: "confession", name: "Confession", isActive: true, fits: ["thread", "reel"] },
+        { key: "hook-payoff", name: "Hook to payoff", isActive: true, fits: ["thread"] },
+        { key: "ig-caption", name: "IG caption", isActive: true, fits: ["single", "carousel"] },
+        { key: "ig-reel", name: "IG reel", isActive: true, fits: ["reel"] },
+        { key: "quiet-single", name: "Quiet single", isActive: true, fits: ["single"] },
       ];
     }
     return loaded ? { ...DEFAULT_SETTINGS, voice } : undefined;
@@ -29,6 +32,19 @@ vi.mock("../../../../convex/_generated/api", () => ({
 import VoiceSection from "./VoiceSection";
 
 const render = () => renderToStaticMarkup(<VoiceSection />);
+
+/** The markup of one select, found by its aria-label. */
+const selectOf = (out: string, label: string) => {
+  const m = out.match(new RegExp(`<select[^>]*aria-label="${label}"[^>]*>.*?</select>`));
+  if (!m) throw new Error(`no select "${label}"`);
+  return m[0];
+};
+/** The markup of one format row, up to the next row or the Carousel note. */
+const rowOf = (out: string, label: string) => {
+  const m = out.match(new RegExp(`aria-label="${label} defaults">.*?(?=role="group"|Carousels arrive)`));
+  if (!m) throw new Error(`no row "${label}"`);
+  return m[0];
+};
 
 describe("VoiceSection", () => {
   beforeEach(() => {
@@ -54,7 +70,6 @@ describe("VoiceSection", () => {
   it("shows the saved selects, sign-off and banned-word chips with remove buttons", () => {
     const out = render();
     expect(out).toContain('value="Follow the build"');
-    expect(out).toMatch(/<option value="confession" selected="">Confession<\/option>/);
     expect(out).toMatch(/<option value="5" selected="">5<\/option>/);
     for (const w of ["game-changer", "crush it", "unlock", "delve"]) {
       expect(out).toContain(`<span>${w}</span>`);
@@ -69,9 +84,94 @@ describe("VoiceSection", () => {
     expect(render()).toMatch(/<option value="7" selected="">7<\/option>/);
   });
 
-  it("keeps a saved frame that is no longer active selectable", () => {
-    voice = { ...voice, defaultFrameKey: "retired" };
-    expect(render()).toContain("retired (not active)");
+  it("has a Defaults by format card with a row each for Threads, Caption, Reel script and Blog, and a Carousel note", () => {
+    const out = render();
+    expect(out).toContain('aria-label="Defaults by format"');
+    for (const label of ["Threads", "Caption", "Reel script", "Blog"]) {
+      expect(out).toContain(`aria-label="${label} defaults"`);
+    }
+    expect(out).toContain("Carousels arrive in a later update.");
+    expect(out).not.toContain('aria-label="Carousel defaults"');
+    expect(out).not.toContain("Default story frame");
+  });
+
+  it("checks Include by default for Threads, Caption and Reel script, and not for Blog", () => {
+    const out = render();
+    expect(rowOf(out, "Threads")).toMatch(/type="checkbox" checked=""/);
+    expect(rowOf(out, "Caption")).toMatch(/type="checkbox" checked=""/);
+    expect(rowOf(out, "Reel script")).toMatch(/type="checkbox" checked=""/);
+    expect(rowOf(out, "Blog")).not.toContain("checked");
+    expect(rowOf(out, "Blog")).toContain("Include by default");
+  });
+
+  it("honours a saved include of false and true", () => {
+    voice = { ...voice, formatDefaults: { caption: { include: false }, blog: { include: true } } };
+    const out = render();
+    expect(rowOf(out, "Caption")).not.toContain("checked");
+    expect(rowOf(out, "Blog")).toMatch(/type="checkbox" checked=""/);
+  });
+
+  it("lists only the active frames that fit each format, with the effective default selected", () => {
+    const out = render();
+    const threads = selectOf(out, "Threads story frame");
+    // The older single default (confession) fits a thread, so it is the effective default.
+    expect(threads).toMatch(/<option value="confession" selected="">Confession<\/option>/);
+    expect(threads).toContain("Hook to payoff");
+    expect(threads).not.toContain("IG caption");
+    expect(threads).not.toContain("IG reel");
+    const caption = selectOf(out, "Caption story frame");
+    expect(caption).toMatch(/<option value="ig-caption" selected="">IG caption<\/option>/);
+    expect(caption).toContain("Quiet single");
+    expect(caption).not.toContain("Confession");
+    const reel = selectOf(out, "Reel script story frame");
+    expect(reel).toMatch(/<option value="confession" selected="">Confession<\/option>/);
+    expect(reel).toContain("IG reel");
+    expect(reel).not.toContain("Hook to payoff");
+  });
+
+  it("selects the frame saved for a format", () => {
+    voice = { ...voice, formatDefaults: { caption: { frameKey: "quiet-single" }, threads: { frameKey: "hook-payoff" } } };
+    const out = render();
+    expect(selectOf(out, "Caption story frame")).toMatch(/<option value="quiet-single" selected="">/);
+    expect(selectOf(out, "Threads story frame")).toMatch(/<option value="hook-payoff" selected="">/);
+  });
+
+  it("falls through to the next default when the saved frame is not active or does not fit", () => {
+    // resolveFrameKey ignores a saved frame that is retired or does not fit the format, so the select shows
+    // what a run would use: the older default, then the seeded frame.
+    voice = { ...voice, defaultFrameKey: "retired", formatDefaults: { caption: { frameKey: "retired-too" }, reel: { frameKey: "hook-payoff" } } };
+    const out = render();
+    expect(out).not.toContain("not active");
+    expect(selectOf(out, "Caption story frame")).toMatch(/<option value="ig-caption" selected="">/);
+    expect(selectOf(out, "Reel script story frame")).toMatch(/<option value="ig-reel" selected="">/);
+    // No thread frame is left to fall to: the select asks for a choice rather than showing a wrong one.
+    expect(selectOf(out, "Threads story frame")).toContain("Choose a story frame");
+  });
+
+  it("gives Blog no story frame and only Threads a Posts select", () => {
+    const out = render();
+    expect(rowOf(out, "Blog")).toContain("No story frame");
+    expect(rowOf(out, "Blog")).not.toContain("<select");
+    expect(rowOf(out, "Caption")).not.toContain('aria-label="Threads posts"');
+    expect(rowOf(out, "Reel script")).not.toContain('aria-label="Threads posts"');
+  });
+
+  it("offers Follow the story frame plus 2 to 12 posts, selected from the saved count", () => {
+    let posts = selectOf(render(), "Threads posts");
+    expect(posts).toMatch(/<option value="0" selected="">Follow the story frame<\/option>/);
+    expect(posts).toContain('<option value="2">2 posts</option>');
+    expect(posts).toContain('<option value="12">12 posts</option>');
+    expect(posts).not.toContain('value="1"');
+    expect(posts).not.toContain('value="13"');
+
+    voice = { ...voice, formatDefaults: { threads: { count: 7 } } };
+    posts = selectOf(render(), "Threads posts");
+    expect(posts).toMatch(/<option value="7" selected="">7 posts<\/option>/);
+  });
+
+  it("still counts the older thread length when no per-format count is saved", () => {
+    voice = { ...voice, defaultPostCount: 5 };
+    expect(selectOf(render(), "Threads posts")).toMatch(/<option value="5" selected="">5 posts<\/option>/);
   });
 
   it("has a polite status region and no suggestion box until one is requested", () => {

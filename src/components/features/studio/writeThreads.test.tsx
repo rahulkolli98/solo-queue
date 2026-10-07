@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 import ManualThread from "@/components/features/studio/ManualThread";
 import NewTopicColumn from "@/components/features/studio/NewTopicColumn";
 import ReplaceConfirm from "@/components/features/studio/ReplaceConfirm";
-import { GenerateControls, PostsControl } from "@/components/features/studio/StudioActions";
+import { GenerateControls } from "@/components/features/studio/StudioActions";
 import ThreadsColumn from "@/components/features/studio/ThreadsColumn";
 import ThreadPostRow from "@/components/features/studio/ThreadPostRow";
 import type { DraftView, GenState } from "@/components/features/studio/types";
@@ -181,28 +181,12 @@ describe("Write it myself uses the post-by-post writer", () => {
   });
 });
 
-describe("Posts control", () => {
-  it("offers 2 to 12, labelled, with the helper line", () => {
-    const out = html(<PostsControl value={4} steps={4} disabled={false} onChange={vi.fn()} />);
-    expect(out).toContain(">Posts<");
-    expect(out).toContain('<option value="2">2</option>');
-    expect(out).toContain('<option value="12">12</option>');
-    expect(out).not.toContain('<option value="13"');
-    expect(out).toContain('<option value="4" selected="">4</option>');
-    expect(out).toContain("A story frame has 4 steps; more posts stretch them.");
-    expect(out).toContain("aria-describedby");
-  });
-
-  it("is disabled while the model is writing", () => {
-    expect(html(<PostsControl value={4} steps={4} disabled onChange={vi.fn()} />)).toMatch(/<select[^>]*disabled/);
-  });
-
-  it("sits beside Generate drafts / Regenerate all", () => {
-    const base = { running: false, onGenerate: vi.fn(), posts: { value: 6, steps: 4, onChange: vi.fn() } };
-    const fresh = html(<GenerateControls {...base} hasDrafts={false} />);
-    expect(fresh).toContain("Generate drafts");
-    expect(fresh).toContain('<option value="6" selected="">6</option>');
+describe("Generate button", () => {
+  it("is Generate drafts, then Regenerate all, and disabled when nothing is ticked", () => {
+    const base = { running: false, onGenerate: vi.fn() };
+    expect(html(<GenerateControls {...base} hasDrafts={false} />)).toContain("Generate drafts");
     expect(html(<GenerateControls {...base} hasDrafts />)).toContain("Regenerate all");
+    expect(html(<GenerateControls {...base} hasDrafts={false} nothingToWrite />)).toMatch(/<button[^>]*disabled/);
   });
 });
 

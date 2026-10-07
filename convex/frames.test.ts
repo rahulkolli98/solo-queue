@@ -6,14 +6,14 @@ import { newTest } from "../src/test-utils/convex";
 const confession = DEFAULT_FRAMES[0];
 
 describe("framesModel", () => {
-  it("ships six valid default frames with 2 to 5 beats each", () => {
-    expect(DEFAULT_FRAMES).toHaveLength(6);
+  it("ships eight valid default frames with 2 to 5 beats each", () => {
+    expect(DEFAULT_FRAMES).toHaveLength(8);
     for (const f of DEFAULT_FRAMES) {
       expect(validateFrame(f).ok, f.key).toBe(true);
       expect(f.beats.length).toBeGreaterThanOrEqual(2);
       expect(f.beats.length).toBeLessThanOrEqual(5);
     }
-    expect(new Set(DEFAULT_FRAMES.map((f) => f.key)).size).toBe(6);
+    expect(new Set(DEFAULT_FRAMES.map((f) => f.key)).size).toBe(8);
   });
 
   it("refuses bad keys, too few or too many beats, and empty fits", () => {
@@ -33,14 +33,27 @@ describe("framesModel", () => {
 });
 
 describe("frames functions", () => {
-  it("ensureDefaults seeds the six frames once and never overwrites an edit", async () => {
+  it("ensureDefaults seeds the eight frames once and never overwrites an edit", async () => {
     const t = newTest();
-    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(6);
+    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(8);
     await t.mutation(api.frames.save, { ...confession, name: "My confession" });
     expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(0);
     const frame = await t.query(api.frames.getByKey, { key: "confession" });
     expect(frame?.name).toBe("My confession");
     expect(frame?.version).toBe(2);
+  });
+
+  it("adds only the missing seeded frames to an install that already has the older six", async () => {
+    const t = newTest();
+    await t.mutation(api.frames.ensureDefaults, {});
+    await t.run(async (ctx) => {
+      for (const key of ["ig-caption", "ig-reel"]) {
+        const row = await ctx.db.query("frames").withIndex("by_key", (q) => q.eq("key", key)).first();
+        if (row) await ctx.db.delete(row._id);
+      }
+    });
+    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(2);
+    expect((await t.query(api.frames.list, {})).map((f) => f.key)).toContain("ig-reel");
   });
 
   it("save creates a new frame, then bumps version on edit and keeps usedCount", async () => {
@@ -68,7 +81,7 @@ describe("frames functions", () => {
     await t.mutation(api.frames.setActive, { key: "teardown", isActive: false });
     const keys = (await t.query(api.frames.list, {})).map((f) => f.key);
     expect(keys).not.toContain("teardown");
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(7);
     expect((await t.query(api.frames.getByKey, { key: "teardown" }))?.isActive).toBe(false);
     await expect(t.mutation(api.frames.setActive, { key: "nope", isActive: true })).rejects.toThrow(
       /FRAME_NOT_FOUND/

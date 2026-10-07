@@ -1,0 +1,66 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import FormatSetup from "@/components/features/studio/FormatSetup";
+import { buildSetupRows, type SetupFrame } from "@/lib/studioSetup";
+
+const beats = (n: number) => Array.from({ length: n }, (_, i) => ({ label: `B${i + 1}` }));
+const frames: SetupFrame[] = [
+  { key: "confession", name: "Confession", fits: ["thread", "reel"], beats: beats(4) },
+  { key: "hot-take", name: "Hot take", fits: ["thread"], beats: beats(3) },
+  { key: "ig-caption", name: "Caption: hook, value, ask", fits: ["single"], beats: beats(3) },
+];
+const rows = (choices = {}) =>
+  buildSetupRows({ choices, defaults: undefined, legacyDefaultKey: "confession", legacyPostCount: undefined, frames });
+const noop = vi.fn();
+const render = (over: Partial<Parameters<typeof FormatSetup>[0]> = {}) =>
+  renderToStaticMarkup(
+    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onMakeDefault={noop} {...over} />
+  );
+const disabledDefaults = (out: string) => (out.match(/<button[^>]*studio-setup-default[^>]*disabled/g) ?? []).length;
+
+describe("FormatSetup", () => {
+  it("closed: one summary line and a Change button, nothing else to fill in", () => {
+    const out = render();
+    expect(out).toContain("Threads · Confession · 4 posts");
+    expect(out).toContain("Caption · Caption: hook, value, ask");
+    expect(out).toContain(">Change<");
+    expect(out).toContain('aria-expanded="false"');
+    expect(out).not.toContain("<select");
+    expect(out).not.toContain("checkbox");
+  });
+
+  it("open: a row per format with a tick, a frame list that fits it, and Posts for threads only", () => {
+    const out = render({ open: true });
+    expect(out).toContain('aria-expanded="true"');
+    expect(out.match(/type="checkbox"/g)).toHaveLength(4);
+    expect(out).toContain('aria-label="Threads story frame"');
+    expect(out).toContain('aria-label="Caption story frame"');
+    expect(out).toContain("Confession (default)");
+    // The caption list holds only caption frames.
+    const caption = out.slice(out.indexOf('aria-label="Caption story frame"'), out.indexOf('aria-label="Reel script story frame"'));
+    expect(caption).toContain("Caption: hook, value, ask");
+    expect(caption).not.toContain("Hot take");
+    expect(out.match(/>Posts</g)).toHaveLength(1);
+    expect(out).toContain('<option value="12">12</option>');
+    expect(out).toContain("No story frame");
+    expect(out).toContain("A story frame is the shape of the post");
+    expect(out).toContain("Carousel: arrives in a later update.");
+  });
+
+  it("Make default is disabled until a row differs from the saved default", () => {
+    expect(disabledDefaults(render({ open: true }))).toBe(4);
+    expect(disabledDefaults(render({ open: true, rows: rows({ caption: { include: false } }) }))).toBe(3);
+  });
+
+  it("a row that is not ticked cannot pick a frame, and everything is locked while writing", () => {
+    const off = render({ open: true, rows: rows({ caption: { include: false } }) });
+    expect(off).toMatch(/aria-label="Caption story frame"[^>]*disabled/);
+    const busy = render({ open: true, disabled: true });
+    expect((busy.match(/<input[^>]*checkbox[^>]*disabled/g) ?? []).length).toBe(4);
+  });
+
+  it("with nothing ticked the line says so", () => {
+    const none = rows({ threads: { include: false }, caption: { include: false }, reel: { include: false } });
+    expect(render({ rows: none })).toContain("Nothing is ticked to write.");
+  });
+});

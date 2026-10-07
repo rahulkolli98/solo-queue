@@ -14,6 +14,7 @@ import {
   stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
+import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
 import { refusal } from "./lib/slots";
@@ -30,6 +31,16 @@ const FORMATS = {
 >;
 
 type Format = keyof typeof FORMATS;
+
+/** The setup name of each generated format (what Settings and Studio call it). */
+const SETUP_KIND: Record<Format, SetupKind> = {
+  threads: "threads",
+  "instagram-caption": "caption",
+  "instagram-reel": "reel",
+  blog: "blog",
+};
+
+const formatSetupArg = v.object({ frameKey: v.optional(v.string()), count: v.optional(v.number()) });
 
 const formatArg = v.union(
   v.literal("threads"),
@@ -144,13 +155,27 @@ export const generate = operatorAction({
   args: {
     topicId: v.id("topics"),
     formats: v.optional(v.array(formatArg)),
+    /** One frame for every format it fits (older callers). `setup` is the per-format way. */
     frameKey: v.optional(v.string()),
     /** How many posts the thread should have (2 to 12). Default: what the story frame has. */
     postCount: v.optional(v.number()),
+    /** This run's choices per format: the story frame and, for threads, the post count. A frame that does not fit its format is refused. */
+    setup: v.optional(
+      v.object({
+        threads: v.optional(formatSetupArg),
+        caption: v.optional(formatSetupArg),
+        reel: v.optional(formatSetupArg),
+      })
+    ),
   },
   handler: async (ctx, args) => {
-    if (args.postCount !== undefined && (!Number.isInteger(args.postCount) || args.postCount < 2 || args.postCount > 12)) {
-      throw refusal("BAD_POST_COUNT", "A thread can have 2 to 12 posts when it is written for you.");
+    for (const count of [args.postCount, args.setup?.threads?.count]) {
+      if (count !== undefined && (!Number.isInteger(count) || count < 2 || count > 12)) {
+        throw refusal("BAD_POST_COUNT", "A thread can have 2 to 12 posts when it is written for you.");
+      }
+    }
+    if (args.formats && args.formats.length === 0) {
+      throw refusal("NO_FORMATS", "Choose at least one thing to write.");
     }
     const formats = (args.formats?.length ? args.formats : DEFAULT_FORMATS) as Format[];
 
@@ -166,10 +191,45 @@ export const generate = operatorAction({
 
     const settings = await ctx.runQuery(api.settings.get, {});
     // A number chosen for this run wins; otherwise the saved default; otherwise the story frame decides.
-    const savedCount = settings.voice.defaultPostCount;
-    const postCount = args.postCount ?? (savedCount !== undefined && savedCount >= 2 ? savedCount : undefined);
-    const frameKey = args.frameKey ?? settings.voice.defaultFrameKey;
-    const frame = await ctx.runQuery(api.frames.getByKey, { key: frameKey });
+    const postCount =
+      args.setup?.threads?.count ??
+      args.postCount ??
+      resolveCount({
+        kind: "threads",
+        defaults: settings.voice.formatDefaults,
+        legacyPostCount: settings.voice.defaultPostCount,
+      });
+
+    // One story frame per format: this run's pick, else the saved default for the format. A pick that does not
+    // suit its format is refused here, before any model call is paid for.
+    const frames = await ctx.runQuery(api.frames.list, {});
+    const frameFor = new Map<Format, (typeof frames)[number]>();
+    for (const format of formats) {
+      const kind = SETUP_KIND[format];
+      const picked = kind === "threads" || kind === "caption" || kind === "reel" ? args.setup?.[kind]?.frameKey : undefined;
+      let key: string | undefined;
+      if (picked) {
+        const frame = frames.find((f) => f.key === picked);
+        if (!frame) throw refusal("FRAME_NOT_FOUND", "That story frame is not available. Pick another.");
+        if (!frameFitsKind(frame, kind)) {
+          throw refusal("FRAME_DOESNT_FIT", `"${frame.name}" is not a ${KIND_LABEL[kind]} frame. Pick another.`);
+        }
+        key = picked;
+      } else if (args.frameKey) {
+        // Older callers: one frame for every format it fits, the rest are written without one.
+        const frame = frames.find((f) => f.key === args.frameKey);
+        key = frame && frameFitsKind(frame, kind) ? frame.key : undefined;
+      } else {
+        key = resolveFrameKey({
+          kind,
+          defaults: settings.voice.formatDefaults,
+          legacyDefaultKey: settings.voice.defaultFrameKey,
+          frames,
+        });
+      }
+      const frame = key ? frames.find((f) => f.key === key) : undefined;
+      if (frame) frameFor.set(format, frame);
+    }
 
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
@@ -205,10 +265,11 @@ export const generate = operatorAction({
     // The formats do not depend on each other, so the model calls run side by side: the founder waits for the
     // slowest one, not for the sum of all four. Each draft is stored as soon as its own call finishes.
     const writeFormat = async (format: Format): Promise<void> => {
-      const { templateKey, platform, draftFormat, fit } = FORMATS[format];
+      const { templateKey, platform, draftFormat } = FORMATS[format];
       const template = byKey.get(templateKey)!;
-      // The frame steers every format except the blog draft, and only where it fits.
-      const useFrame = frame && frame.isActive && fit !== null && frame.fits.includes(fit);
+      // The frame steers every format except the blog draft; it was chosen above to fit this format.
+      const frame = frameFor.get(format);
+      const useFrame = frame !== undefined;
       const basePrompt = fillSlots(template.body, vars);
       const withFrame = useFrame ? `${basePrompt}\n\n${frameToPrompt(frame)}` : basePrompt;
       const withCount =

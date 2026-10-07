@@ -5,8 +5,6 @@ import { useState } from "react";
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import AddSourceForm from "@/components/features/studio/AddSourceForm";
 import { ChevronDownIcon } from "@/components/features/studio/glyphs";
-import FormField from "@/components/ui/FormField";
-import { FRAME_EXPLAINER, frameBeatsLine } from "@/lib/studioModel";
 
 const TONES = ["yellow", "pink", "cream"] as const;
 const MAX_NOTES = 4;
@@ -19,31 +17,17 @@ function sourceBody(s: Doc<"sources">): string {
   return s.text ?? s.url ?? "";
 }
 
-/** Board 02: the blue topic collage (topic note, source notes, your note, + Add source, frame picker, voice line). */
+/** Board 02: the blue topic collage (topic note, source notes, your note, + Add source, voice line). The story frames are chosen in the setup line above the columns. */
 export default function TopicColumn({
   topic,
   sources,
   pillarName,
-  frames,
-  frameValue,
-  defaultFrameKey,
-  onFrame,
-  beatLabels,
   voice,
-  busy,
 }: {
   topic: Doc<"topics">;
   sources: Doc<"sources">[] | undefined;
   pillarName: string | undefined;
-  frames: Doc<"frames">[] | undefined;
-  frameValue: string;
-  /** The voice's default frame, marked "(default)" in the picker. */
-  defaultFrameKey?: string;
-  onFrame: (key: string) => void;
-  beatLabels: string[];
   voice: string | undefined;
-  /** Generation is running: the frame cannot change under it. */
-  busy: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState(false);
@@ -108,25 +92,6 @@ export default function TopicColumn({
               + Add a source or link
             </button>
           )}
-          <FormField label="Story frame (optional)" hint={beatLabels.length > 0 ? beatLabels.join(" · ") : undefined}>
-            <select
-              className="studio-select"
-              value={frameValue}
-              disabled={busy || !frames || frames.length === 0}
-              onChange={(e) => onFrame(e.target.value)}
-            >
-              {(frames ?? []).map((f) => (
-                <option key={f.key} value={f.key}>
-                  {f.name}: {frameBeatsLine(f)}
-                  {f.key === defaultFrameKey ? " (default)" : ""}
-                </option>
-              ))}
-              {frames && !frames.some((f) => f.key === frameValue) && (
-                <option value={frameValue}>{frameValue}</option>
-              )}
-            </select>
-          </FormField>
-          <p className="studio-frame-help">{FRAME_EXPLAINER}</p>
           <p className="studio-voice">
             <span className="t-meta">VOICE</span>
             <span className="studio-voice-text">{voice || "Not set yet."}</span>

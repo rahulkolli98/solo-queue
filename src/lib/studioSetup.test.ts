@@ -1,0 +1,95 @@
+import { describe, expect, it } from "vitest";
+import { buildSetupRows, includedKinds, setupSummary, setupToSend, type SetupFrame, type SetupInput } from "@/lib/studioSetup";
+
+const beats = (n: number) => Array.from({ length: n }, (_, i) => ({ label: `B${i + 1}` }));
+const frames: SetupFrame[] = [
+  { key: "confession", name: "Confession", fits: ["thread", "reel"], beats: beats(4) },
+  { key: "hot-take", name: "Hot take", fits: ["thread"], beats: beats(3) },
+  { key: "receipt", name: "The receipt", fits: ["single", "carousel"], beats: beats(3) },
+  { key: "ig-caption", name: "Caption: hook, value, ask", fits: ["single"], beats: beats(3) },
+  { key: "ig-reel", name: "Reel: hook, beats, close", fits: ["reel"], beats: beats(4) },
+];
+const base: SetupInput = { choices: {}, defaults: undefined, legacyDefaultKey: "confession", legacyPostCount: undefined, frames };
+const row = (input: SetupInput, kind: string) => buildSetupRows(input).find((r) => r.kind === kind)!;
+
+describe("an untouched run follows the defaults", () => {
+  it("ticks threads, caption and reel, not the blog, and picks a frame that fits each", () => {
+    const rows = buildSetupRows(base);
+    expect(includedKinds(rows)).toEqual(["threads", "caption", "reel"]);
+    expect(rows.map((r) => r.frame?.key)).toEqual(["confession", "ig-caption", "confession", undefined]);
+    expect(rows.every((r) => !r.changed)).toBe(true);
+    expect(row(base, "threads").count).toBe(4);
+  });
+
+  it("sends the frames but no thread length", () => {
+    const rows = buildSetupRows(base);
+    expect(setupToSend(rows, base)).toEqual({
+      threads: { frameKey: "confession" },
+      caption: { frameKey: "ig-caption" },
+      reel: { frameKey: "confession" },
+    });
+  });
+
+  it("the one-line summary names each ticked format, its frame and the posts", () => {
+    expect(setupSummary(buildSetupRows(base))).toBe(
+      "Threads · Confession · 4 posts   Caption · Caption: hook, value, ask   Reel script · Confession"
+    );
+  });
+});
+
+describe("saved defaults and this run's changes", () => {
+  it("saved per-format defaults win over the older single default", () => {
+    const input = { ...base, defaults: { threads: { frameKey: "hot-take", count: 6 }, reel: { frameKey: "ig-reel", include: false } } };
+    expect(row(input, "threads").frame?.key).toBe("hot-take");
+    expect(row(input, "threads").count).toBe(6);
+    expect(row(input, "reel").include).toBe(false);
+    expect(includedKinds(buildSetupRows(input))).toEqual(["threads", "caption"]);
+  });
+
+  it("a pick for this run beats the default and marks the row as changed", () => {
+    const input = { ...base, choices: { caption: { frameKey: "receipt" }, threads: { count: 8 } } };
+    expect(row(input, "caption").frame?.key).toBe("receipt");
+    expect(row(input, "caption").changed).toBe(true);
+    expect(row(input, "threads").count).toBe(8);
+    expect(row(input, "threads").changed).toBe(true);
+    expect(setupToSend(buildSetupRows(input), input).threads).toEqual({ frameKey: "confession", count: 8 });
+  });
+
+  it("a thread length equal to what the frame gives is not sent", () => {
+    const input = { ...base, choices: { threads: { count: 4 } } };
+    expect(setupToSend(buildSetupRows(input), input).threads).toEqual({ frameKey: "confession" });
+    const saved = { ...base, defaults: { threads: { count: 6 } }, choices: { threads: { count: 6 } } };
+    expect(setupToSend(buildSetupRows(saved), saved).threads).toEqual({ frameKey: "confession" });
+  });
+
+  it("only offers frames that fit the format, and ignores a pick that does not fit", () => {
+    const input = { ...base, choices: { caption: { frameKey: "hot-take" } } };
+    expect(row(input, "caption").frameOptions.map((f) => f.key)).toEqual(["receipt", "ig-caption"]);
+    expect(row(input, "caption").frame?.key).toBe("ig-caption");
+    expect(row(input, "blog").frameOptions).toEqual([]);
+    expect(row(input, "blog").frame).toBeUndefined();
+  });
+
+  it("marks the default frame in the options", () => {
+    expect(row(base, "caption").frameOptions.find((f) => f.isDefault)?.key).toBe("ig-caption");
+  });
+
+  it("keeps the frame an existing draft used when regenerating, unless changed", () => {
+    const input = { ...base, usedFrame: { threads: "hot-take" } };
+    expect(row(input, "threads").frame?.key).toBe("hot-take");
+    expect(row({ ...input, choices: { threads: { frameKey: "confession" } } }, "threads").frame?.key).toBe("confession");
+  });
+
+  it("the blog is ticked when a blog draft exists, and can be unticked", () => {
+    expect(row({ ...base, hasDraft: { blog: true } }, "blog").include).toBe(true);
+    expect(row({ ...base, hasDraft: { blog: true }, choices: { blog: { include: false } } }, "blog").include).toBe(false);
+  });
+
+  it("nothing ticked says so and writes nothing", () => {
+    const input = { ...base, choices: { threads: { include: false }, caption: { include: false }, reel: { include: false } } };
+    const rows = buildSetupRows(input);
+    expect(setupSummary(rows)).toBe("Nothing is ticked to write.");
+    expect(includedKinds(rows)).toEqual([]);
+    expect(setupToSend(rows, input)).toEqual({});
+  });
+});

@@ -6,6 +6,7 @@
  */
 import { MAX_THREAD_POSTS, addPost, movePost, parseThread, removePost, serializeThread } from "@/lib/draftText";
 import { KIND_META, generateFormatOf, type DraftKind, type GenerateFormat } from "@/lib/studioModel";
+import type { GenerateSetup as RunSetup } from "@/lib/studioSetup";
 
 /** The fewest and most posts the model may be asked for (matches `drafting.generate`). */
 export const POSTS_MIN = 2;
@@ -19,21 +20,6 @@ export function clampPosts(n: number): number {
   return Math.min(POSTS_MAX, Math.max(POSTS_MIN, Math.round(n)));
 }
 
-/** The count the "Posts" control shows when the founder has not touched it: the frame's steps. */
-export function defaultPostCount(frameSteps: number | undefined): number {
-  return clampPosts(frameSteps && frameSteps > 0 ? frameSteps : POSTS_FALLBACK);
-}
-
-/**
- * What to send as `postCount`. Only a count the founder changed is sent; no
- * pick, or a pick back at the default, means "let the story frame decide".
- */
-export function postCountToSend(chosen: number | null, frameDefault: number): number | undefined {
-  if (chosen === null) return undefined;
-  const value = clampPosts(chosen);
-  return value === frameDefault ? undefined : value;
-}
-
 /** The "N / 25 posts" label beside a thread. */
 export function postsLabel(count: number): string {
   return `${count} / ${MAX_THREAD_POSTS} posts`;
@@ -44,38 +30,24 @@ export function removeConfirmText(postNumber: number, confirming: boolean): stri
   return confirming ? `Press Remove again to delete post ${postNumber}. Moving off this button keeps it.` : "";
 }
 
-/** The one-line explanation under the Posts control. */
-export function postsHelper(frameSteps: number | undefined, savedDefault?: number): string {
-  if (savedDefault !== undefined) return `Your default is ${savedDefault} posts. Pick another for this run only.`;
-  return `A story frame has ${frameSteps && frameSteps > 0 ? frameSteps : POSTS_FALLBACK} steps; more posts stretch them.`;
-}
-
-/** The saved default thread length from settings, or undefined when the story frame decides (unset or 0). */
-export function savedPostCount(value: number | undefined | null): number | undefined {
-  return typeof value === "number" && value >= POSTS_MIN ? clampPosts(value) : undefined;
+/** The arguments for `drafting.generate`. Choices only travel for formats this run writes. */
+export function generateArgs(input: { topicId: string; kinds: DraftKind[]; setup?: RunSetup }): GenerateArgs {
+  const args: GenerateArgs = { topicId: input.topicId, formats: input.kinds.map(generateFormatOf) };
+  const setup: RunSetup = {};
+  const s = input.setup;
+  if (s?.threads && input.kinds.includes("threads")) {
+    setup.threads = { ...s.threads, ...(s.threads.count !== undefined ? { count: clampPosts(s.threads.count) } : {}) };
+  }
+  if (s?.caption && input.kinds.includes("caption")) setup.caption = s.caption;
+  if (s?.reel && input.kinds.includes("reel")) setup.reel = s.reel;
+  if (Object.keys(setup).length) args.setup = setup;
+  return args;
 }
 
 export interface GenerateArgs {
   topicId: string;
   formats: GenerateFormat[];
-  frameKey?: string;
-  postCount?: number;
-}
-
-/** The arguments for `drafting.generate`; `postCount` only travels with a thread and only when set. */
-export function generateArgs(input: {
-  topicId: string;
-  kinds: DraftKind[];
-  frameKey?: string;
-  postCount?: number;
-}): GenerateArgs {
-  const args: GenerateArgs = {
-    topicId: input.topicId,
-    formats: input.kinds.map(generateFormatOf),
-    frameKey: input.frameKey,
-  };
-  if (input.postCount !== undefined && input.kinds.includes("threads")) args.postCount = clampPosts(input.postCount);
-  return args;
+  setup?: RunSetup;
 }
 
 /** What Studio does on arrival, from its query string and what the topic already has. */

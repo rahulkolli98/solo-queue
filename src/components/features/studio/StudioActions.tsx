@@ -1,10 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
-import { ChevronDownIcon } from "@/components/features/studio/glyphs";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { CheckIcon } from "@/components/ui/icons";
-import { POSTS_MAX, POSTS_MIN, postsHelper } from "@/lib/studioCompose";
 
 export type Pane = "threads" | "instagram" | "blog";
 
@@ -13,17 +10,20 @@ export function GenerateButton({
   hasDrafts,
   running,
   onGenerate,
+  nothingToWrite = false,
 }: {
   hasDrafts: boolean;
   running: boolean;
   onGenerate: () => void;
+  /** No format is ticked in the setup, so there is nothing to write. */
+  nothingToWrite?: boolean;
 }) {
   const label = running ? "Generating…" : hasDrafts ? "Regenerate all" : "Generate drafts";
   return (
     <button
       type="button"
       className={`sq-btn${hasDrafts ? "" : " sq-btn-primary"}`}
-      disabled={running}
+      disabled={running || nothingToWrite}
       onClick={onGenerate}
     >
       {label}
@@ -31,115 +31,21 @@ export function GenerateButton({
   );
 }
 
-/**
- * "Posts": how many posts the model writes the thread in (2 to 12). It starts
- * on the story frame's own step count; only a count the founder changes is
- * sent to the model.
- */
-export function PostsControl({
-  value,
-  steps,
-  disabled,
-  onChange,
-  saved,
-  onMakeDefault,
-  onClearDefault,
-}: {
-  value: number;
-  /** The story frame's step count, for the helper line. */
-  steps?: number;
-  disabled: boolean;
-  onChange: (count: number) => void;
-  /** The saved default length, when the founder has set one. */
-  saved?: number;
-  /** Save the shown count as the default for every thread. */
-  onMakeDefault?: (count: number) => void;
-  /** Go back to letting the story frame decide. */
-  onClearDefault?: () => void;
-}) {
-  const id = useId();
-  // Phones keep the helper line and the default link behind "More" so the thread starts higher.
-  const [open, setOpen] = useState(false);
-  const options = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
-  return (
-    <div className="studio-posts-ctl">
-      <label htmlFor={id} className="t-meta studio-posts-label">
-        Posts
-      </label>
-      <select
-        id={id}
-        className="sq-input studio-posts-select"
-        value={value}
-        disabled={disabled}
-        aria-describedby={`${id}-hint`}
-        onChange={(e) => onChange(Number(e.target.value))}
-      >
-        {options.map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className="studio-posts-more"
-        aria-expanded={open}
-        aria-controls={`${id}-extra`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        More
-        <ChevronDownIcon />
-      </button>
-      <div id={`${id}-extra`} className="studio-posts-extra" data-open={open || undefined}>
-        <span id={`${id}-hint`} className="studio-posts-hint">
-          {postsHelper(steps, saved)}
-        </span>
-        {onMakeDefault && value !== (saved ?? Number.NaN) && (
-          <button type="button" className="studio-posts-link" disabled={disabled} onClick={() => onMakeDefault(value)}>
-            Make {value} my default
-          </button>
-        )}
-        {onClearDefault && saved !== undefined && value === saved && (
-          <button type="button" className="studio-posts-link" disabled={disabled} onClick={onClearDefault}>
-            Let the story frame decide
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** The Posts control beside the Generate / Regenerate button. */
+/** The Generate / Regenerate button; what it writes is set in the setup line below the header. */
 export function GenerateControls({
   hasDrafts,
   running,
   onGenerate,
-  posts,
+  nothingToWrite,
 }: {
   hasDrafts: boolean;
   running: boolean;
   onGenerate: () => void;
-  posts: {
-    value: number;
-    steps?: number;
-    onChange: (count: number) => void;
-    saved?: number;
-    onMakeDefault?: (count: number) => void;
-    onClearDefault?: () => void;
-  };
+  nothingToWrite?: boolean;
 }) {
   return (
     <div className="studio-gen">
-      <PostsControl
-        value={posts.value}
-        steps={posts.steps}
-        disabled={running}
-        onChange={posts.onChange}
-        saved={posts.saved}
-        onMakeDefault={posts.onMakeDefault}
-        onClearDefault={posts.onClearDefault}
-      />
-      <GenerateButton hasDrafts={hasDrafts} running={running} onGenerate={onGenerate} />
+      <GenerateButton hasDrafts={hasDrafts} running={running} onGenerate={onGenerate} nothingToWrite={nothingToWrite} />
     </div>
   );
 }
