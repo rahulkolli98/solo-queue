@@ -38,8 +38,8 @@ describe("carousel colours", () => {
     }
   });
 
-  it("the four fonts a slide is drawn in are committed with their licence note", () => {
-    for (const f of ["BricolageGrotesque-ExtraBold.woff", "DMSans-Regular.woff", "DMSans-Medium.woff", "DMMono-Medium.woff", "InstrumentSerif-Italic.woff"]) {
+  it("the fonts a slide is drawn in are committed with their licence note", () => {
+    for (const f of ["BricolageGrotesque-ExtraBold.woff", "DMSans-Regular.woff", "DMSans-Medium.woff", "DMSans-Italic.woff", "DMMono-Medium.woff"]) {
       expect(existsSync(resolve(import.meta.dirname, "../../assets/fonts", f)), f).toBe(true);
     }
     expect(existsSync(resolve(import.meta.dirname, "../../assets/fonts/LICENSE.md"))).toBe(true);

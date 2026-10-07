@@ -19,7 +19,6 @@ export const FONT = {
   headline: "Bricolage",
   body: "DMSans",
   mono: "DMMono",
-  serif: "InstrumentSerif",
 } as const;
 
 const PAD_X = 80;
@@ -74,15 +73,18 @@ function Headline({ slide }: { slide: Slide }): ReactElement {
 
 function Sub({ slide, size = 64 }: { slide: Slide; size?: number }): ReactElement | null {
   if (!slide.sub) return null;
+  // The italic line is DM Sans Italic (the app's own subtext style). It runs wider than a serif, so it is set smaller.
+  const px = Math.round(size * 0.8);
   return (
     <div
       style={{
         display: "flex",
-        fontFamily: FONT.serif,
+        fontFamily: FONT.body,
         fontStyle: "italic",
-        fontSize: size,
-        lineHeight: 1.08,
-        letterSpacing: -size * 0.01,
+        fontWeight: 400,
+        fontSize: px,
+        lineHeight: 1.26,
+        letterSpacing: -px * 0.02,
         color: slide.layout === "cover" || slide.tone !== "ink" ? PALETTE.ink : PALETTE.cream,
       }}
     >

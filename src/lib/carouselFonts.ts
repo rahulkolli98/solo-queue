@@ -18,7 +18,7 @@ const FILES: { name: string; file: string; weight: CarouselFont["weight"]; style
   { name: "DMSans", file: "DMSans-Regular.woff", weight: 400, style: "normal" },
   { name: "DMSans", file: "DMSans-Medium.woff", weight: 500, style: "normal" },
   { name: "DMMono", file: "DMMono-Medium.woff", weight: 500, style: "normal" },
-  { name: "InstrumentSerif", file: "InstrumentSerif-Italic.woff", weight: 400, style: "italic" },
+  { name: "DMSans", file: "DMSans-Italic.woff", weight: 400, style: "italic" },
 ];
 
 let cached: Promise<CarouselFont[]> | undefined;
