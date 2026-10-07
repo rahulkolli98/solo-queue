@@ -17,7 +17,7 @@ import {
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
 import { refusal } from "./lib/slots";
-import { applySignOff, limitHashtags } from "./lib/voiceRules";
+import { applySignOff, limitHashtags, voiceContextBlocks } from "./lib/voiceRules";
 
 const FORMATS = {
   threads: { templateKey: "threads-hook-story", platform: "threads", draftFormat: "thread", fit: "thread" },
@@ -185,6 +185,7 @@ export const generate = operatorAction({
     const system = [
       BASE_SYSTEM,
       settings.voice.description ? `Voice: ${settings.voice.description}` : "",
+      ...voiceContextBlocks(settings.voice),
       settings.voice.bannedWords.length
         ? `Never use these words or phrases: ${settings.voice.bannedWords.join(", ")}.`
         : "",

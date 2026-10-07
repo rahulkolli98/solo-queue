@@ -1,20 +1,25 @@
 "use client";
 
 import { useAction, useQuery } from "convex/react";
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { refusalText } from "@/lib/refusalText";
 import {
+  ABOUT_ME_MAX,
   SIGN_OFF_MAX,
+  STYLE_GUIDE_MAX,
   VOICE_DESCRIPTION_MAX,
   addBannedWord,
+  checkStyleGuideFile,
   frameOptions,
   igHashtagOptions,
   learnedFromText,
   mergeVoice,
   removeBannedWord,
+  validateAboutMe,
   validateDescription,
   validateSignOff,
+  validateStyleGuide,
 } from "@/lib/settingsEdit";
 import { statusText, useSectionSave } from "./useSectionSave";
 
@@ -40,6 +45,12 @@ export default function VoiceSection() {
   const [wordDraft, setWordDraft] = useState("");
   const [wordError, setWordError] = useState("");
   const [selectError, setSelectError] = useState("");
+  const [aboutDraft, setAboutDraft] = useState<string | null>(null);
+  const [aboutError, setAboutError] = useState("");
+  const [guideDraft, setGuideDraft] = useState<string | null>(null);
+  const [guideError, setGuideError] = useState("");
+  const [guideNote, setGuideNote] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const [running, setRunning] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
@@ -49,6 +60,9 @@ export default function VoiceSection() {
 
   const description = descDraft ?? voice.description;
   const signOff = signOffDraft ?? voice.signOff ?? "";
+  const aboutMe = aboutDraft ?? voice.aboutMe ?? "";
+  const styleGuide = guideDraft ?? voice.styleGuide ?? "";
+  const guideUnsaved = guideDraft !== null && guideDraft.trim() !== (voice.styleGuide ?? "");
   const options = frameOptions(frames, voice.defaultFrameKey);
 
   async function commitDescription() {
@@ -139,6 +153,70 @@ export default function VoiceSection() {
       setDescError("");
     } else {
       setRetrainError(result.message);
+    }
+  }
+
+  async function commitAbout() {
+    if (aboutDraft === null || !voice || aboutDraft.trim() === (voice.aboutMe ?? "")) {
+      setAboutDraft(null);
+      setAboutError("");
+      return;
+    }
+    const problem = validateAboutMe(aboutDraft);
+    if (problem) {
+      setAboutError(problem);
+      return;
+    }
+    setAboutError("");
+    const result = await save((cur) => mergeVoice(cur, { aboutMe: aboutDraft }));
+    if (result.ok) setAboutDraft(null);
+    else setAboutError(result.message);
+  }
+
+  async function commitGuide() {
+    if (guideDraft === null || !voice || guideDraft.trim() === (voice.styleGuide ?? "")) {
+      setGuideDraft(null);
+      setGuideError("");
+      return;
+    }
+    const problem = validateStyleGuide(guideDraft);
+    if (problem) {
+      setGuideError(problem);
+      return;
+    }
+    setGuideError("");
+    const result = await save((cur) => mergeVoice(cur, { styleGuide: guideDraft }));
+    if (result.ok) {
+      setGuideDraft(null);
+      setGuideNote("");
+    } else setGuideError(result.message);
+  }
+
+  async function clearGuide() {
+    setGuideError("");
+    setGuideNote("");
+    const result = await save((cur) => mergeVoice(cur, { styleGuide: "" }));
+    if (result.ok) setGuideDraft(null);
+    else setGuideError(result.message);
+  }
+
+  /** Reads the file in the browser and puts its text in the box to review; nothing is saved until you leave the box or press Save. */
+  async function loadGuideFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const refused = checkStyleGuideFile(file);
+    if (refused) {
+      setGuideError(refused);
+      return;
+    }
+    try {
+      const text = await file.text();
+      setGuideDraft(text);
+      setGuideError(validateStyleGuide(text) ?? "");
+      setGuideNote(`Loaded ${file.name}. Read it through, then save.`);
+    } catch {
+      setGuideError("Couldn't read that file. Try another.");
     }
   }
 
@@ -286,6 +364,100 @@ export default function VoiceSection() {
         </section>
 
       </div>
+
+      <section className="sq-card st-context" aria-label="About you and style guide">
+        <div className="st-card-head">
+          <h3 className="st-eyebrow">About you and your style</h3>
+          <span className="st-mono">Sent with every draft</span>
+        </div>
+        <p className="sq-muted">Optional. Drafts work without either; they just sound more like you with them.</p>
+
+        <label className="st-field-label" htmlFor="voice-about">
+          About you
+        </label>
+        <textarea
+          id="voice-about"
+          className="sq-input st-textarea"
+          rows={4}
+          maxLength={ABOUT_ME_MAX}
+          value={aboutMe}
+          placeholder="Who you are, what you build, who you write for."
+          aria-invalid={aboutError ? true : undefined}
+          aria-describedby="voice-about-count"
+          onChange={(e) => setAboutDraft(e.target.value)}
+          onBlur={commitAbout}
+        />
+        <div className="st-count-row">
+          <span id="voice-about-count" className="st-mono">
+            {aboutMe.length}/{ABOUT_ME_MAX}
+          </span>
+          {aboutError && (
+            <span className="sq-formfield-error" role="alert">
+              {aboutError}
+            </span>
+          )}
+        </div>
+
+        <label className="st-field-label" htmlFor="voice-guide">
+          Style guide
+        </label>
+        <small className="sq-muted">How you like to write: hooks, rhythm, tone, what to avoid. Paste it or load a .md or .txt file.</small>
+        <textarea
+          id="voice-guide"
+          className="sq-input st-textarea st-guide"
+          rows={10}
+          value={styleGuide}
+          placeholder="Paste a style guide here."
+          aria-invalid={guideError ? true : undefined}
+          aria-describedby="voice-guide-count"
+          onChange={(e) => {
+            setGuideDraft(e.target.value);
+            setGuideNote("");
+            setGuideError(validateStyleGuide(e.target.value) ?? "");
+          }}
+          onBlur={commitGuide}
+        />
+        <div className="st-count-row">
+          <span id="voice-guide-count" className="st-mono">
+            {styleGuide.trim().length.toLocaleString("en-US")}/{STYLE_GUIDE_MAX.toLocaleString("en-US")}
+          </span>
+          {guideNote && !guideError && <span className="sq-muted">{guideNote}</span>}
+          {guideError && (
+            <span className="sq-formfield-error" role="alert">
+              {guideError}
+            </span>
+          )}
+        </div>
+        <div className="sq-row">
+          <button type="button" className="sq-btn sq-btn-sm" onClick={() => fileInput.current?.click()}>
+            Load from file
+          </button>
+          <input
+            ref={fileInput}
+            className="sq-sr"
+            type="file"
+            tabIndex={-1}
+            aria-label="Style guide file (.md or .txt)"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            onChange={loadGuideFile}
+          />
+          {guideUnsaved && (
+            <button
+              type="button"
+              className="sq-btn sq-btn-sm sq-btn-primary"
+              onClick={commitGuide}
+              disabled={Boolean(validateStyleGuide(styleGuide))}
+            >
+              Save style guide
+            </button>
+          )}
+          {(voice.styleGuide || guideDraft) && (
+            <button type="button" className="sq-btn sq-btn-sm" onClick={clearGuide}>
+              Clear
+            </button>
+          )}
+        </div>
+      </section>
 
       <section className="sq-card" aria-label="Never use these words">
         <div className="st-card-head">

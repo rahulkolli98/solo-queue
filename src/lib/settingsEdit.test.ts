@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, sectionSchemas, type Pillar } from "../../convex/lib/settingsModel";
 import {
+  ABOUT_ME_MAX,
+  STYLE_GUIDE_FILE_MAX_BYTES,
+  STYLE_GUIDE_MAX,
   addBannedWord,
   addPillarLink,
+  checkStyleGuideFile,
   clampShare,
   frameOptions,
   igHashtagOptions,
@@ -18,7 +22,9 @@ import {
   shareTotal,
   shareTotalWarning,
   validatePillarName,
+  validateAboutMe,
   validateSignOff,
+  validateStyleGuide,
 } from "./settingsEdit";
 
 const pillars = DEFAULT_SETTINGS.pillars;
@@ -170,5 +176,48 @@ describe("target mix", () => {
 
   it("labels the bar with each name and percent", () => {
     expect(mixLabel(pillars)).toBe("Build in public 40%, AI & tools 30%, Movies & series 15%, Content craft 15%");
+  });
+});
+
+describe("about you and style guide", () => {
+  const base = { ...DEFAULT_SETTINGS.voice };
+
+  it("saves trimmed text and removes the field when blank", () => {
+    const saved = mergeVoice(base, { aboutMe: "  Solo founder.  ", styleGuide: "  Short lines.  " });
+    expect(saved.aboutMe).toBe("Solo founder.");
+    expect(saved.styleGuide).toBe("Short lines.");
+    const cleared = mergeVoice(saved, { aboutMe: "   ", styleGuide: "" });
+    expect(cleared).not.toHaveProperty("aboutMe");
+    expect(cleared).not.toHaveProperty("styleGuide");
+  });
+
+  it("leaves them alone when another field changes", () => {
+    const saved = mergeVoice(base, { aboutMe: "Me", styleGuide: "Guide" });
+    const next = mergeVoice(saved, { signOff: "Bye" });
+    expect(next.aboutMe).toBe("Me");
+    expect(next.styleGuide).toBe("Guide");
+  });
+
+  it("refuses text over the limits, saying how long the style guide is", () => {
+    expect(validateAboutMe("x".repeat(ABOUT_ME_MAX))).toBeNull();
+    expect(validateAboutMe("x".repeat(ABOUT_ME_MAX + 1))).toMatch(/1,?500/);
+    expect(validateStyleGuide("x".repeat(STYLE_GUIDE_MAX))).toBeNull();
+    expect(validateStyleGuide("x".repeat(STYLE_GUIDE_MAX + 1))).toBe(
+      "The style guide is 20,001 characters; the limit is 20,000. Cut it down, then save."
+    );
+  });
+
+  it("accepts only small .md and .txt files", () => {
+    expect(checkStyleGuideFile({ name: "voice.md", size: 5000 })).toBeNull();
+    expect(checkStyleGuideFile({ name: "VOICE.TXT", size: 5000 })).toBeNull();
+    expect(checkStyleGuideFile({ name: "voice.pdf", size: 5000 })).toMatch(/\.md or \.txt/);
+    expect(checkStyleGuideFile({ name: "voice.md", size: STYLE_GUIDE_FILE_MAX_BYTES + 1 })).toMatch(/too large/);
+  });
+
+  it("the settings model allows the same lengths", () => {
+    const schema = sectionSchemas.voice;
+    expect(schema.safeParse({ ...base, aboutMe: "x".repeat(ABOUT_ME_MAX), styleGuide: "x".repeat(STYLE_GUIDE_MAX) }).success).toBe(true);
+    expect(schema.safeParse({ ...base, aboutMe: "x".repeat(ABOUT_ME_MAX + 1) }).success).toBe(false);
+    expect(schema.safeParse({ ...base, styleGuide: "x".repeat(STYLE_GUIDE_MAX + 1) }).success).toBe(false);
   });
 });

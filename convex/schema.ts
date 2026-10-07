@@ -192,6 +192,10 @@ export default defineSchema({
       threadsTopicTag: v.union(v.literal("auto"), v.literal("off")),
       igHashtagMax: v.number(),
       signOff: v.optional(v.string()),
+      /** Who the founder is, for the drafting prompt (added 2026-10-06). */
+      aboutMe: v.optional(v.string()),
+      /** A style guide pasted or loaded from a file, sent with every generation (added 2026-10-06). */
+      styleGuide: v.optional(v.string()),
       bannedWords: v.array(v.string()),
     }),
     pillars: v.array(
