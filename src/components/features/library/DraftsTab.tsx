@@ -92,7 +92,7 @@ function DraftPostcard({
       }}
     >
       <div className="lb-card-head">
-        <span className="t-mono">{draftMeta(card.platform, card.format)}</span>
+        <span className="t-mono">{draftMeta(card.platform, card.format, card.slideCount)}</span>
         <span className={`lb-pill lb-pill-${status.tone}`}>{status.label}</span>
       </div>
       {isIg ? (

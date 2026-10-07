@@ -1,6 +1,7 @@
 import type { Id } from "./_generated/dataModel";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
+import { loadCarouselAssets } from "./lib/carouselMedia";
 import { assertFileNotRemoved, refusal } from "./lib/slots";
 import { STALE_CLAIM_MESSAGE } from "./slotRecovery";
 import { slotRisk } from "./lib/connectionRisk";
@@ -51,6 +52,8 @@ export const dayColumns = operatorQuery({
       pillarColor: string;
       format: string | null;
       hasMedia: boolean;
+      /** A carousel: how many slides it has. */
+      slideCount: number | null;
       attempts: number;
       lastError: string | null;
       /** Why this scheduled post may not go out (a connection problem), else null. */
@@ -92,6 +95,7 @@ export const dayColumns = operatorQuery({
           pillarColor: pillarColor.get(topic?.pillar ?? "build") ?? "pillar-build",
           format: draft?.format ?? null,
           hasMedia: Boolean(draft?.mediaAssetId),
+          slideCount: draft?.slides?.length ?? null,
           attempts: slot.attempts,
           lastError: slot.lastError ?? null,
           atRisk: slotRisk(
@@ -155,6 +159,7 @@ export const detail = operatorQuery({
     const draft = await ctx.db.get(slot.draftId);
     const topic = draft ? await ctx.db.get(draft.topicId) : null;
     const asset = draft?.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    const slideAssets = draft?.slides ? await Promise.all((draft.mediaAssetIds ?? []).map((id) => ctx.db.get(id))) : [];
     const connection = await ctx.db
       .query("connections")
       .withIndex("by_platform", (q) => q.eq("platform", slot.platform))
@@ -173,6 +178,7 @@ export const detail = operatorQuery({
             platform: draft.platform,
             body: draft.body,
             format: draft.format ?? null,
+            slideCount: draft.slides?.length ?? null,
             constraintOk: draft.constraintOk,
           }
         : null,
@@ -187,6 +193,9 @@ export const detail = operatorQuery({
             fileRemoved: asset.fileDeletedAt !== undefined,
           }
         : null,
+      slideMedia: slideAssets
+        .filter((a): a is NonNullable<typeof a> => a !== null)
+        .map((a) => ({ _id: a._id, publicUrl: a.publicUrl, fileRemoved: a.fileDeletedAt !== undefined })),
       receipts: receipts.map((r) => ({
         _id: r._id,
         attemptedAt: r.attemptedAt,
@@ -283,7 +292,9 @@ export const requeue = operatorMutation({
     if (await hasOpenSlot(ctx, slot.draftId)) {
       throw refusal("ALREADY_QUEUED", "This post is already queued again.");
     }
-    if (slot.platform === "instagram") {
+    if (slot.platform === "instagram" && draft.slides) {
+      await loadCarouselAssets(ctx, draft, { fresh: false });
+    } else if (slot.platform === "instagram") {
       const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
       if (!asset) throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
       assertFileNotRemoved(asset);

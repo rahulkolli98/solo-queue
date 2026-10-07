@@ -1007,3 +1007,34 @@
   font-size: 13px;
   line-height: 1.4;
 }
+
+/* a carousel's slide images in the post detail */
+.sq-q-slides {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--space-8);
+  margin: 0 0 var(--space-12);
+  padding: 0;
+  list-style: none;
+}
+.sq-q-slides li {
+  display: flex;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-raised);
+}
+.sq-q-slides img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sq-q-slide-gone {
+  margin: auto;
+  color: var(--color-muted-on-surface);
+  font-size: 12px;
+}

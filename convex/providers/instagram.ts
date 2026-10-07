@@ -4,7 +4,9 @@
  *
  * Uses the same graph.instagram.com versioned endpoint our connection proof
  * talks to. Photos publish immediately after container creation; reels wait
- * through video processing (5-minute cap, then resume-by-container).
+ * through video processing (5-minute cap, then resume-by-container). A carousel
+ * (2 to 10 images) makes one child container per image, waits for each, then makes
+ * one parent container that holds them all; only the parent can be resumed.
  *
  * Pre-flight order is deliberate: format → reachability → identity, so an
  * unreachable-media case returns permanent WITHOUT any publish call.
@@ -12,7 +14,11 @@
 
 import { checkReachable } from "../lib/http";
 
-export type InstagramKind = "photo" | "reel";
+export type InstagramKind = "photo" | "reel" | "carousel";
+
+/** A carousel holds 2 to 10 images (Instagram's own limits). */
+export const CAROUSEL_MIN = 2;
+export const CAROUSEL_MAX = 10;
 
 export interface InstagramPostInput {
   igUserId: string;
@@ -21,6 +27,8 @@ export interface InstagramPostInput {
   mediaUrl: string;
   mimeType: string;
   kind: InstagramKind;
+  /** The images of a carousel, in order (kind "carousel"); `mediaUrl` is then the first one. */
+  mediaItems?: { url: string; mimeType: string }[];
 }
 
 export type InstagramOutcome =
@@ -210,10 +218,102 @@ async function pollReel(
   }
 }
 
+type ContainerResult = { ok: true; id: string } | { ok: false; outcome: Extract<InstagramOutcome, { ok: false }> };
+
+/** POST /media: one container (a photo, a reel, a carousel child or a carousel parent). */
+async function createContainer(igUserId: string, body: Record<string, string>, fetchImpl: typeof fetch): Promise<ContainerResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`${INSTAGRAM_API}/${igUserId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      outcome: {
+        ok: false,
+        retryable: true,
+        code: "NETWORK",
+        message: `Instagram container network error: ${err instanceof Error ? err.message : "unknown"}.`,
+      },
+    };
+  }
+  const data = await readJson(res);
+  const id = data?.["id"];
+  if (!res.ok || typeof id !== "string" || !id) return { ok: false, outcome: httpOutcome(data, res.status, "container") };
+  return { ok: true, id };
+}
+
+/** The reason a carousel's images cannot be posted, or null when there are 2 to 10 PNG or JPEG images. */
+function carouselProblem(items: InstagramPostInput["mediaItems"]): Extract<InstagramOutcome, { ok: false }> | null {
+  const list = items ?? [];
+  if (list.length < CAROUSEL_MIN || list.length > CAROUSEL_MAX) {
+    return {
+      ok: false,
+      retryable: false,
+      code: "CAROUSEL_SIZE",
+      message: `An Instagram carousel needs ${CAROUSEL_MIN} to ${CAROUSEL_MAX} images — this one has ${list.length}.`,
+    };
+  }
+  const odd = list.findIndex((m) => !PHOTO_MIMES.has(m.mimeType.toLowerCase()));
+  if (odd !== -1) {
+    return {
+      ok: false,
+      retryable: false,
+      code: "UNSUPPORTED_FORMAT",
+      message: `Instagram carousel images need JPEG/PNG — slide ${odd + 1} is ${list[odd].mimeType}.`,
+    };
+  }
+  if (list.some((m) => !m.url)) {
+    return { ok: false, retryable: false, code: "NO_MEDIA", message: "Every carousel slide needs a public image URL." };
+  }
+  return null;
+}
+
 /**
- * Publish one photo or reel. Pre-flight (format → reachability → identity)
+ * One child container per image, in order, each waited on until Instagram has finished it (a child that
+ * errors names its slide). Children are not resumable: a retry makes them again.
+ */
+async function createCarouselChildren(
+  input: InstagramPostInput,
+  fetchImpl: typeof fetch,
+  sleepMs: (ms: number) => Promise<void>,
+  now: () => number
+): Promise<{ ok: true; ids: string[] } | { ok: false; outcome: Extract<InstagramOutcome, { ok: false }> }> {
+  const ids: string[] = [];
+  for (const [i, item] of (input.mediaItems ?? []).entries()) {
+    const made = await createContainer(
+      input.igUserId,
+      { image_url: item.url, is_carousel_item: "true", access_token: input.accessToken },
+      fetchImpl
+    );
+    if (!made.ok) return { ok: false, outcome: { ...made.outcome, message: `Slide ${i + 1}: ${made.outcome.message}` } };
+    ids.push(made.id);
+  }
+  for (const [i, id] of ids.entries()) {
+    const poll = await pollReel(id, input.accessToken, PHOTO_POLL_TIMEOUT_MS, { fetchImpl, sleepMs, now });
+    if (poll.terminal) {
+      return {
+        ok: false,
+        outcome: { ok: false, retryable: false, code: "CONTAINER_ERROR", message: `Instagram rejected slide ${i + 1}: ${poll.terminal}` },
+      };
+    }
+    if (poll.timedOut) {
+      return {
+        ok: false,
+        outcome: { ok: false, retryable: true, code: "POLL_TIMEOUT", message: `Instagram is still processing slide ${i + 1} — will try again.` },
+      };
+    }
+  }
+  return { ok: true, ids };
+}
+
+/**
+ * Publish one photo, reel or carousel. Pre-flight (format → reachability → identity)
  * runs before any container is created; reachability failure is permanent
- * and never touches the publish endpoint.
+ * and never touches the publish endpoint. For a carousel every image is checked first.
  */
 export async function publishInstagramPost(
   input: InstagramPostInput,
@@ -231,13 +331,17 @@ export async function publishInstagramPost(
       message: `Caption is ${input.caption.length - CAPTION_LIMIT} characters over the 2,200 cap — shorten it, then retry.`,
     };
   }
-  const allowed = input.kind === "photo" ? PHOTO_MIMES : REEL_MIMES;
-  if (!allowed.has(input.mimeType.toLowerCase())) {
+  if (input.kind === "carousel") {
+    const bad = carouselProblem(input.mediaItems);
+    if (bad) return bad;
+  }
+  const allowed = input.kind === "reel" ? REEL_MIMES : PHOTO_MIMES;
+  if (input.kind !== "carousel" && !allowed.has(input.mimeType.toLowerCase())) {
     return {
       ok: false,
       retryable: false,
       code: "UNSUPPORTED_FORMAT",
-      message: `Instagram ${input.kind}s need ${input.kind === "photo" ? "JPEG/PNG" : "MP4"} — got ${input.mimeType}.`,
+      message: `Instagram ${input.kind}s need ${input.kind === "reel" ? "MP4" : "JPEG/PNG"} — got ${input.mimeType}.`,
     };
   }
   if (!input.mediaUrl) {
@@ -249,15 +353,19 @@ export async function publishInstagramPost(
     };
   }
 
-  try {
-    await checkReachable(input.mediaUrl, fetchImpl);
-  } catch (err) {
-    return {
-      ok: false,
-      retryable: false,
-      code: "MEDIA_UNREACHABLE",
-      message: err instanceof Error ? err.message : "Media URL is unreachable.",
-    };
+  const urls = input.kind === "carousel" ? (input.mediaItems ?? []).map((m) => m.url) : [input.mediaUrl];
+  for (let i = 0; i < urls.length; i += 1) {
+    try {
+      await checkReachable(urls[i], fetchImpl);
+    } catch (err) {
+      const why = err instanceof Error ? err.message : "Media URL is unreachable.";
+      return {
+        ok: false,
+        retryable: false,
+        code: "MEDIA_UNREACHABLE",
+        message: input.kind === "carousel" ? `Slide ${i + 1}: ${why}` : why,
+      };
+    }
   }
 
   // Identity proof: a publishing-capable professional account behind this token.
@@ -285,35 +393,26 @@ export async function publishInstagramPost(
     };
   }
 
+  let childIds: string[] | undefined;
+  if (input.kind === "carousel") {
+    const children = await createCarouselChildren(input, fetchImpl, sleepMs, now);
+    if (!children.ok) return children.outcome;
+    childIds = children.ids;
+  }
   const createBody: Record<string, string> =
     input.kind === "photo"
       ? { image_url: input.mediaUrl, caption: input.caption, access_token: input.accessToken }
-      : {
-          media_type: "REELS",
-          video_url: input.mediaUrl,
-          caption: input.caption,
-          access_token: input.accessToken,
-        };
-  let createRes: Response;
-  try {
-    createRes = await fetchImpl(`${INSTAGRAM_API}/${input.igUserId}/media`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(createBody),
-    });
-  } catch (err) {
-    return {
-      ok: false,
-      retryable: true,
-      code: "NETWORK",
-      message: `Instagram container network error: ${err instanceof Error ? err.message : "unknown"}.`,
-    };
-  }
-  const created = await readJson(createRes);
-  const containerId = created?.["id"];
-  if (!createRes.ok || typeof containerId !== "string" || !containerId) {
-    return httpOutcome(created, createRes.status, "container");
-  }
+      : input.kind === "carousel"
+        ? { media_type: "CAROUSEL", children: (childIds ?? []).join(","), caption: input.caption, access_token: input.accessToken }
+        : {
+            media_type: "REELS",
+            video_url: input.mediaUrl,
+            caption: input.caption,
+            access_token: input.accessToken,
+          };
+  const created = await createContainer(input.igUserId, createBody, fetchImpl);
+  if (!created.ok) return created.outcome;
+  const containerId = created.id;
 
   // Photos and reels both wait for the container to be FINISHED before publishing.
   // (Publishing a photo straight after creating it failed on the first live run with
@@ -321,7 +420,7 @@ export async function publishInstagramPost(
   const poll = await pollReel(
     containerId,
     input.accessToken,
-    input.kind === "photo" ? PHOTO_POLL_TIMEOUT_MS : REEL_POLL_TIMEOUT_MS,
+    input.kind === "reel" ? REEL_POLL_TIMEOUT_MS : PHOTO_POLL_TIMEOUT_MS,
     {
       fetchImpl,
       sleepMs,

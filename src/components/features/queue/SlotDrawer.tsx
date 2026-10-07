@@ -13,7 +13,10 @@ import { useSlotActions } from "./useSlotActions";
 function Loaded({ detail, tz, onClose }: { detail: SlotDetail; tz: string; onClose: () => void }) {
   const { slot } = detail;
   const actions = useSlotActions({ id: slot._id as Id<"slots">, status: slot.status, scheduledAt: slot.scheduledAt, tz, onClose });
-  const format = detail.draft?.format ? ` · ${detail.draft.format}` : "";
+  const slides = detail.draft?.slideCount;
+  const format = detail.draft?.format
+    ? ` · ${detail.draft.format}${detail.draft.format === "carousel" && slides ? ` · ${slides} ${slides === 1 ? "slide" : "slides"}` : ""}`
+    : "";
   return (
     <Drawer
       open

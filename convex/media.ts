@@ -71,7 +71,8 @@ export const byIds = operatorQuery({
   args: { ids: v.array(v.id("mediaAssets")) },
   handler: async (ctx, args) => {
     const out: Doc<"mediaAssets">[] = [];
-    for (const id of args.ids.slice(0, 10)) {
+    // Room for a carousel's ten slide images plus the other drafts' media.
+    for (const id of args.ids.slice(0, 30)) {
       const asset = await ctx.db.get(id);
       if (asset) out.push(asset);
     }

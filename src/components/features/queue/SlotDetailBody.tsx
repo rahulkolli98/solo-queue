@@ -26,9 +26,11 @@ export interface SlotDetail {
     attempts: number;
     lastError?: string;
   };
-  draft: { body: string; format: string | null; constraintOk: boolean } | null;
+  draft: { body: string; format: string | null; slideCount?: number | null; constraintOk: boolean } | null;
   topic: { title: string } | null;
   media: { publicUrl: string; mimeType: string; verifiedAt: number | null; lastVerifyError: string | null } | null;
+  /** A carousel: every slide image, in order. */
+  slideMedia?: { _id: string; publicUrl: string; fileRemoved: boolean }[];
   receipts: Receipt[];
   atRisk?: string | null;
 }
@@ -52,6 +54,24 @@ function MediaPreview({ media, failed }: { media: NonNullable<SlotDetail["media"
   );
 }
 
+/** A carousel's slide images in order, small, so the founder sees what will post. */
+function SlideStrip({ slides }: { slides: NonNullable<SlotDetail["slideMedia"]> }) {
+  return (
+    <ol className="sq-q-slides" aria-label={`Carousel slides, ${slides.length}`}>
+      {slides.map((s, i) => (
+        <li key={s._id}>
+          {s.fileRemoved ? (
+            <span className="sq-q-slide-gone t-mono">GONE</span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- founder-hosted slide image, not a build-time asset
+            <img src={s.publicUrl} alt={`Slide ${i + 1} of ${slides.length}`} loading="lazy" />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /** Post text, media, status and receipts, then the reschedule field when the status allows it. */
 export default function SlotDetailBody({
   detail,
@@ -63,6 +83,7 @@ export default function SlotDetailBody({
   actions: ReturnType<typeof useSlotActions>;
 }) {
   const { slot, draft, media, receipts } = detail;
+  const slides = detail.slideMedia ?? [];
   const parts = (draft?.body ?? "")
     .split(/^\s*---\s*$/m)
     .map((p) => p.trim())
@@ -93,7 +114,11 @@ export default function SlotDetailBody({
           {slot.lastError}
         </div>
       )}
-      {media && <MediaPreview media={media} failed={slot.status === "failed"} />}
+      {slides.length > 1 ? (
+        <SlideStrip slides={slides} />
+      ) : (
+        media && <MediaPreview media={media} failed={slot.status === "failed"} />
+      )}
       <div className="sq-q-d-text">
         {parts.length === 0 && <p className="sq-muted">The draft behind this post is empty.</p>}
         {parts.map((part, i) =>

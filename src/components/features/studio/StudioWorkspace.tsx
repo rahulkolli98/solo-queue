@@ -39,6 +39,7 @@ import {
   KIND_META,
   QUEUE_KINDS,
   barSummary,
+  carouselMediaState,
   draftsNeedingFix,
   fixHeadline,
   formatWhen,
@@ -54,7 +55,7 @@ import {
   type Readiness,
 } from "@/lib/studioModel";
 
-const BOARD_CARD_KIND: Record<string, DraftKind> = { thread: "threads", caption: "caption", reel: "reel" };
+const BOARD_CARD_KIND: Record<string, DraftKind> = { thread: "threads", caption: "caption", reel: "reel", carousel: "carousel" };
 const FALLBACK_BEATS = ["Hook", "Tension", "Turn", "Payoff"];
 
 /** Board 02 and states 07d-07f: one topic's three columns, bottom bar and blog view. */
@@ -103,8 +104,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const attachedIds = useMemo(
     () =>
       Object.values(latest)
-        .map((d) => d.mediaAssetId)
-        .filter((x): x is Id<"mediaAssets"> => Boolean(x)),
+        .flatMap((d) => [d.mediaAssetId, ...(d.mediaAssetIds ?? [])])
+        .filter((x, i, all): x is Id<"mediaAssets"> => Boolean(x) && all.indexOf(x) === i),
     [latest]
   );
   const attached = useQuery(api.media.byIds, { ids: attachedIds });
@@ -120,7 +121,13 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         throw new Error("Some edits didn't save, so nothing was queued. Fix the save error and try again.");
       }
     },
-    onAttachMedia: (kind) => openAttach(kind === "caption" ? "caption" : "reel"),
+    onAttachMedia: (kind) => {
+      // A carousel's images are drawn on its own tab, not attached from the library.
+      if (kind === "carousel") {
+        setPane("instagram");
+        setIgTab("carousel");
+      } else openAttach(kind === "caption" ? "caption" : "reel");
+    },
   });
 
   // The default frames are created the first time the picker has nothing to show.
@@ -272,14 +279,24 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     return hits.length ? Math.min(...hits.map((c) => c.scheduledAt)) : undefined;
   };
 
-  const stateOf = (kind: "threads" | "caption" | "reel"): Readiness =>
+  const stateOf = (kind: "threads" | "caption" | "reel" | "carousel"): Readiness =>
     readiness({
       kind,
       body: bodyOf(kind),
-      media: kind === "threads" ? "none" : mediaOf(kind).state,
+      media:
+        kind === "threads"
+          ? "none"
+          : kind === "carousel"
+            ? carouselMediaState(latest.carousel, assetById, now)
+            : mediaOf(kind).state,
       queued: queuedAtOf(kind) !== undefined,
     });
-  const states = { threads: stateOf("threads"), caption: stateOf("caption"), reel: stateOf("reel") };
+  // A carousel takes part in queueing only when this topic has one.
+  const baseStates = { threads: stateOf("threads"), caption: stateOf("caption"), reel: stateOf("reel") };
+  const states: typeof baseStates & { carousel?: Readiness } = {
+    ...baseStates,
+    ...(latest.carousel ? { carousel: stateOf("carousel") } : {}),
+  };
 
   const days = board?.days ?? [];
   const slotsAll = openSlots(days, 200);

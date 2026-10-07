@@ -333,14 +333,12 @@ describe("editing and attaching a carousel", () => {
     await expect(t.mutation(api.drafts.attachCarouselMedia, { id, mediaAssetIds: await pngAssets(t, 4) })).rejects.toThrow(/CAROUSEL_QUEUED/);
   });
 
-  it("does not queue a carousel until publishing it is built, and counts every slide image as in use", async () => {
+  it("counts every slide image as in use, so a slide image that is not the cover cannot be deleted", async () => {
     const t = newTest();
     const topic = await insertTopic(t);
     const id = await storedCarousel(t, topic);
     const assets = await pngAssets(t, 4);
     await t.mutation(api.drafts.attachCarouselMedia, { id, mediaAssetIds: assets });
-    await expect(t.mutation(api.slots.enqueue, { draftId: id })).rejects.toThrow(/CAROUSEL_NOT_READY/);
-
     // The last slide image is not the cover, and is still protected from deletion.
     await expect(t.mutation(api.media.remove, { id: assets[3] })).rejects.toThrow(/IN_USE/);
     const listed = await t.query(api.media.list, {});

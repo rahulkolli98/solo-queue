@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
-import { KIND_META, QUEUE_KINDS, weekToast, type Draft, type DraftKind } from "@/lib/studioModel";
+import { KIND_META, weekToast, type Draft, type DraftKind } from "@/lib/studioModel";
 
 /**
  * The one-gesture "queue this week": `slots.queueTopic` assigns each ready
@@ -38,7 +38,7 @@ export function useQueueWeek({
       const result = await queueTopic({ topicId: topicId as Id<"topics">, tz });
       const marks: Record<string, number> = {};
       for (const q of result.queued) {
-        const kind = QUEUE_KINDS.find((k) => KIND_META[k].templateKey === q.templateKey);
+        const kind = (Object.keys(KIND_META) as DraftKind[]).find((k) => KIND_META[k].templateKey === q.templateKey);
         const draft = kind ? latest[kind] : undefined;
         if (draft) marks[draft._id] = q.scheduledAt;
       }

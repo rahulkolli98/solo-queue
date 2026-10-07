@@ -30,6 +30,8 @@ export interface BoardCard {
   pillarColor: string;
   format: string | null;
   hasMedia: boolean;
+  /** A carousel: how many slides it has (null for any other post). */
+  slideCount?: number | null;
   attempts: number;
   lastError: string | null;
   /** Why a scheduled post may not go out (a connection problem), else null. */

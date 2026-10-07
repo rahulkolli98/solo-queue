@@ -160,3 +160,35 @@ describe("the two-step Cancel announces itself", () => {
     expect(html(<SlotActions detail={detail("claimed")} actions={actions()} />)).not.toContain("Cancel post");
   });
 });
+
+describe("a carousel post in the queue", () => {
+  it("the tile says CAROUSEL and its accessible name gives the slide count", () => {
+    const c = card({ platform: "instagram", format: "carousel", slideCount: 6 });
+    const out = html(<IgTile card={c} index={0} onOpen={noop} />);
+    expect(out).toContain("CAROUSEL");
+    expect(out).toContain("Instagram carousel of 6 slides at");
+  });
+
+  it("the sheet shows every slide image in order with its own alt text, and a removed one as gone", () => {
+    const d = {
+      ...detail("scheduled"),
+      slideMedia: [
+        { _id: "a", publicUrl: "https://x.test/1.png", fileRemoved: false },
+        { _id: "b", publicUrl: "https://x.test/2.png", fileRemoved: false },
+        { _id: "c", publicUrl: "https://x.test/3.png", fileRemoved: true },
+      ],
+    };
+    const out = html(<SlotDetailBody detail={d} tz="UTC" actions={actions()} />);
+    expect(out).toContain('aria-label="Carousel slides, 3"');
+    expect(out).toContain('alt="Slide 1 of 3"');
+    expect(out).toContain('alt="Slide 2 of 3"');
+    expect(out.indexOf("1.png")).toBeLessThan(out.indexOf("2.png"));
+    expect(out).toContain("GONE");
+    expect(out).not.toContain('alt="Slide 3 of 3"');
+  });
+
+  it("a post with one image (or none) keeps the single preview", () => {
+    const out = html(<SlotDetailBody detail={{ ...detail("scheduled"), slideMedia: [] }} tz="UTC" actions={actions()} />);
+    expect(out).not.toContain("sq-q-slides");
+  });
+});
