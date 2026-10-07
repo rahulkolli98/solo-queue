@@ -148,10 +148,15 @@ There is no import yet, so an export is a record to read, not a restore.
 
 - **OQ-001, LLM provider:** OpenRouter through the AI SDK's OpenAI-compatible
   provider, one pinned model in `LLM_MODEL` (swapping models is an env change,
-  no code). Local dev uses a fast free model; production uses a paid model
-  (founder decision 2026-09-30). **To record once the paid model is chosen and
-  after two weeks of use:** the model id, and the cost per week. Until then
-  this question stays open in the roadmap.
+  no code). **Chosen 2026-10-06 (founder): `meta/muse-spark-1.3-contributor`,**
+  set in both the local and the production Convex environment. On OpenRouter
+  that day it was listed at about $0.10 per million input tokens and $0.20 per
+  million output tokens, with a 1M-token context; it is a reasoning model, so
+  watch generation time against the 45-second target (TASK-042). Planned
+  fallback, not set: `deepseek/deepseek-v4.1-flash` (about $0.30 / $1.20). The
+  aim is the fastest model that stays cheap. **Still to record:** the cost per
+  week after two weeks of real use (review about 2026-10-20), and a second
+  topic generated on this model to confirm the drafts hold up.
 - **OQ-002, Instagram login path:** the Instagram Login path (no Facebook Page)
   with the scopes `instagram_business_basic` and `instagram_business_content_publish`
   (`src/lib/oauth.ts`). A photo post with a caption published through it on
