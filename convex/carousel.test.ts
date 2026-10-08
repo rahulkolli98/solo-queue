@@ -144,6 +144,50 @@ describe("parseCarousel", () => {
     expect(parseCarousel(JSON.stringify({ caption: "c", slides: JSON.parse(GOOD_REPLY).slides.slice(0, 2) }), 6)?.slides).toHaveLength(2);
   });
 
+  it("never keeps a bare-headline slide: it uses the other content, else the italic line, else leaves the slide out", () => {
+    const reply = JSON.stringify({
+      caption: "c",
+      slides: [
+        { layout: "cover", tone: "ink", headline: "Cover" },
+        { layout: "cards", tone: "cream", headline: "Cards with items", items: [{ text: "One" }, { text: "Two" }] },
+        { layout: "cards", tone: "yellow", headline: "Cards with only an aside", sub: "The only thing said here." },
+        { layout: "list", tone: "blue", headline: "List with cards", cards: [{ text: "A card", tone: "ink" }] },
+        { layout: "cards", tone: "pink", headline: "Nothing at all" },
+        { layout: "close", tone: "coral", headline: "End" },
+      ],
+    });
+    const out = parseCarousel(reply, 6);
+    expect(out?.slides.map((s) => s.headline)).toEqual(["Cover", "Cards with items", "Cards with only an aside", "List with cards", "End"]);
+    expect(out?.slides[1]).toMatchObject({ layout: "list" });
+    expect(out?.slides[2]).toMatchObject({ layout: "cards", cards: [{ text: "The only thing said here." }] });
+    expect(out?.slides[2].sub).toBeUndefined();
+    expect(out?.slides[3]).toMatchObject({ layout: "cards" });
+    // Every slide that is not a cover or close carries what its layout draws.
+    for (const s of out?.slides ?? []) {
+      if (s.layout === "cards") expect(s.cards?.length).toBeGreaterThan(0);
+      if (s.layout === "list") expect(s.items?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("cuts text that is over its limit at a whole sentence or word, never mid-word", () => {
+    const first = "Each community suits a different goal, so match the community to what you are trying to do first.";
+    const sentence = `${first} Then join one, read for a week, and ask one clear question once you know the place.`;
+    expect(sentence.length).toBeGreaterThan(160);
+    const out = parseCarousel(
+      JSON.stringify({ caption: "c", slides: [{ layout: "cover", headline: "H" }, { layout: "cards", headline: "Mid", cards: [{ text: sentence, tone: "ink" }] }] }),
+      2
+    );
+    // Over the limit: kept up to the end of the last whole sentence that fits.
+    expect(out?.slides[1].cards?.[0].text).toBe(first);
+    const long = "Pick the community that fits what you are building rather than the biggest list, then spend a week reading before you post anything yourself, and ask one clear question".repeat(1);
+    const cut = parseCarousel(JSON.stringify({ caption: "c", slides: [{ layout: "cover", headline: "H" }, { layout: "cards", headline: "Mid", cards: [{ text: long, tone: "ink" }] }] }), 2)?.slides[1].cards?.[0].text ?? "";
+    expect(cut.length).toBeLessThanOrEqual(160);
+    expect(long.startsWith(cut)).toBe(true);
+    expect(/\s$|[,;:\-]$/.test(cut)).toBe(false);
+    // Cut on a word boundary: the next character in the original is a space.
+    expect(long[cut.length]).toBe(" ");
+  });
+
   it("clamps the slide count and puts the count and style in the instructions", () => {
     expect(clampSlideCount(undefined)).toBe(6);
     expect(clampSlideCount(0)).toBe(1);
@@ -163,6 +207,15 @@ describe("parseCarousel", () => {
     expect(one).toContain("exactly 1 slide");
     expect(one).toContain("statement");
     expect(one).toContain("a first-person line is allowed only when the notes say it");
+    // The founder's request is added last, and a run with no frame says the model plans the order.
+    const asked = carouselInstructions({ count: 5, brief: "Explainer, big numbers, only yellow and ink.", arc: false });
+    expect(asked).toContain("Explainer, big numbers, only yellow and ink.");
+    expect(asked).toContain("use only those slide tones");
+    expect(asked).toContain("There is no story frame");
+    expect(asked.indexOf("only yellow and ink")).toBeGreaterThan(asked.indexOf("There is no story frame"));
+    expect(asked).toContain("hard");
+    expect(asked).toContain("Never send a slide that is only a headline");
+    expect(carouselInstructions({ count: 5 })).not.toContain("There is no story frame");
   });
 });
 
@@ -229,6 +282,46 @@ describe("generating a carousel", () => {
     // A carousel may add well-established context, so the strict "only what is in the notes" rule is not sent with it.
     expect(sent).toContain("show both ends");
     expect(sent).not.toContain("Prefer writing without a number at all");
+  });
+
+  it("sends the founder's own description with no story frame, and stores a carousel without a frame", async () => {
+    const model = fakeModel(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    await t.action(api.drafting.generate, {
+      topicId: topic,
+      formats: ["instagram-carousel"],
+      setup: { carousel: { noFrame: true, brief: "  An explainer: big numbers, only yellow and ink.  ", count: 4 } },
+    });
+    const [draft] = await carouselDrafts(t);
+    expect(draft.frameKey).toBeUndefined();
+    expect(draft.slides).toHaveLength(4);
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("An explainer: big numbers, only yellow and ink.");
+    expect(sent).toContain("There is no story frame");
+    expect(sent).not.toContain("The beats above are the arc of the story");
+    expect(sent).not.toContain("Short bold headlines, one idea per slide");
+  });
+
+  it("sends the description along with a chosen frame, and refuses one that is too long before calling the model", async () => {
+    const model = fakeModel(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    await t.action(api.drafting.generate, {
+      topicId: topic,
+      formats: ["instagram-carousel"],
+      setup: { carousel: { frameKey: "ig-carousel", brief: "Calm, lots of white space." } },
+    });
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("Calm, lots of white space.");
+    expect(sent).toContain("The beats above are the arc of the story");
+    const before = model.bodies.length;
+    await expect(
+      t.action(api.drafting.generate, {
+        topicId: topic,
+        formats: ["instagram-carousel"],
+        setup: { carousel: { brief: "x".repeat(801) } },
+      })
+    ).rejects.toThrow(/BAD_BRIEF/);
+    expect(model.bodies).toHaveLength(before);
   });
 
   it("keeps the strict facts rule for a thread, which does not get the carousel's looser one", async () => {

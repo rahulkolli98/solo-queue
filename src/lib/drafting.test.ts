@@ -79,7 +79,12 @@ describe("buildTopicVars", () => {
   it("falls back to the single source link when the topic has no sources, and bounds a long list", () => {
     expect(buildTopicVars({ title: "T", sourceUrl: "https://x.test", sources: [] }).sources).toBe("https://x.test");
     const many = Array.from({ length: 100 }, (_, i) => ({ kind: "note" as const, label: `n${i}`, text: "x".repeat(300) }));
-    expect(describeSources(many).length).toBeLessThanOrEqual(3000);
+    expect(describeSources(many).length).toBeLessThanOrEqual(16000);
+    // A whole article reaches the model, not just its opening: 5,000 characters are kept, the end of a very long one is cut.
+    const article = "Intro. " + "word ".repeat(1000) + "THE END";
+    expect(describeSources([{ kind: "note", label: "Article", text: article }])).toContain("word word");
+    expect(describeSources([{ kind: "note", label: "Article", text: "a".repeat(5000) + "END" }])).toContain("END");
+    expect(describeSources([{ kind: "note", label: "Article", text: "a".repeat(7000) + "END" }])).not.toContain("END");
   });
 });
 

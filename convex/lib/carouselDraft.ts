@@ -18,6 +18,8 @@ import {
 /** How many slides a run writes when nothing says otherwise (the founder's own carousels are 6 to 7). */
 export const DEFAULT_SLIDE_COUNT = 6;
 export const MIN_WRITTEN_SLIDES = 1;
+/** The longest "how I want this carousel" request a run accepts, in characters. */
+export const BRIEF_MAX = 800;
 
 /** Keep a requested slide count inside what is written (1 to 10; 1 is a single statement image). */
 export function clampSlideCount(n: number | undefined): number {
@@ -39,7 +41,14 @@ const FACTS_ONLY =
   "Never invent the founder's own experience (what they did, tried, felt, noticed or believed): a first-person line is allowed only when the notes say it.";
 
 /** The JSON shape and the slide rules, appended to the template for the carousel call. */
-export function carouselInstructions(input: { count: number; style?: string }): string {
+export function carouselInstructions(input: {
+  count: number;
+  style?: string;
+  /** What the founder asked for this run, in their words ("explainer, big numbers, calm colours"). It wins over the style note. */
+  brief?: string;
+  /** False when the run has no story frame: the model plans the order of ideas itself. */
+  arc?: boolean;
+}): string {
   const lines = input.count === 1 ? singleSlideInstructions() : [
     `Write exactly ${input.count} slides, in order, plus one Instagram caption.`,
     'Reply with one JSON object and nothing else: {"caption": string, "slides": [slide, ...]}.',
@@ -47,14 +56,23 @@ export function carouselInstructions(input: { count: number; style?: string }): 
     `layout is one of ${SLIDE_LAYOUTS.join(", ")}. The first slide is "cover" (a big headline and one italic line in sub). The last slide is "close" (a headline, an italic line in sub, and pills such as ["Follow","Save","Share"]). Slides between use "cards" (headline plus 1 to 3 cards) or "list" (headline plus 2 to 5 items).`,
     `tone is the slide colour, one of ${SLIDE_TONES.join(", ")}. Change colour from one slide to the next; do not use the same colour twice in a row.`,
     `kicker: a few capital-letter words naming the slide (at most ${LIMITS.kicker} characters), for example "THE PROBLEM". headline: at most ${LIMITS.headline} characters and about 6 words; use \\n to break a line where the meaning breaks. accent: the one word or short phrase of the headline to colour (separate two phrases with | to colour two parts, such as 100|50). sub: one italic sentence (at most ${LIMITS.sub} characters).`,
+    `These length limits are hard: each slide is drawn at a fixed size and anything over a limit is cut off, so write every line to fit and count characters. A "cards" slide must have 1 to 3 cards, each with text; a "list" slide must have 2 to 5 items. Never send a slide that is only a headline.`,
     `A card is {label?, big?, text, tone}: label is a short caps tag; big is an optional figure such as "60d" or "500" (at most ${LIMITS.cardBig} characters, and only when the figure comes from the sources or is certain); text is one or two short sentences (at most ${LIMITS.cardText} characters); tone is one of ${SLIDE_TONES.join(", ")} and should differ from the slide colour. Two cards that both have big sit side by side; otherwise cards stack.`,
     `An item is {label?, text}: text at most ${LIMITS.itemText} characters.`,
     FACTS_ONLY,
     "One idea per slide; the slides read as a story, not a list of tips. If the material is about something in the world rather than the founder's own build, tell it as an explainer (what it is, how it works, what could change); the story arc above is the order of the ideas, not a personal confession.",
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It reads like a post a person wrote, not a summary of the notes: lead with the one idea, add a point or two the slides leave out, and do not list everything. It must stand alone and must not repeat the slides word for word.",
   ];
+  if (input.arc === false && input.count !== 1) {
+    lines.push("There is no story frame for this carousel: choose the order of ideas yourself, so the slides read clearly for this material and this request.");
+  }
   if (input.style?.trim()) {
     lines.push(`Style and references for this carousel (follow the look and tone they describe):\n${input.style.trim()}`);
+  }
+  if (input.brief?.trim()) {
+    lines.push(
+      `The founder's request for this carousel. Follow it over the style note and the template: structure, tone, colours (if it names colours, use only those slide tones), what to emphasise and what to leave out. It never lets you invent facts or experience.\n${input.brief.trim()}`
+    );
   }
   return lines.join("\n");
 }
@@ -85,11 +103,26 @@ function plainText(value: string): string {
     .replace(/^[*_]+|[*_]+$/g, "");
 }
 
+/**
+ * Safety net for text over its limit (the model is told the limits and should not need it): cut at the last full
+ * sentence if that keeps most of the line, else at the last whole word, never mid-word, and drop a dangling comma.
+ */
+function fitTo(t: string, max: number): string {
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const sentence = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "));
+  if (sentence >= max * 0.5) return head.slice(0, sentence + 1).trimEnd();
+  if (/[.!?]$/.test(head) && t[max] === " ") return head.trimEnd();
+  const space = head.lastIndexOf(" ");
+  const cut = space >= max * 0.5 ? head.slice(0, space) : head;
+  return cut.replace(/[\s,;:\-–—]+$/, "").trimEnd();
+}
+
 function clip(value: unknown, max: number): string | undefined {
   if (typeof value !== "string") return undefined;
   const t = plainText(value).replace(/[ \t]+/g, " ").replace(/ ?\n ?/g, "\n").trim();
   if (!t) return undefined;
-  return t.length <= max ? t : t.slice(0, max).trimEnd();
+  return fitTo(t, max);
 }
 
 function tone(value: unknown, fallback: SlideTone): SlideTone {
@@ -99,7 +132,8 @@ function tone(value: unknown, fallback: SlideTone): SlideTone {
 /** Colours to fall back on, in an order that never repeats a neighbour. */
 const ROTATION: SlideTone[] = ["coral", "ink", "cream", "yellow", "blue", "pink"];
 
-function normalizeSlide(raw: Record<string, unknown>, index: number, count: number): unknown {
+/** One slide the way it is stored, or null when nothing usable is left of it (it is then left out). */
+function normalizeSlide(raw: Record<string, unknown>, index: number, count: number): unknown | null {
   const layoutRaw = SLIDE_LAYOUTS.includes(raw.layout as never) ? (raw.layout as Slide["layout"]) : "cards";
   const layout: Slide["layout"] =
     count === 1
@@ -142,15 +176,35 @@ function normalizeSlide(raw: Record<string, unknown>, index: number, count: numb
   const pills = Array.isArray(raw.pills)
     ? raw.pills.map((p) => clip(p, LIMITS.pill)).filter((p): p is string => Boolean(p)).slice(0, 3)
     : undefined;
+  // A cards slide with no cards (or a list with no items) would be drawn as a bare headline. Use what the model did
+  // send: the other kind of content, else its italic line as the one card or item; with none of those, leave it out.
+  let finalLayout = layout;
+  let finalCards = cards?.length ? cards : undefined;
+  let finalItems = items?.length ? items : undefined;
+  let sub = clip(raw.sub, LIMITS.sub);
+  if (finalLayout === "cards" && !finalCards) {
+    if (finalItems) finalLayout = "list";
+    else if (sub) {
+      finalCards = [{ label: undefined, big: undefined, text: clip(sub, LIMITS.cardText) ?? sub, tone: slideTone === "cream" ? "ink" : "cream" }];
+      sub = undefined;
+    } else return null;
+  }
+  if (finalLayout === "list" && !finalItems) {
+    if (finalCards) finalLayout = "cards";
+    else if (sub) {
+      finalItems = [{ label: undefined, text: clip(sub, LIMITS.itemText) ?? sub }];
+      sub = undefined;
+    } else return null;
+  }
   return {
-    layout,
+    layout: finalLayout,
     tone: slideTone,
     kicker: clip(raw.kicker, LIMITS.kicker),
     headline: clip(raw.headline, LIMITS.headline) ?? "",
     accent: clip(raw.accent, LIMITS.accent),
-    sub: clip(raw.sub, LIMITS.sub),
-    cards: cards?.length ? cards : undefined,
-    items: items?.length ? items : undefined,
+    sub,
+    cards: finalCards,
+    items: finalItems,
     // A close slide needs at least two asks to look right; a model that gave one gets the usual three.
     pills: layout === "close" ? (pills && pills.length >= 2 ? pills : ["Follow", "Save", "Share"]) : pills?.length ? pills : undefined,
     tag: layout === "statement" ? clip(raw.tag, LIMITS.tag) : undefined,
@@ -192,7 +246,9 @@ export function parseCarousel(text: string, count: number): WrittenCarousel | nu
   const raw = parsed.data.slides.slice(0, wanted);
   const slides: Slide[] = [];
   for (let i = 0; i < raw.length; i += 1) {
-    const checked = validateSlide(compact(normalizeSlide(raw[i], i, raw.length)));
+    const normalized = normalizeSlide(raw[i], i, raw.length);
+    if (normalized === null) continue;
+    const checked = validateSlide(compact(normalized));
     if (checked.ok) slides.push(checked.slide);
   }
   if (slides.length < MIN_WRITTEN_SLIDES) return null;

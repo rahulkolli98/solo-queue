@@ -15,7 +15,7 @@ const rows = (choices = {}) =>
 const noop = vi.fn();
 const render = (over: Partial<Parameters<typeof FormatSetup>[0]> = {}) =>
   renderToStaticMarkup(
-    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onMakeDefault={noop} {...over} />
+    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onMakeDefault={noop} {...over} />
   );
 const disabledDefaults = (out: string) => (out.match(/<button[^>]*studio-setup-default[^>]*disabled/g) ?? []).length;
 
@@ -50,6 +50,21 @@ describe("FormatSetup", () => {
     expect(out).toContain("No story frame");
     expect(out).toContain("A story frame is the shape of the post");
     expect(out).not.toContain("arrives in a later update");
+  });
+
+  it("the carousel row has a free-text description and a no-frame choice; no other row does", () => {
+    const out = render({ open: true });
+    expect(out.match(/<textarea/g)).toHaveLength(1);
+    const carousel = out.slice(out.indexOf('data-kind="carousel"'), out.indexOf('data-kind="blog"'));
+    expect(carousel).toContain("<textarea");
+    expect(carousel).toContain("HOW YOU WANT IT");
+    expect(carousel).toContain("No frame: I will describe it");
+    expect(carousel).toContain('maxLength="800"');
+    const none = render({ open: true, rows: rows({ carousel: { include: true, noFrame: true, brief: "Calm." } }) });
+    expect(none).toContain("Calm.</textarea>");
+    expect(none).toMatch(/<option value="__none__" selected/);
+    const off = render({ open: true });
+    expect(off).toMatch(/<textarea[^>]*disabled/);
   });
 
   it("Make default is disabled until a row differs from the saved default", () => {

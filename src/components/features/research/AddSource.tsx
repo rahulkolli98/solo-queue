@@ -10,6 +10,7 @@ import { UploadCancelled } from "@/lib/mediaUpload";
 import { refusalText } from "@/lib/refusalText";
 import { useMediaUpload } from "@/lib/useMediaUpload";
 import { api } from "../../../../convex/_generated/api";
+import { MAX_SOURCE_TEXT } from "../../../../convex/lib/research";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 type Kind = "link" | "quote" | "note" | "screenshot";
@@ -111,7 +112,7 @@ export default function AddSource({ topicId }: { topicId: Id<"topics"> }) {
       )}
       {(kind === "quote" || kind === "note") && (
         <FormField label={kind === "quote" ? "Quote" : "Your note"} error={error}>
-          <textarea rows={3} value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} />
+          <textarea rows={3} value={text} maxLength={MAX_SOURCE_TEXT} onChange={(e) => setText(e.target.value)} />
         </FormField>
       )}
       {kind === "screenshot" && (

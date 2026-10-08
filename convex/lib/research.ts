@@ -45,7 +45,9 @@ export type SourceCheck =
   | { ok: true; kind: SourceKind; url?: string; text?: string; label: string; mediaAssetId?: string }
   | { ok: false; code: string; message: string };
 
-const MAX_TEXT = 2000;
+/** The longest pasted note or quote a source holds: room for a whole article. */
+export const MAX_SOURCE_TEXT = 8000;
+const MAX_TEXT = MAX_SOURCE_TEXT;
 const MAX_URL = 2000;
 
 function hostOf(url: string): string {

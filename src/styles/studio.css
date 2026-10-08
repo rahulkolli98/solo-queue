@@ -1846,6 +1846,21 @@ body:has(.studio-bar) {
   width: 100%;
   min-height: 44px;
 }
+.studio-setup-brief {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.studio-setup-brief textarea.sq-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+}
+.studio-setup-brief-hint {
+  font-size: 13px;
+  line-height: 1.45;
+}
 .studio-setup-select.studio-setup-num {
   width: auto;
   min-width: 68px;

@@ -30,7 +30,7 @@ import { THREADS_POST_LIMIT, parseThread, postLength } from "@/lib/draftText";
 import { kindsAtRisk, replaceQuestion, studioEntry } from "@/lib/studioCompose";
 import { DEFAULT_FRAMES } from "../../../../convex/lib/framesModel";
 import { withFormatDefault } from "../../../../convex/lib/formatSetup";
-import { buildSetupRows, choicesForAngle, includedKinds, setupToSend, type SetupChoice, type SetupChoices } from "@/lib/studioSetup";
+import { NO_FRAME, buildSetupRows, choicesForAngle, includedKinds, setupToSend, type SetupChoice, type SetupChoices } from "@/lib/studioSetup";
 import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
 import { RESEARCH_HANDOFF_PARAM, RESEARCH_HANDOFF_VALUE, angleBanner, parseAngle, researchBanner } from "@/lib/studioHandoff";
@@ -455,7 +455,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         onToggle={() => setSetupOpen((v) => !v)}
         disabled={generation.running}
         onInclude={(kind, include) => choose(kind, { include })}
-        onFrame={(kind, frameKey) => choose(kind, { frameKey })}
+        onFrame={(kind, frameKey) => choose(kind, frameKey === NO_FRAME ? { noFrame: true, frameKey: undefined } : { noFrame: false, frameKey })}
+        onBrief={(kind, brief) => choose(kind, { brief })}
         onCount={(kind, count) => choose(kind, { count })}
         onMakeDefault={(kind) => void makeDefault(kind)}
       />

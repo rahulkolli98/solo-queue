@@ -25,8 +25,9 @@ export interface SourceInput {
   text?: string;
 }
 
-const SOURCE_TEXT_MAX = 400;
-const SOURCES_MAX = 3000;
+/** A source is read by the model in full up to this many characters (a whole article), not just its opening. */
+const SOURCE_TEXT_MAX = 6000;
+const SOURCES_MAX = 16000;
 
 /** The topic's sources as short lines: what each is and what it says. Bounded so a long list cannot swamp the prompt. */
 export function describeSources(sources: SourceInput[]): string {
