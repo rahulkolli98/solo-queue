@@ -2240,3 +2240,92 @@ body:has(.studio-bar) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---- a carousel made of the founder's own images ---- */
+.studio-own {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+.studio-own-drop {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-14);
+  border: 2px dashed var(--color-line);
+  border-radius: var(--rounded-md);
+  background: var(--color-surface-raised);
+  color: var(--color-on-surface);
+}
+.studio-own-drop svg {
+  width: 28px;
+  height: 28px;
+}
+.studio-own-drop[data-over] {
+  border-color: var(--color-primary);
+  border-style: solid;
+}
+.studio-own-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.studio-own-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.studio-own-item img,
+.studio-own-skeleton {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border: 2px solid var(--color-line);
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-raised);
+}
+.studio-own-n {
+  position: absolute;
+  left: var(--space-8);
+  top: var(--space-8);
+  min-width: 22px;
+  padding: 0 var(--space-4);
+  border-radius: var(--rounded-pill);
+  background: var(--color-on-surface);
+  color: var(--color-surface);
+  font: 500 12px/22px var(--font-mono), "DM Mono", monospace;
+  text-align: center;
+}
+.studio-own-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.studio-own-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0 0 0 var(--space-16);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-primary-deep);
+}
+@media (max-width: 520px) {
+  .studio-own-drop {
+    grid-template-columns: auto 1fr;
+  }
+  .studio-own-drop .sq-btn {
+    grid-column: 1 / -1;
+  }
+  .studio-own-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

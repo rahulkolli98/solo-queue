@@ -6,6 +6,8 @@ import { api } from "../../../../convex/_generated/api";
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import { LIMITS, SLIDE_TONES, splitHeadline, type Slide, type SlideLayout, type SlideTone } from "../../../../convex/lib/carouselSlides";
 import { AlertIcon } from "@/components/ui/icons";
+import CarouselCaption from "@/components/features/studio/CarouselCaption";
+import { OwnCarouselEditor, OwnCarouselStart } from "@/components/features/studio/OwnCarousel";
 import SlidePreview from "@/components/features/studio/SlidePreview";
 import type { GenState } from "@/components/features/studio/types";
 import { useCarouselRender } from "@/components/features/studio/useCarouselRender";
@@ -21,8 +23,7 @@ import {
   addCard,
   addItem,
   addPill,
-  addSlide,
-  captionCount,
+  addSlide,
   moveSlide,
   normalizeSlide,
   removeCard,
@@ -36,14 +37,14 @@ import {
   updateItem,
   updatePill,
 } from "@/lib/carouselEditor";
-import { CAPTION_LIMIT, trimToFit } from "@/lib/draftText";
-import { bannedWordsFlag } from "@/lib/studioModel";
 import { studioErrorText } from "@/lib/studioErrors";
 import { useNow } from "@/lib/useNow";
 import { useTwoTap } from "@/lib/useTwoTap";
 import { VERIFIED_TTL_MS } from "../../../../convex/lib/slots";
 
 export interface CarouselPanelProps {
+  /** The topic the carousel belongs to (an own-images carousel is created on it). */
+  topicId: string;
   /** The carousel draft (a `drafts` row with `slides`); undefined until one is written. */
   draft: Doc<"drafts"> | undefined;
   gen: GenState;
@@ -86,7 +87,7 @@ function Skeleton({ elapsed }: { elapsed: string }) {
   );
 }
 
-function EmptyState({ gen, onWrite }: { gen: GenState; onWrite: () => void }) {
+function EmptyState({ gen, onWrite, onOwn }: { gen: GenState; onWrite: () => void; onOwn: () => void }) {
   if (gen.error) {
     return (
       <div className="studio-errcard" role="alert">
@@ -113,9 +114,14 @@ function EmptyState({ gen, onWrite }: { gen: GenState; onWrite: () => void }) {
           A carousel is {MIN_SLIDES} to {MAX_SLIDES} slides ({MIN_SLIDES} slide is a single statement post). Press Write the carousel, or tick Carousel in the setup line and Generate.
         </p>
       )}
-      <button type="button" className="sq-btn sq-btn-sm sq-btn-dark" onClick={onWrite} disabled={gen.writing}>
-        {gen.writing ? "Writing the carousel…" : "Write the carousel"}
-      </button>
+      <div className="studio-actions-row">
+        <button type="button" className="sq-btn sq-btn-sm sq-btn-dark" onClick={onWrite} disabled={gen.writing}>
+          {gen.writing ? "Writing the carousel…" : "Write the carousel"}
+        </button>
+        <button type="button" className="sq-btn sq-btn-sm" onClick={onOwn} disabled={gen.writing}>
+          Use my own images
+        </button>
+      </div>
     </div>
   );
 }
@@ -463,92 +469,6 @@ function SlideForm({
   );
 }
 
-/* ---- the caption ---- */
-
-function CaptionEditor({
-  draft,
-  bannedWords,
-}: {
-  draft: Doc<"drafts">;
-  bannedWords?: string[];
-}) {
-  const updateBody = useMutation(api.drafts.update);
-  const id = useId();
-  const [caption, setCaption] = useState(draft.body);
-  const [seen, setSeen] = useState(draft.body);
-  const [error, setError] = useState<string | null>(null);
-  if (draft.body !== seen) {
-    // The server text changed: take it unless the founder has typed something not saved yet.
-    setSeen(draft.body);
-    if (caption === seen) setCaption(draft.body);
-  }
-  const count = captionCount(caption);
-  const banned = bannedWordsFlag(caption, bannedWords);
-
-  async function save(text: string) {
-    if (text === draft.body) return;
-    if (!text.trim()) {
-      setError("The caption can't be empty.");
-      return;
-    }
-    setError(null);
-    try {
-      await updateBody({ id: draft._id, body: text });
-    } catch (e) {
-      setError(studioErrorText(e, "Couldn't save the caption. Your text is still here. Try again."));
-    }
-  }
-
-  return (
-    <div className="studio-cr-caption">
-      <div className="studio-caption-head">
-        <label htmlFor={id} className="studio-cr-label">
-          Instagram caption
-        </label>
-        <span className="t-meta">CAPTION · {count.label}</span>
-        {banned && <span className="sq-pill sq-pill-ok">{banned}</span>}
-        {count.over && (
-          <>
-            <span className="sq-pill sq-pill-bad">OVER BY {count.overBy}</span>
-            <button
-              type="button"
-              className="sq-btn sq-btn-sm studio-cr-btn"
-              onClick={() => {
-                const fitted = trimToFit(caption, CAPTION_LIMIT);
-                setCaption(fitted);
-                void save(fitted);
-              }}
-            >
-              Trim to fit
-            </button>
-          </>
-        )}
-      </div>
-      <textarea
-        id={id}
-        className="sq-input studio-cr-caption-input"
-        rows={6}
-        value={caption}
-        aria-invalid={count.over || undefined}
-        aria-describedby={count.over ? `${id}-over` : undefined}
-        onChange={(e) => setCaption(e.target.value)}
-        onBlur={() => void save(caption)}
-      />
-      {count.over && (
-        <p id={`${id}-over`} className="studio-inline-error" role="alert">
-          Over the limit: Instagram allows {CAPTION_LIMIT.toLocaleString("en-GB")} characters. Shorten the caption before
-          you queue this carousel.
-        </p>
-      )}
-      {error && (
-        <p className="studio-inline-error" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 /* ---- the editor ---- */
 
 function CarouselEditor({
@@ -556,11 +476,13 @@ function CarouselEditor({
   serverSlides,
   gen,
   bannedWords,
+  onUseOwn,
 }: {
   draft: Doc<"drafts">;
   serverSlides: Slide[];
   gen: GenState;
   bannedWords?: string[];
+  onUseOwn: () => void;
 }) {
   const updateSlides = useMutation(api.drafts.updateSlides);
   const imageIds = draft.mediaAssetIds ?? [];
@@ -815,7 +737,7 @@ function CarouselEditor({
         </div>
       </div>
 
-      <CaptionEditor draft={draft} bannedWords={bannedWords} />
+      <CarouselCaption draft={draft} bannedWords={bannedWords} />
 
       <div className="studio-cr-statusbar">
         <p className="studio-cr-status" role="status" aria-live="polite">
@@ -853,6 +775,9 @@ function CarouselEditor({
               {saving ? "Saving…" : "Save slides"}
             </button>
           )}
+          <button type="button" className="sq-btn sq-btn-sm studio-cr-btn" disabled={busy || saving || gen.writing} onClick={onUseOwn}>
+            Use my own images instead
+          </button>
         </div>
         {attached && !dirty && downloads.length > 0 && (
           <div className="studio-cr-downloads">
@@ -881,10 +806,25 @@ function CarouselEditor({
 }
 
 /** The Instagram carousel: its slides (a filmstrip, a large preview and a form), its caption and the drawn images. */
-export default function CarouselPanel({ draft, gen, onWrite, bannedWords }: CarouselPanelProps) {
+export default function CarouselPanel({ topicId, draft, gen, onWrite, bannedWords }: CarouselPanelProps) {
+  const [own, setOwn] = useState(false);
+  if (own && !gen.writing) {
+    return (
+      <OwnCarouselStart
+        topicId={topicId}
+        replacing={Boolean(draft?.slides?.length)}
+        onDone={() => setOwn(false)}
+        onCancel={() => setOwn(false)}
+      />
+    );
+  }
   if (draft?.slides && draft.slides.length > 0 && !gen.writing) {
-    return <CarouselEditor key={draft._id} draft={draft} serverSlides={draft.slides as Slide[]} gen={gen} bannedWords={bannedWords} />;
+    // The founder's own images have no slides to edit or draw: they get their own editor.
+    if (draft.slideSource === "uploaded") return <OwnCarouselEditor key={draft._id} draft={draft} bannedWords={bannedWords} />;
+    return (
+      <CarouselEditor key={draft._id} draft={draft} serverSlides={draft.slides as Slide[]} gen={gen} bannedWords={bannedWords} onUseOwn={() => setOwn(true)} />
+    );
   }
   if (draft && gen.writing) return <Skeleton elapsed={gen.elapsed} />;
-  return <EmptyState gen={gen} onWrite={onWrite} />;
+  return <EmptyState gen={gen} onWrite={onWrite} onOwn={() => setOwn(true)} />;
 }

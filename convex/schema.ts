@@ -77,6 +77,8 @@ export default defineSchema({
     slides: v.optional(v.array(slideValidator)),
     /** A carousel's rendered slide images, in order (2 to 10). `mediaAssetId` stays the cover (the first). */
     mediaAssetIds: v.optional(v.array(v.id("mediaAssets"))),
+    /** "uploaded": the founder's own images (added 2026-10-08). `slides` then holds one placeholder per image and is never shown or drawn. */
+    slideSource: v.optional(v.literal("uploaded")),
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference

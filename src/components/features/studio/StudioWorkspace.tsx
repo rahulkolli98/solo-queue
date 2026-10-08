@@ -549,6 +549,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           panels={{ reel: igPanel("reel"), caption: igPanel("caption") }}
           carousel={
             <CarouselPanel
+              topicId={topicId}
               draft={latest.carousel}
               gen={gen("carousel")}
               onWrite={() =>
