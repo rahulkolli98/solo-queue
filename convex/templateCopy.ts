@@ -103,16 +103,16 @@ INPUTS
 
 STRUCTURE
 1. Cover — the sharpest true line in the material as a big headline, one italic line under it.
-2. Middle slides — one idea each, in the order the story happened: what was wrong, what it cost, what changed. Use cards for a contrast or a pair of numbers, a list for steps.
+2. Middle slides — one idea each, in the order that makes the subject clearest. If the notes are the founder's own story, tell it in the order it happened. If the subject is something in the world, explain it: what it is, how it works, what to know, what could change. Use cards for a contrast or a pair of numbers, a list for steps. Every cards slide has cards and every list slide has items.
 3. Close — one line of what comes next, and a Follow / Save / Share ask. Exactly one ask.
 
 CONSTRAINTS
 - Headlines are short and bold: about 6 words, never a full sentence of explanation. Cards carry the detail, in one or two short sentences.
-- Plain words. No hype, no emojis unless the notes contain them. Numbers only if they are in the material.
+- Plain words. No hype, no emojis unless the notes contain them. Every number must come from the material or be certain.
 - Each slide must make sense when read alone, and read in order as a story.
 
 VOICE
-Dry founder: specific, a little self-mocking, no hype. A confession, not a pitch. If a headline could sit on anyone's motivational slide, rewrite it.
+Dry founder: specific, no hype. Self-mocking and confessional only when the notes are the founder's own story; on any other subject, explain it plainly. If a headline could sit on anyone's motivational slide, rewrite it.
 
 OUTPUT
 The JSON object described below, and nothing else.`,

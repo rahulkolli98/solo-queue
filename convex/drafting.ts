@@ -14,7 +14,7 @@ import {
   stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
-import { carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
+import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
 import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
@@ -45,6 +45,13 @@ const SETUP_KIND: Record<Format, SetupKind> = {
 };
 
 const formatSetupArg = v.object({ frameKey: v.optional(v.string()), count: v.optional(v.number()) });
+/** A carousel run can also say, in words, how it should read and look (`brief`), and can skip the story frame (`noFrame`). */
+const carouselSetupArg = v.object({
+  frameKey: v.optional(v.string()),
+  count: v.optional(v.number()),
+  brief: v.optional(v.string()),
+  noFrame: v.optional(v.boolean()),
+});
 
 const formatArg = v.union(
   v.literal("threads"),
@@ -187,7 +194,7 @@ export const generate = operatorAction({
         threads: v.optional(formatSetupArg),
         caption: v.optional(formatSetupArg),
         reel: v.optional(formatSetupArg),
-        carousel: v.optional(formatSetupArg),
+        carousel: v.optional(carouselSetupArg),
       })
     ),
   },
@@ -195,6 +202,10 @@ export const generate = operatorAction({
     const slides = args.setup?.carousel?.count;
     if (slides !== undefined && (!Number.isInteger(slides) || slides < 1 || slides > 10)) {
       throw refusal("BAD_SLIDE_COUNT", "A carousel can have 1 to 10 slides when it is written for you.");
+    }
+    const brief = args.setup?.carousel?.brief?.trim() || undefined;
+    if (brief && brief.length > BRIEF_MAX) {
+      throw refusal("BAD_BRIEF", `Describe the carousel in ${BRIEF_MAX} characters or fewer.`);
     }
     for (const count of [args.postCount, args.setup?.threads?.count]) {
       if (count !== undefined && (!Number.isInteger(count) || count < 2 || count > 12)) {
@@ -237,6 +248,8 @@ export const generate = operatorAction({
     const frameFor = new Map<Format, (typeof frames)[number]>();
     for (const format of formats) {
       const kind = SETUP_KIND[format];
+      // "No frame": the founder's own description (or the material) sets the shape of the carousel.
+      if (kind === "carousel" && args.setup?.carousel?.noFrame) continue;
       const picked = kind === "threads" || kind === "caption" || kind === "reel" || kind === "carousel" ? args.setup?.[kind]?.frameKey : undefined;
       let key: string | undefined;
       if (picked) {
@@ -315,7 +328,7 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}\n\nThe beats above are the arc of the story: spread them across the slides.\n\n${carouselInstructions({ count: slideCount, style: frame?.style })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {

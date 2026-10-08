@@ -130,6 +130,40 @@ describe("the carousel row", () => {
   });
 });
 
+describe("the carousel's own description and no-frame choice", () => {
+  const carouselOf = (choice: object) => {
+    const input = { ...base, choices: { carousel: { include: true, ...choice } } };
+    return { row: buildSetupRows(input).find((r) => r.kind === "carousel")!, input };
+  };
+
+  it("sends the description (trimmed) with the frame, and nothing when it is empty", () => {
+    const { row, input } = carouselOf({ brief: "  Explainer, big numbers, calm colours.  " });
+    expect(row.brief).toBe("  Explainer, big numbers, calm colours.  ");
+    expect(setupToSend(buildSetupRows(input), input).carousel).toEqual({ frameKey: "ig-carousel", brief: "Explainer, big numbers, calm colours." });
+    const blank = carouselOf({ brief: "   " });
+    expect(setupToSend(buildSetupRows(blank.input), blank.input).carousel).toEqual({ frameKey: "ig-carousel" });
+  });
+
+  it("no frame sends noFrame instead of a frame key, and the summary says whose description it is", () => {
+    const { row, input } = carouselOf({ noFrame: true, brief: "Only yellow and ink." });
+    expect(row.noFrame).toBe(true);
+    expect(row.frame).toBeUndefined();
+    expect(setupToSend(buildSetupRows(input), input).carousel).toEqual({ noFrame: true, brief: "Only yellow and ink." });
+    expect(setupSummary(buildSetupRows(input))).toContain("Carousel · Your description · 6 slides");
+    const bare = carouselOf({ noFrame: true });
+    expect(setupSummary(buildSetupRows(bare.input))).toContain("Carousel · No story frame · 6 slides");
+    // Other formats never carry a description or no-frame.
+    const threads = buildSetupRows(input).find((r) => r.kind === "threads")!;
+    expect(threads.noFrame).toBe(false);
+    expect(threads.brief).toBe("");
+  });
+
+  it("neither changes what Make default would save", () => {
+    const input = { ...base, choices: { carousel: { noFrame: true, brief: "x" } } };
+    expect(buildSetupRows(input).find((r) => r.kind === "carousel")?.changed).toBe(false);
+  });
+});
+
 describe("Draft this on an angle card", () => {
   it("ticks only the angle's format and picks its frame", () => {
     const input = { ...base, choices: choicesForAngle({ kind: "caption", frameKey: "receipt" }) };

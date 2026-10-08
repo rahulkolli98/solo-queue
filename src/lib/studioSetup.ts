@@ -17,6 +17,9 @@ import type { FrameFit } from "../../convex/lib/framesModel";
 import { POSTS_FALLBACK, clampPosts } from "@/lib/studioCompose";
 import { KIND_META, type DraftKind } from "@/lib/studioModel";
 
+/** The carousel frame select's value for "no story frame: I will describe it". */
+export const NO_FRAME = "__none__";
+
 /** The formats Studio can write, in display order. */
 export const SETUP_ROWS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 
@@ -33,6 +36,10 @@ export interface SetupChoice {
   include?: boolean;
   frameKey?: string;
   count?: number;
+  /** Carousel: write it without a story frame, from the description alone. */
+  noFrame?: boolean;
+  /** Carousel: how the founder wants it to read and look, in their own words. */
+  brief?: string;
 }
 export type SetupChoices = Partial<Record<DraftKind, SetupChoice>>;
 
@@ -58,6 +65,10 @@ export interface SetupRow {
   frameOptions: { key: string; name: string; isDefault: boolean }[];
   /** Threads: posts in the thread. Carousel: slides. */
   count: number | undefined;
+  /** Carousel: written with no story frame (the description, or the material, sets the shape). */
+  noFrame: boolean;
+  /** Carousel: what the founder asked for this run, "" when nothing. */
+  brief: string;
   /** Differs from what is saved, so "Make default" has something to save. */
   changed: boolean;
 }
@@ -84,7 +95,8 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
 
     const hasFrame = FIT_OF[kind] !== null;
     // Picked now, else the frame the existing draft used, else the saved default.
-    const frameKey = hasFrame
+    const noFrame = kind === "carousel" && choice.noFrame === true;
+    const frameKey = hasFrame && !noFrame
       ? (usableFrame(input.frames, choice.frameKey, kind)?.key ??
         usableFrame(input.frames, input.usedFrame?.[kind], kind)?.key ??
         savedFrameKey)
@@ -123,6 +135,8 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
       frame: frame ? { key: frame.key, name: frame.name } : undefined,
       frameOptions,
       count,
+      noFrame,
+      brief: kind === "carousel" ? (choice.brief ?? "") : "",
       changed,
     };
   });
@@ -135,6 +149,7 @@ export function setupSummary(rows: readonly SetupRow[]): string {
     .map((r) => {
       const bits = [r.label];
       if (r.frame) bits.push(r.frame.name);
+      else if (r.noFrame) bits.push(r.brief.trim() ? "Your description" : "No story frame");
       if (r.kind === "threads" && r.count !== undefined) bits.push(`${r.count} posts`);
       if (r.kind === "carousel" && r.count !== undefined) bits.push(r.count === 1 ? "1 slide" : `${r.count} slides`);
       return bits.join(" · ");
@@ -152,7 +167,7 @@ export interface GenerateSetup {
   threads?: { frameKey?: string; count?: number };
   caption?: { frameKey?: string };
   reel?: { frameKey?: string };
-  carousel?: { frameKey?: string; count?: number };
+  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean };
 }
 
 /**
@@ -178,8 +193,10 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
       const saved = resolveCount({ kind: "carousel", defaults: input.defaults });
       const baseline = clampSlideCount(saved ?? DEFAULT_SLIDE_COUNT);
       const entry: NonNullable<GenerateSetup["carousel"]> = {};
-      if (row.frame) entry.frameKey = row.frame.key;
+      if (row.noFrame) entry.noFrame = true;
+      else if (row.frame) entry.frameKey = row.frame.key;
       if (row.count !== undefined && row.count !== baseline) entry.count = row.count;
+      if (row.brief.trim()) entry.brief = row.brief.trim();
       if (Object.keys(entry).length) out.carousel = entry;
     }
   }

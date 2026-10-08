@@ -45,7 +45,8 @@ describe("checkSource", () => {
     expect(checkSource({ kind: "screenshot", mediaAssetId: "abc" })).toMatchObject({ ok: true, label: "Screenshot" });
   });
   it("caps text length", () => {
-    expect(checkSource({ kind: "note", text: "x".repeat(2001) })).toMatchObject({ ok: false, code: "TOO_LONG" });
+    expect(checkSource({ kind: "note", text: "x".repeat(8000) }).ok).toBe(true);
+    expect(checkSource({ kind: "note", text: "x".repeat(8001) })).toMatchObject({ ok: false, code: "TOO_LONG" });
   });
 });
 
