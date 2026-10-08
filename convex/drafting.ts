@@ -61,13 +61,24 @@ const DEFAULT_FORMATS: Format[] = [
   "blog",
 ];
 
-const BASE_SYSTEM =
-  "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble. " +
+const SYSTEM_INTRO =
+  "You are Solo Queue's drafting engine. Follow the template exactly. Output only the draft — no commentary, no preamble. ";
+
+/** Posts and threads stay strictly inside the material: a made-up number is worse than no number. */
+const STRICT_FACTS =
   "Use only facts, numbers, prices, dates, names and quotes that appear in the topic, notes or sources. " +
-  "Never invent them. Prefer writing without a number at all. Only when one specific fact is essential and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in, and use at most two placeholders in the whole thread. " +
-  "Never invent what the founder did, tried, felt, said or noticed either: write in the first person only about things the notes say happened to them. " +
-  "When the topic is about something in the world rather than the founder's own build, explain it plainly in the founder's tone, with no made-up anecdote, no \"I always\" or \"my router\" moments. " +
-  "Do not write beat labels or character counts (such as HOOK · 117 / 500) into the posts.";
+  "Never invent them. Prefer writing without a number at all. Only when one specific fact is essential and you were not given it, write a placeholder in double square brackets, such as [[your number]], for the founder to fill in, and use at most two placeholders in the whole thread. ";
+
+const NO_INVENTED_EXPERIENCE =
+  "Never invent what the founder did, tried, felt, said or noticed: write in the first person only about things the notes say happened to them. " +
+  "When the topic is about something in the world rather than the founder's own build, explain it plainly in the founder's tone, with no made-up anecdote, no \"I always\" or \"my router\" moments. ";
+
+const SYSTEM_OUTRO = "Do not write beat labels or character counts (such as HOOK · 117 / 500) into the posts.";
+
+const BASE_SYSTEM = SYSTEM_INTRO + STRICT_FACTS + NO_INVENTED_EXPERIENCE + SYSTEM_OUTRO;
+
+/** A carousel explains a subject, so it may add well-established context; its fact rule comes with the slide instructions. */
+const CAROUSEL_SYSTEM = SYSTEM_INTRO + NO_INVENTED_EXPERIENCE + SYSTEM_OUTRO;
 
 /** The prompt line that tells the model the founder's hashtag cap, so it does not spend them. */
 function hashtagInstruction(max: number): string {
@@ -262,16 +273,19 @@ export const generate = operatorAction({
       brief: topic.brief,
       sources: sources.map((x) => ({ kind: x.kind, label: x.label, url: x.url, text: x.text })),
     });
-    const system = [
-      BASE_SYSTEM,
-      settings.voice.description ? `Voice: ${settings.voice.description}` : "",
-      ...voiceContextBlocks(settings.voice),
-      settings.voice.bannedWords.length
-        ? `Never use these words or phrases: ${settings.voice.bannedWords.join(", ")}.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const systemWith = (head: string) =>
+      [
+        head,
+        settings.voice.description ? `Voice: ${settings.voice.description}` : "",
+        ...voiceContextBlocks(settings.voice),
+        settings.voice.bannedWords.length
+          ? `Never use these words or phrases: ${settings.voice.bannedWords.join(", ")}.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    const system = systemWith(BASE_SYSTEM);
+    const carouselSystem = systemWith(CAROUSEL_SYSTEM);
 
     const results: {
       id: string;
@@ -305,7 +319,7 @@ export const generate = operatorAction({
           : withHashtags;
 
       if (format === "instagram-carousel") {
-        const reply = await withLlmErrors(async () => (await generateText({ model, system, prompt })).text);
+        const reply = await withLlmErrors(async () => (await generateText({ model, system: carouselSystem, prompt })).text);
         const written = parseCarousel(reply, slideCount);
         if (!written) {
           throw refusal("BAD_CAROUSEL", "The AI model did not send back a usable carousel. Try again.");
