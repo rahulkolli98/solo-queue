@@ -33,7 +33,7 @@ function draft(over: Record<string, unknown> = {}, count = 3): Doc<"drafts"> {
   return { _id: "d1", body: "A caption", templateVersion: 1, slides: slides(count), ...over } as unknown as Doc<"drafts">;
 }
 const panel = (d: Doc<"drafts"> | undefined, gen: Partial<GenState> = {}, props: { bannedWords?: string[] } = {}) =>
-  html(<CarouselPanel draft={d} gen={{ ...idle, ...gen }} onWrite={vi.fn()} {...props} />);
+  html(<CarouselPanel topicId="t1" draft={d} gen={{ ...idle, ...gen }} onWrite={vi.fn()} {...props} />);
 
 const button = (out: string, text: string) => new RegExp(`<button[^>]*>${text}</button>`).exec(out)?.[0] ?? "";
 
@@ -370,5 +370,82 @@ describe("renderCarousel", () => {
     const ids = await renderCarousel(deps, input({ slides: slides(1), previousIds: [] }));
     expect(ids).toEqual(["asset-0"]);
     expect(deps.attach).toHaveBeenCalledWith(["asset-0"]);
+  });
+});
+
+import { OwnCarouselStart } from "@/components/features/studio/OwnCarousel";
+
+describe("a carousel made from the founder's own images", () => {
+  const own = (n = 3, over: Record<string, unknown> = {}) =>
+    draft({ slideSource: "uploaded", mediaAssetIds: Array.from({ length: n }, (_, i) => `a${i}`), slides: slides(n), ...over }, n);
+  const asset = (i: number, over: Record<string, unknown> = {}) => ({
+    _id: `a${i}`,
+    publicUrl: `https://files.example/${i}.png`,
+    filename: `photo-${i}.png`,
+    verifiedAt: Date.now(),
+    ...over,
+  });
+
+  it("is offered from the empty carousel and from a written one", () => {
+    expect(button(panel(undefined), "Use my own images")).not.toBe("");
+    expect(button(panel(undefined, { writing: true }), "Use my own images")).toContain("disabled");
+    expect(button(panel(draft()), "Use my own images instead")).not.toBe("");
+  });
+
+  it("shows the images in order with move and remove, not the slide editor, and never offers to draw", () => {
+    hooks.assets = [asset(0), asset(1), asset(2)];
+    const out = panel(own(3));
+    hooks.assets = undefined;
+    expect(out).toContain("YOUR OWN CAROUSEL · 3 IMAGES");
+    expect(out).toContain('aria-label="Your images, in order"');
+    expect(out).toContain('alt="Image 1: photo-0.png"');
+    expect(out).toContain('src="https://files.example/2.png"');
+    expect(out).toContain('aria-label="Move image 2 left"');
+    expect(out).toContain('aria-label="Remove image 3"');
+    expect(out).toContain("Add images");
+    expect(out).toContain("Instagram caption");
+    expect(out).not.toContain("Draw the slides");
+    expect(out).not.toContain('aria-label="Slides"');
+    expect(out).not.toContain("Use my own images instead");
+    expect(out).toContain("3 images attached and checked.");
+    // The first image cannot move left, the last cannot move right.
+    expect(out).toMatch(/aria-label="Move image 1 left"[^>]*disabled/);
+    expect(out).toMatch(/aria-label="Move image 3 right"[^>]*disabled/);
+    expect(out).not.toMatch(/aria-label="Remove image 3"[^>]*disabled/);
+  });
+
+  it("cannot go below two images, and asks for a check when an image is unchecked or stale", () => {
+    hooks.assets = [asset(0), asset(1)];
+    const two = panel(own(2));
+    expect(two).toMatch(/aria-label="Remove image 1"[^>]*disabled/);
+    expect(two).toContain("A carousel needs at least 2 images.");
+    hooks.assets = [asset(0), asset(1, { verifiedAt: undefined })];
+    const unchecked = panel(own(2));
+    hooks.assets = [asset(0), asset(1, { verifiedAt: Date.now() - 2 * 86_400_000 })];
+    const stale = panel(own(2));
+    hooks.assets = undefined;
+    for (const out of [unchecked, stale]) {
+      expect(out).toContain("They need a check before the carousel can be queued.");
+      expect(button(out, "Check the images")).not.toBe("");
+    }
+  });
+
+  it("is not shown the slide editor even when it is being written over (the skeleton stays)", () => {
+    expect(panel(own(2), { writing: true, elapsed: "0:05" })).toContain('aria-busy="true"');
+  });
+
+  it("the start screen asks for images and a caption before anything can be made", () => {
+    const out = html(<OwnCarouselStart topicId="t1" replacing={false} onDone={vi.fn()} onCancel={vi.fn()} />);
+    expect(out).toContain("YOUR OWN CAROUSEL");
+    expect(out).toContain("Choose your images");
+    expect(out).toContain("2 to 10 PNG or JPEG images");
+    expect(out).toContain('accept="image/png,image/jpeg"');
+    expect(out).toContain("multiple");
+    expect(out).toContain("Add at least 2 images.");
+    expect(button(out, "Make the carousel")).toContain("disabled");
+    expect(out).not.toContain("replaces the carousel you have written");
+    expect(html(<OwnCarouselStart topicId="t1" replacing onDone={vi.fn()} onCancel={vi.fn()} />)).toContain(
+      "This replaces the carousel you have written for this topic."
+    );
   });
 });

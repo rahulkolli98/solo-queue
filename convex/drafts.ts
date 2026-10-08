@@ -3,6 +3,7 @@ import { operatorMutation, operatorQuery } from "./lib/operator";
 import { slideValidator } from "./lib/carouselValidators";
 import { MAX_SLIDES, MIN_SLIDES, validateSlide } from "./lib/carouselSlides";
 import { checkEditedBody } from "./lib/drafting";
+import { assertOwnImages, placeholderSlides } from "./lib/ownCarousel";
 import { assertFileNotRemoved, refusal } from "./lib/slots";
 
 /**
@@ -153,6 +154,7 @@ export const updateSlides = operatorMutation({
     const draft = await ctx.db.get(args.id);
     if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
     if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel has slides.");
+    if (draft.slideSource === "uploaded") throw refusal("OWN_IMAGES", "This carousel is made of your own images, so it has no slides to edit.");
     if (args.slides.length < MIN_SLIDES || args.slides.length > MAX_SLIDES) {
       throw refusal("BAD_SLIDE_COUNT", `A carousel has ${MIN_SLIDES} to ${MAX_SLIDES} slides. This one has ${args.slides.length}.`);
     }
@@ -179,6 +181,7 @@ export const attachCarouselMedia = operatorMutation({
     const draft = await ctx.db.get(args.id);
     if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
     if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel takes slide images.");
+    if (draft.slideSource === "uploaded") throw refusal("OWN_IMAGES", "This carousel is made of your own images. Change them from the image list.");
     await assertNotQueued(ctx, args.id);
     if (args.mediaAssetIds.length === 0) {
       await ctx.db.patch(args.id, { mediaAssetIds: undefined, mediaAssetId: undefined });
@@ -202,6 +205,73 @@ export const attachCarouselMedia = operatorMutation({
       }
     }
     await ctx.db.patch(args.id, { mediaAssetIds: args.mediaAssetIds, mediaAssetId: args.mediaAssetIds[0] });
+    return null;
+  },
+});
+
+/**
+ * "Use my own images": a carousel from the founder's own PNG or JPEG files (2 to 10, in order) and a caption.
+ * It is stored like a written carousel (one placeholder slide per image, `slideSource: "uploaded"`) so counts, the
+ * Queue and Instagram treat it the same. An unqueued carousel of the topic is replaced; one that already has a post
+ * is left alone and this one is added beside it. The files stay in the library either way.
+ */
+export const createOwnCarousel = operatorMutation({
+  args: { topicId: v.id("topics"), caption: v.string(), mediaAssetIds: v.array(v.id("mediaAssets")) },
+  handler: async (ctx, args) => {
+    const topic = await ctx.db.get(args.topicId);
+    if (!topic) throw refusal("TOPIC_NOT_FOUND", "Topic not found. It may have been deleted.");
+    const body = args.caption.replace(/\r\n?/g, "\n");
+    if (!body.trim()) throw refusal("EMPTY_DRAFT", "Write the caption first. A carousel needs one.");
+    if (body.length > 20000) throw refusal("TOO_LONG", "Draft is too long (20,000 character max).");
+    await assertOwnImages(ctx, args.mediaAssetIds);
+
+    const templateKey = "carousel-slides";
+    const check = checkEditedBody("instagram", templateKey, body);
+    const existing = await ctx.db
+      .query("drafts")
+      .withIndex("by_topic_platform", (q) => q.eq("topicId", args.topicId).eq("platform", "instagram"))
+      .take(200);
+    for (const row of existing.filter((d) => d.templateKey === templateKey)) {
+      const slot = await ctx.db.query("slots").withIndex("by_draft", (q) => q.eq("draftId", row._id)).first();
+      if (!slot) await ctx.db.delete(row._id);
+    }
+    const template = await ctx.db.query("templates").withIndex("by_key", (q) => q.eq("key", templateKey)).collect();
+    const id = await ctx.db.insert("drafts", {
+      topicId: args.topicId,
+      platform: "instagram",
+      body,
+      templateKey,
+      templateVersion: template.find((t) => t.isActive)?.version ?? 1,
+      format: "carousel",
+      slides: placeholderSlides(args.mediaAssetIds.length),
+      slideSource: "uploaded",
+      mediaAssetIds: args.mediaAssetIds,
+      mediaAssetId: args.mediaAssetIds[0],
+      charCount: check.charCount,
+      constraintOk: check.constraintOk,
+      createdAt: Date.now(),
+    });
+    if (topic.status === "drafting") await ctx.db.patch(args.topicId, { status: "ready" });
+    return id;
+  },
+});
+
+/** Change the images of an own carousel: add, remove or reorder (2 to 10). The files themselves stay in the library. */
+export const setOwnCarouselImages = operatorMutation({
+  args: { id: v.id("drafts"), mediaAssetIds: v.array(v.id("mediaAssets")) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (draft.slideSource !== "uploaded") {
+      throw refusal("NOT_OWN_CAROUSEL", "Only a carousel made of your own images can be changed this way.");
+    }
+    await assertNotQueued(ctx, args.id);
+    await assertOwnImages(ctx, args.mediaAssetIds);
+    await ctx.db.patch(args.id, {
+      slides: placeholderSlides(args.mediaAssetIds.length),
+      mediaAssetIds: args.mediaAssetIds,
+      mediaAssetId: args.mediaAssetIds[0],
+    });
     return null;
   },
 });
