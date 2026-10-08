@@ -25,6 +25,19 @@ export function clampSlideCount(n: number | undefined): number {
   return Math.min(MAX_SLIDES, Math.max(MIN_WRITTEN_SLIDES, Math.round(n)));
 }
 
+/**
+ * Said after the template so it wins over a template's "confession" tone. The research is the base and the model may
+ * add its own well-established points, but what is stated must be accurate: attributed, whole, and never made up.
+ */
+const FACTS_ONLY =
+  "Write about the subject itself, for someone who has not seen the source: the slides explain it, they do not review the article. Build them on the topic, notes and sources. " +
+  "Name the source once (a slide or the caption). Attribute (\"the article says\") only a figure or claim you cannot stand behind yourself, not every card, and never put your own wording or points in a source's mouth. " +
+  "Add your own explanation, context and useful points where they help the reader (what it is, why it matters, how to choose); they must be well established and correct, and accuracy matters more than adding something. " +
+  "A specific figure, price, date, name or quote must come from the sources or be widely known and certain: never invent one, and when you are not sure, leave it out. " +
+  "When a source gives a range, show both ends, never only the end that proves the point, and never set the top of one range against the bottom of another. " +
+  "The story beats may describe a personal arc (what was wrong, what it cost, what changed). When the material is about something in the world instead, keep the order of ideas but make every beat about the subject, and never invent a before-and-after, a history, a hardship or a result that the sources do not state. " +
+  "Never invent the founder's own experience (what they did, tried, felt, noticed or believed): a first-person line is allowed only when the notes say it.";
+
 /** The JSON shape and the slide rules, appended to the template for the carousel call. */
 export function carouselInstructions(input: { count: number; style?: string }): string {
   const lines = input.count === 1 ? singleSlideInstructions() : [
@@ -34,10 +47,11 @@ export function carouselInstructions(input: { count: number; style?: string }): 
     `layout is one of ${SLIDE_LAYOUTS.join(", ")}. The first slide is "cover" (a big headline and one italic line in sub). The last slide is "close" (a headline, an italic line in sub, and pills such as ["Follow","Save","Share"]). Slides between use "cards" (headline plus 1 to 3 cards) or "list" (headline plus 2 to 5 items).`,
     `tone is the slide colour, one of ${SLIDE_TONES.join(", ")}. Change colour from one slide to the next; do not use the same colour twice in a row.`,
     `kicker: a few capital-letter words naming the slide (at most ${LIMITS.kicker} characters), for example "THE PROBLEM". headline: at most ${LIMITS.headline} characters and about 6 words; use \\n to break a line where the meaning breaks. accent: the one word or short phrase of the headline to colour (separate two phrases with | to colour two parts, such as 100|50). sub: one italic sentence (at most ${LIMITS.sub} characters).`,
-    `A card is {label?, big?, text, tone}: label is a short caps tag; big is an optional figure such as "60d" or "500" (at most ${LIMITS.cardBig} characters, and only when the figure is in the notes); text is one or two short sentences (at most ${LIMITS.cardText} characters); tone is one of ${SLIDE_TONES.join(", ")} and should differ from the slide colour. Two cards that both have big sit side by side; otherwise cards stack.`,
+    `A card is {label?, big?, text, tone}: label is a short caps tag; big is an optional figure such as "60d" or "500" (at most ${LIMITS.cardBig} characters, and only when the figure comes from the sources or is certain); text is one or two short sentences (at most ${LIMITS.cardText} characters); tone is one of ${SLIDE_TONES.join(", ")} and should differ from the slide colour. Two cards that both have big sit side by side; otherwise cards stack.`,
     `An item is {label?, text}: text at most ${LIMITS.itemText} characters.`,
-    "Use only facts, numbers, names and quotes that are in the topic, notes or sources. Never invent them. One idea per slide; the slides read as a story, not a list of tips.",
-    "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It must stand alone and must not repeat the slides word for word.",
+    FACTS_ONLY,
+    "One idea per slide; the slides read as a story, not a list of tips. If the material is about something in the world rather than the founder's own build, tell it as an explainer (what it is, how it works, what could change); the story arc above is the order of the ideas, not a personal confession.",
+    "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It reads like a post a person wrote, not a summary of the notes: lead with the one idea, add a point or two the slides leave out, and do not list everything. It must stand alone and must not repeat the slides word for word.",
   ];
   if (input.style?.trim()) {
     lines.push(`Style and references for this carousel (follow the look and tone they describe):\n${input.style.trim()}`);
@@ -53,7 +67,7 @@ function singleSlideInstructions(): string[] {
     'The slide is {layout: "statement", tone, kicker, headline, accent, sub, tag}.',
     `tone is the slide colour, one of ${SLIDE_TONES.join(", ")}.`,
     `kicker: a few capital-letter words naming the idea (at most ${LIMITS.kicker} characters), for example "FUN FACT" or "FROM MY BUILD LOG". headline: the one bold statement, at most ${LIMITS.headline} characters, a complete thought a stranger gets in two seconds. accent: the one word, number or short phrase of the headline to colour. sub: one italic sentence (at most ${LIMITS.sub} characters) with the dry aside. tag: a small caps label such as "Build in public" (at most ${LIMITS.tag} characters).`,
-    "Use only facts, numbers, names and quotes that are in the topic, notes or sources. Never invent them.",
+    FACTS_ONLY,
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It adds the story the image leaves out; it does not repeat the headline.",
   ];
 }
