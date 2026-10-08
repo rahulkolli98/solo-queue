@@ -25,6 +25,12 @@ export function clampSlideCount(n: number | undefined): number {
   return Math.min(MAX_SLIDES, Math.max(MIN_WRITTEN_SLIDES, Math.round(n)));
 }
 
+/** Said after the template so it wins over a template's "confession" tone: nothing in a slide or caption may be made up. */
+const FACTS_ONLY =
+  "Use only facts, numbers, names and quotes that are in the topic, notes or sources; never invent them. " +
+  "Never invent the founder's own experience either (what they did, tried, felt, noticed or believed): a first-person line is allowed only when the notes say it. " +
+  "If a slide would need a fact you were not given, leave the slide out or say less.";
+
 /** The JSON shape and the slide rules, appended to the template for the carousel call. */
 export function carouselInstructions(input: { count: number; style?: string }): string {
   const lines = input.count === 1 ? singleSlideInstructions() : [
@@ -36,7 +42,8 @@ export function carouselInstructions(input: { count: number; style?: string }): 
     `kicker: a few capital-letter words naming the slide (at most ${LIMITS.kicker} characters), for example "THE PROBLEM". headline: at most ${LIMITS.headline} characters and about 6 words; use \\n to break a line where the meaning breaks. accent: the one word or short phrase of the headline to colour (separate two phrases with | to colour two parts, such as 100|50). sub: one italic sentence (at most ${LIMITS.sub} characters).`,
     `A card is {label?, big?, text, tone}: label is a short caps tag; big is an optional figure such as "60d" or "500" (at most ${LIMITS.cardBig} characters, and only when the figure is in the notes); text is one or two short sentences (at most ${LIMITS.cardText} characters); tone is one of ${SLIDE_TONES.join(", ")} and should differ from the slide colour. Two cards that both have big sit side by side; otherwise cards stack.`,
     `An item is {label?, text}: text at most ${LIMITS.itemText} characters.`,
-    "Use only facts, numbers, names and quotes that are in the topic, notes or sources. Never invent them. One idea per slide; the slides read as a story, not a list of tips.",
+    FACTS_ONLY,
+    "One idea per slide; the slides read as a story, not a list of tips. If the material is about something in the world rather than the founder's own build, tell it as an explainer (what it is, how it works, what could change); the story arc above is the order of the ideas, not a personal confession.",
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It must stand alone and must not repeat the slides word for word.",
   ];
   if (input.style?.trim()) {
@@ -53,7 +60,7 @@ function singleSlideInstructions(): string[] {
     'The slide is {layout: "statement", tone, kicker, headline, accent, sub, tag}.',
     `tone is the slide colour, one of ${SLIDE_TONES.join(", ")}.`,
     `kicker: a few capital-letter words naming the idea (at most ${LIMITS.kicker} characters), for example "FUN FACT" or "FROM MY BUILD LOG". headline: the one bold statement, at most ${LIMITS.headline} characters, a complete thought a stranger gets in two seconds. accent: the one word, number or short phrase of the headline to colour. sub: one italic sentence (at most ${LIMITS.sub} characters) with the dry aside. tag: a small caps label such as "Build in public" (at most ${LIMITS.tag} characters).`,
-    "Use only facts, numbers, names and quotes that are in the topic, notes or sources. Never invent them.",
+    FACTS_ONLY,
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It adds the story the image leaves out; it does not repeat the headline.",
   ];
 }

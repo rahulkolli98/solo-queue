@@ -153,10 +153,12 @@ describe("parseCarousel", () => {
     const text = carouselInstructions({ count: 7, style: "Warm paper, big numbers." });
     expect(text).toContain("exactly 7 slides");
     expect(text).toContain("Warm paper, big numbers.");
-    expect(text).toContain("Never invent them");
+    expect(text).toContain("never invent them");
+    expect(text).toContain("a first-person line is allowed only when the notes say it");
     const one = carouselInstructions({ count: 1 });
     expect(one).toContain("exactly 1 slide");
     expect(one).toContain("statement");
+    expect(one).toContain("a first-person line is allowed only when the notes say it");
   });
 });
 
@@ -217,6 +219,9 @@ describe("generating a carousel", () => {
     expect(sent).toContain("exactly 4 slides");
     expect(sent).toContain("Short bold headlines, one idea per slide");
     expect(sent).toContain("Story frame");
+    // The no-invented-experience rule reaches the model twice: in the system prompt and after the template.
+    expect(sent).toContain("Never invent what the founder did, tried, felt, said or noticed");
+    expect(sent).toContain("a first-person line is allowed only when the notes say it");
   });
 
   it("writes a single statement slide when the count is 1", async () => {
