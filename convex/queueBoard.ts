@@ -42,6 +42,8 @@ export const dayColumns = operatorQuery({
 
     type Card = {
       _id: Id<"slots">;
+      /** The draft this post is (Studio matches a draft to its post by this, not by the topic's title). */
+      draftId: Id<"drafts">;
       platform: "threads" | "instagram";
       scheduledAt: number;
       time: string;
@@ -87,6 +89,7 @@ export const dayColumns = operatorQuery({
         const linked = draft?.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
         const card: Card = {
           _id: slot._id,
+          draftId: slot.draftId,
           platform,
           scheduledAt: slot.scheduledAt,
           time: hhmm(slot.scheduledAt, tz),

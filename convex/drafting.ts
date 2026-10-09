@@ -1,8 +1,8 @@
 import type { Id } from "./_generated/dataModel";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, type ActionCtx } from "./_generated/server";
 import { operatorAction } from "./lib/operator";
 import { api, internal } from "./_generated/api";
-import { v } from "convex/values";
+import { v, type ObjectType } from "convex/values";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import {
@@ -22,7 +22,7 @@ import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, resolveTargets, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
-import { refusal } from "./lib/slots";
+import { parseRefusal, refusal } from "./lib/slots";
 import { applySignOff, limitHashtags, voiceContextBlocks } from "./lib/voiceRules";
 
 const FORMATS = {
@@ -242,8 +242,7 @@ export const linkCarouselToThread = internalMutation({
  * labels come from the frame at display time), so what is stored is what is
  * published. Marks the topic ready on success.
  */
-export const generate = operatorAction({
-  args: {
+const generateArgs = {
     topicId: v.id("topics"),
     formats: v.optional(v.array(formatArg)),
     /** One frame for every format it fits (older callers). `setup` is the per-format way. */
@@ -259,8 +258,36 @@ export const generate = operatorAction({
         carousel: v.optional(carouselSetupArg),
       })
     ),
-  },
+};
+
+/** Mark that drafts are being written for a topic, so every screen can show it, whichever page started it. */
+export const markGeneration = internalMutation({
+  args: { topicId: v.id("topics"), kinds: v.array(v.string()) },
   handler: async (ctx, args) => {
+    if (!(await ctx.db.get(args.topicId))) return null;
+    await ctx.db.patch(args.topicId, { generation: { kinds: args.kinds, startedAt: Date.now(), status: "running" } });
+    return null;
+  },
+});
+
+/** The run ended: clear the mark, or keep the reason it failed (until the next run) so a screen opened later can show it. */
+export const finishGeneration = internalMutation({
+  args: { topicId: v.id("topics"), error: v.optional(v.string()), errorCode: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const topic = await ctx.db.get(args.topicId);
+    if (!topic?.generation) return null;
+    if (args.error === undefined) {
+      await ctx.db.patch(args.topicId, { generation: undefined });
+    } else {
+      await ctx.db.patch(args.topicId, {
+        generation: { ...topic.generation, status: "failed", error: args.error.slice(0, 600), errorCode: args.errorCode },
+      });
+    }
+    return null;
+  },
+});
+
+async function runGenerate(ctx: ActionCtx, args: ObjectType<typeof generateArgs>) {
     const slides = args.setup?.carousel?.count;
     if (slides !== undefined && (!Number.isInteger(slides) || slides < 1 || slides > 10)) {
       throw refusal("BAD_SLIDE_COUNT", "A carousel can have 1 to 10 slides when it is written for you.");
@@ -366,10 +393,11 @@ export const generate = operatorAction({
     if (themeArg && !isThemeKey(themeArg)) throw refusal("THEME_NOT_FOUND", "That theme is not available. Pick another.");
     const theme: ThemeKey = themeArg && isThemeKey(themeArg) ? themeArg : look?.theme && isThemeKey(look.theme) ? look.theme : DEFAULT_THEME;
 
-    // The carousel also goes to Threads when this run, or the saved default, says so: it then gets a Threads text too.
-    const carouselToThreads =
-      formats.includes("instagram-carousel") &&
-      resolveTargets({ defaults: settings.voice.formatDefaults, picked: args.setup?.carousel?.targets }).includes("threads");
+    // The carousel also goes to Threads when this run, or the saved default, says so.
+    const carouselToThreadsTarget = resolveTargets({
+      defaults: settings.voice.formatDefaults,
+      picked: args.setup?.carousel?.targets,
+    }).includes("threads");
 
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
@@ -535,8 +563,12 @@ export const generate = operatorAction({
     };
 
     const settled = await Promise.allSettled(formats.map(writeFormat));
-    // A carousel set to go to Threads goes on the first post of the topic's thread.
-    if (carouselToThreads) await ctx.runMutation(internal.drafting.linkCarouselToThread, { topicId: args.topicId });
+    // A carousel set to go to Threads (this run's pick, else the saved default) goes on the first post of the topic's
+    // thread: when the carousel is written, and also when only the thread is written again (a new thread starts
+    // without one, so a regenerate would otherwise drop the carousel).
+    if (carouselToThreadsTarget && (formats.includes("instagram-carousel") || formats.includes("threads"))) {
+      await ctx.runMutation(internal.drafting.linkCarouselToThread, { topicId: args.topicId });
+    }
     results.sort((a, b) => formats.indexOf(a.format) - formats.indexOf(b.format));
     // Drafts that landed stay saved; the first failure (in format order) is reported, as before.
     const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
@@ -547,5 +579,27 @@ export const generate = operatorAction({
       status: "ready",
     });
     return { topicId: args.topicId, drafts: results };
+}
+
+export const generate = operatorAction({
+  args: generateArgs,
+  handler: async (ctx, args) => {
+    // The page that started the run may be closed or left before it ends (it takes tens of seconds), so the run is
+    // marked on the topic: any screen, now or later, shows it as writing, then shows the drafts or why it failed.
+    const kinds = (args.formats?.length ? args.formats : DEFAULT_FORMATS) as string[];
+    await ctx.runMutation(internal.drafting.markGeneration, { topicId: args.topicId, kinds });
+    try {
+      const out = await runGenerate(ctx, args);
+      await ctx.runMutation(internal.drafting.finishGeneration, { topicId: args.topicId });
+      return out;
+    } catch (err) {
+      const refused = parseRefusal(err);
+      await ctx.runMutation(internal.drafting.finishGeneration, {
+        topicId: args.topicId,
+        error: refused?.message ?? (err instanceof Error ? err.message : "Generation failed."),
+        errorCode: refused?.code,
+      });
+      throw err;
+    }
   },
 });

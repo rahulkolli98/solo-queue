@@ -523,6 +523,28 @@ export function generationProgress(
   return { done: fresh.length, total: requested.length, fresh, current };
 }
 
+/**
+ * The same, for a run this page did not start (it was left and reopened, or another device started it): a draft is
+ * new when it was stored after the run began (`since` is the server's clock, as is a draft's `createdAt`).
+ */
+export function generationProgressSince(
+  requested: DraftKind[],
+  latest: Partial<Record<DraftKind, Draft>>,
+  since: number
+): GenerationProgress {
+  const fresh = requested.filter((k) => {
+    const d = latest[k];
+    return d !== undefined && d.createdAt >= since;
+  });
+  const current = requested.find((k) => !fresh.includes(k)) ?? null;
+  return { done: fresh.length, total: requested.length, fresh, current };
+}
+
+/** The kind a generate format name stands for ("instagram-reel" is the reel script), or undefined for an unknown one. */
+export function kindOfFormat(format: string): DraftKind | undefined {
+  return (Object.keys(KIND_META) as DraftKind[]).find((k) => KIND_META[k].generateFormat === format);
+}
+
 /** "0:12" from elapsed milliseconds. */
 export function formatElapsed(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));

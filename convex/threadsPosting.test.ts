@@ -168,7 +168,7 @@ describe("a carousel on the first post of a thread", () => {
     expect(detail?.draft?.body).toBe(THREAD);
     const board = await t.query(api.queueBoard.dayColumns, { from: Date.now() - 86_400_000, days: 14, tz: "UTC" });
     const card = board.days.flatMap((d) => [...d.threads, ...d.instagram]).find((c) => c._id === slotId);
-    expect(card).toMatchObject({ slideCount: 3, hasMedia: true });
+    expect(card).toMatchObject({ slideCount: 3, hasMedia: true, draftId: th });
   });
 
   it("refuses with what to do: no images drawn, too few, unchecked, stale, removed, wrong type, carousel gone", async () => {
