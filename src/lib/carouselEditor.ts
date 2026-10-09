@@ -10,6 +10,7 @@ import {
   type SlideLayout,
   type SlideTone,
 } from "../../convex/lib/carouselSlides";
+import { DEFAULT_THEME, themeOf } from "../../convex/lib/themes";
 import { CAPTION_LIMIT, charLen } from "@/lib/draftText";
 
 /**
@@ -181,6 +182,7 @@ export function tidySlide(slide: Slide): Slide {
   if (!blank(slide.accent)) out.accent = slide.accent;
   if (!blank(slide.sub)) out.sub = slide.sub;
   if (!blank(slide.tag)) out.tag = slide.tag;
+  if (!blank(slide.note)) out.note = slide.note;
   if (slide.cards) {
     out.cards = slide.cards.map((c) => {
       const card: Record<string, unknown> = {};
@@ -216,9 +218,9 @@ export function slidesEqual(a: readonly Slide[], b: readonly Slide[]): boolean {
   return a.every((slide, i) => JSON.stringify(normalizeSlide(slide)) === JSON.stringify(normalizeSlide(b[i])));
 }
 
-/** The key a drawn slide is cached under: its tidy content and where it sits. */
-export function slideKey(slide: Slide, index: number, total: number): string {
-  return JSON.stringify([normalizeSlide(slide), index, total]);
+/** The key a drawn slide is cached under: its tidy content, where it sits and the theme it is drawn in. */
+export function slideKey(slide: Slide, index: number, total: number, theme?: string): string {
+  return JSON.stringify([normalizeSlide(slide), index, total, themeOf(theme)]);
 }
 
 const FIELD_NAMES: Record<string, string> = {
@@ -227,6 +229,7 @@ const FIELD_NAMES: Record<string, string> = {
   accent: "Accent word",
   sub: "Italic line",
   tag: "Tag",
+  note: "Note",
 };
 const PART_NAMES: Record<string, string> = { label: "label", big: "big figure", text: "text", tone: "colour" };
 
@@ -313,14 +316,17 @@ export async function drawSlide(
   slide: Slide,
   index: number,
   total: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** The design to draw in (themes.ts); the default is not sent. */
+  theme?: string
 ): Promise<Blob> {
   let res: Response;
+  const chosen = themeOf(theme);
   try {
     res = await fetchFn(SLIDE_ROUTE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slide: normalizeSlide(slide), index, total }),
+      body: JSON.stringify({ slide: normalizeSlide(slide), index, total, ...(chosen === DEFAULT_THEME ? {} : { theme: chosen }) }),
       signal,
     });
   } catch (e) {

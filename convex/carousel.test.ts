@@ -612,3 +612,61 @@ describe("writing a carousel with a look", () => {
     expect((await carouselDrafts(t))[0].lookKey).toBeUndefined();
   });
 });
+
+describe("writing a carousel in a theme", () => {
+  const withNotes = JSON.stringify({
+    caption: "c",
+    slides: [
+      { layout: "cover", tone: "cream", headline: "Cover" },
+      { layout: "cards", tone: "ink", kicker: "THE RECEIPT", headline: "A receipt", cards: [{ label: "COST", big: "40", text: "Under forty.", tone: "ink" }], note: "under 40 rupees, no really, about as cheap as a snack" },
+      { layout: "close", tone: "coral", headline: "End", pills: ["Follow", "Save", "Share"] },
+    ],
+  });
+
+  it("tells the model what the Kraft zine theme draws, keeps the notes (cut to 40 characters) and stores the theme", async () => {
+    const model = fakeModel(withNotes);
+    const { t, topic } = await seeded();
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { theme: "kraft-zine", count: 3 } } });
+    const [draft] = await carouselDrafts(t);
+    expect(draft.theme).toBe("kraft-zine");
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("the Kraft zine theme");
+    expect(sent).toContain("torn-tape");
+    expect(sent).toContain("terminal window");
+    expect(sent).toContain("hand-written red aside");
+    const note = draft.slides?.[1].note ?? "";
+    expect(note.length).toBeGreaterThan(0);
+    expect(note.length).toBeLessThanOrEqual(40);
+    expect("under 40 rupees, no really, about as cheap as a snack".startsWith(note)).toBe(true);
+  });
+
+  it("adds nothing for Solo Queue, and stores no theme for it", async () => {
+    const model = fakeModel(withNotes);
+    const { t, topic } = await seeded();
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { count: 3 } } });
+    expect(model.bodies.join("\n")).not.toContain("Kraft zine");
+    expect((await carouselDrafts(t))[0].theme).toBeUndefined();
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { theme: "solo-queue", count: 3 } } });
+    expect((await carouselDrafts(t))[0].theme).toBeUndefined();
+  });
+
+  it("takes the look's theme, which this run's own pick overrides", async () => {
+    const model = fakeModel(withNotes);
+    const { t, topic } = await seeded();
+    const { key } = await t.mutation(api.looks.save, { name: "Zine", theme: "kraft-zine" });
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 3 } } });
+    expect((await carouselDrafts(t))[0].theme).toBe("kraft-zine");
+    expect(model.bodies.join("\n")).toContain("the Kraft zine theme");
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, theme: "solo-queue", count: 3 } } });
+    expect((await carouselDrafts(t))[0].theme).toBeUndefined();
+  });
+
+  it("refuses an unknown theme before any model call", async () => {
+    const model = fakeModel(withNotes);
+    const { t, topic } = await seeded();
+    await expect(
+      t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { theme: "neon" } } })
+    ).rejects.toThrow(/THEME_NOT_FOUND/);
+    expect(model.bodies).toHaveLength(0);
+  });
+});

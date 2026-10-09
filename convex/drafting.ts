@@ -17,6 +17,7 @@ import {
 } from "./lib/drafting";
 import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
 import { REFERENCE_MAX_BYTES, isReferenceType, planForCount } from "./lib/looks";
+import { DEFAULT_THEME, isThemeKey, type ThemeKey } from "./lib/themes";
 import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
@@ -55,6 +56,8 @@ const carouselSetupArg = v.object({
   noFrame: v.optional(v.boolean()),
   /** A saved look (looks.key): a slide plan, a design document and/or reference images. */
   lookKey: v.optional(v.string()),
+  /** The design to draw in for this run (themes.ts). It wins over the look's theme; missing means the look's, else Solo Queue. */
+  theme: v.optional(v.string()),
 });
 
 const formatArg = v.union(
@@ -126,6 +129,8 @@ export const storeDraft = internalMutation({
     slides: v.optional(v.array(slideValidator)),
     /** The carousel look it was written with. */
     lookKey: v.optional(v.string()),
+    /** The theme it is drawn in (missing: the default). */
+    theme: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -169,6 +174,7 @@ export const storeDraft = internalMutation({
       mediaAssetId: args.platform === "instagram" && !args.slides ? carriedMedia : undefined,
       slides: args.slides,
       lookKey: args.lookKey,
+      theme: args.theme,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -306,6 +312,10 @@ export const generate = operatorAction({
       }
     }
     const lookPlan = look?.plan ? planForCount(look.plan, slideCount) : null;
+    // The design: this run's pick, else the look's, else Solo Queue. An unknown key is refused before any model call.
+    const themeArg = formats.includes("instagram-carousel") ? args.setup?.carousel?.theme : undefined;
+    if (themeArg && !isThemeKey(themeArg)) throw refusal("THEME_NOT_FOUND", "That theme is not available. Pick another.");
+    const theme: ThemeKey = themeArg && isThemeKey(themeArg) ? themeArg : look?.theme && isThemeKey(look.theme) ? look.theme : DEFAULT_THEME;
 
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
@@ -360,7 +370,7 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, theme, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {
@@ -399,6 +409,7 @@ export const generate = operatorAction({
           format: draftFormat,
           slides: written.slides,
           lookKey: look?.key,
+          theme: theme === DEFAULT_THEME ? undefined : theme,
         });
         if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
         if (look) await ctx.runMutation(internal.looks.recordUse, { key: look.key });

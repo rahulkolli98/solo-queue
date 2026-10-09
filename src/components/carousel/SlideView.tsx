@@ -305,6 +305,8 @@ export default function SlideView({
   slide: Slide;
   index: number;
   total: number;
+  /** The design to draw in (themes.ts). Solo Queue is drawn here; other themes have their own renderer. */
+  theme?: string;
 }): ReactElement {
   if (slide.layout === "statement") return <StatementSlide slide={slide} />;
   const colors = SLIDE_COLORS[slide.tone];

@@ -80,6 +80,8 @@ export default defineSchema({
     /** "uploaded": the founder's own images (added 2026-10-08). `slides` then holds one placeholder per image and is never shown or drawn. */
     slideSource: v.optional(v.literal("uploaded")),
     lookKey: v.optional(v.string()), // the carousel look it was written with (looks.key); soft reference
+    /** The theme the carousel is drawn in (themes.ts); missing means the default, Solo Queue (added 2026-10-09). */
+    theme: v.optional(v.string()),
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference
@@ -194,6 +196,8 @@ export default defineSchema({
     ),
     design: v.optional(v.string()),
     referenceIds: v.optional(v.array(v.id("mediaAssets"))),
+    /** The theme (design) carousels written with this look are drawn in (themes.ts; added 2026-10-09). */
+    theme: v.optional(v.string()),
     usedCount: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

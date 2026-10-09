@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PlanSlide } from "./looks";
+import { DEFAULT_THEME, type ThemeKey } from "./themes";
 import {
   LIMITS,
   MAX_SLIDES,
@@ -49,6 +50,8 @@ export function carouselInstructions(input: {
   brief?: string;
   /** False when the run has no story frame: the model plans the order of ideas itself. */
   arc?: boolean;
+  /** The design the carousel is drawn in. The default theme adds nothing; another tells the model what it draws. */
+  theme?: ThemeKey;
   /** The founder's saved look for this run: the plan for exactly `count` slides, a design document, reference images. */
   look?: { plan?: readonly PlanSlide[] | null; design?: string; references?: boolean };
 }): string {
@@ -66,6 +69,7 @@ export function carouselInstructions(input: {
     "One idea per slide; the slides read as a story, not a list of tips. If the material is about something in the world rather than the founder's own build, tell it as an explainer (what it is, how it works, what could change); the story arc above is the order of the ideas, not a personal confession.",
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It reads like a post a person wrote, not a summary of the notes: lead with the one idea, add a point or two the slides leave out, and do not list everything. It must stand alone and must not repeat the slides word for word.",
   ];
+  if (input.theme && input.theme !== DEFAULT_THEME) lines.push(...themeInstructions(input.theme));
   if (input.arc === false && input.count !== 1) {
     lines.push("There is no story frame for this carousel: choose the order of ideas yourself, so the slides read clearly for this material and this request.");
   }
@@ -81,6 +85,16 @@ export function carouselInstructions(input: {
     );
   }
   return lines.join("\n");
+}
+
+/** What a theme other than the default draws, so the model writes for that design and uses what it shows. */
+export function themeInstructions(theme: ThemeKey): string[] {
+  if (theme !== "kraft-zine") return [];
+  return [
+    "Design: the Kraft zine theme. Slides are drawn as a printed zine on kraft paper, so write for that look. The background is the same kraft paper on every slide: the slide colour (tone) changes nothing, send any one. The only colour that matters is a card's tone: an \"ink\" card is drawn as a dark terminal window (use it for a command, a short checklist or steps, in short plain lines), any other card as a paper card.",
+    `kicker: on every slide but the cover it is drawn on a black torn-tape label in a marker hand, so make it a short caps tag such as "THE RECEIPT" or "STEP 2 / PRETRAIN" (at most ${LIMITS.kicker} characters). headline: heavy condensed type, about 6 words, one idea. accent: the one phrase drawn in red italic serif. A card's big figure is drawn large with a hand-drawn red circle round it, so put the one number that matters there.`,
+    `note: a short hand-written red aside (at most ${LIMITS.note} characters) drawn next to the slide's key figure, such as "under 40 rupees" or "about 2 hours on one GPU". Add one to most slides, and leave it out when the slide has no figure. It is a plain remark in the zine's voice, never a new fact.`,
+  ];
 }
 
 /** What the app can draw, so a design (a document or a picture) can be mapped onto it and the rest left out. */
@@ -244,6 +258,7 @@ function normalizeSlide(raw: Record<string, unknown>, index: number, count: numb
     // A close slide needs at least two asks to look right; a model that gave one gets the usual three.
     pills: layout === "close" ? (pills && pills.length >= 2 ? pills : ["Follow", "Save", "Share"]) : pills?.length ? pills : undefined,
     tag: layout === "statement" ? clip(raw.tag, LIMITS.tag) : undefined,
+    note: clip(raw.note, LIMITS.note),
   };
 }
 

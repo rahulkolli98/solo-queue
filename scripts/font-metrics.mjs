@@ -21,6 +21,9 @@ const FONTS = {
   dmSansMedium: "DMSans-Medium.woff",
   dmSansItalic: "DMSans-Italic.woff",
   dmMono: "DMMono-Medium.woff",
+  anton: "Anton-Regular.woff",
+  playfairBoldItalic: "PlayfairDisplay-BoldItalic.woff",
+  marker: "PermanentMarker-Regular.woff",
 };
 
 /** The characters the table covers: printable ASCII plus the typographic marks a model likes to write. */

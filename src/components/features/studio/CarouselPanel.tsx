@@ -664,7 +664,7 @@ function CarouselEditor({
                 tabIndex={i === at ? 0 : -1}
                 onClick={() => select(i)}
               >
-                <SlidePreview slide={slide} index={i} total={total} decorative />
+                <SlidePreview slide={slide} index={i} total={total} theme={draft.theme} decorative />
                 <span className="studio-cr-thumb-n" aria-hidden="true">
                   {bad ? "!" : i + 1}
                 </span>
@@ -676,7 +676,7 @@ function CarouselEditor({
 
       <div className="studio-cr-body">
         <div className="studio-cr-stage">
-          <SlidePreview slide={current} index={at} total={total} />
+          <SlidePreview slide={current} index={at} total={total} theme={draft.theme} />
         </div>
 
         <div className="studio-cr-editor" role="group" aria-label={`Slide ${at + 1} of ${total}`}>

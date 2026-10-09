@@ -4,6 +4,7 @@ import { slideValidator } from "./lib/carouselValidators";
 import { MAX_SLIDES, MIN_SLIDES, validateSlide } from "./lib/carouselSlides";
 import { checkEditedBody } from "./lib/drafting";
 import { assertOwnImages, placeholderSlides } from "./lib/ownCarousel";
+import { DEFAULT_THEME, isThemeKey } from "./lib/themes";
 import { assertFileNotRemoved, refusal } from "./lib/slots";
 
 /**
@@ -272,6 +273,27 @@ export const setOwnCarouselImages = operatorMutation({
       mediaAssetIds: args.mediaAssetIds,
       mediaAssetId: args.mediaAssetIds[0],
     });
+    return null;
+  },
+});
+
+/**
+ * Change the design a written carousel is drawn in. The drawn images no longer match, so they are detached (draw the
+ * slides again), as when a slide is edited. Leave `theme` out (or pass the default) for Solo Queue. A carousel made of
+ * the founder's own images has no design to change, and one that already has a post must be changed in the Queue first.
+ */
+export const setTheme = operatorMutation({
+  args: { id: v.id("drafts"), theme: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel has a design.");
+    if (draft.slideSource === "uploaded") throw refusal("OWN_IMAGES", "This carousel is made of your own images, so it has no design to change.");
+    if (args.theme && !isThemeKey(args.theme)) throw refusal("THEME_NOT_FOUND", "That theme is not available. Pick another.");
+    await assertNotQueued(ctx, args.id);
+    const next = args.theme && args.theme !== DEFAULT_THEME ? args.theme : undefined;
+    if (draft.theme === next) return null;
+    await ctx.db.patch(args.id, { theme: next, mediaAssetIds: undefined, mediaAssetId: undefined });
     return null;
   },
 });
