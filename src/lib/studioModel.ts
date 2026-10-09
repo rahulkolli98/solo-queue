@@ -42,6 +42,14 @@ export function queueKindsOf(
   return excluded.length === 0 ? all : all.filter((k) => !excluded.includes(k));
 }
 
+/**
+ * Instagram drafts that cannot be queued because no photo or video is attached yet. They start left out of the
+ * queue (the founder switches them on once the media is there), so they never hold back what is ready.
+ */
+export function needsMediaKinds(states: Partial<Record<DraftKind, Readiness>>): DraftKind[] {
+  return (["caption", "reel"] as const).filter((k) => states[k]?.state === "media_required");
+}
+
 export const KIND_META: Record<
   DraftKind,
   { templateKey: string; generateFormat: string; label: string; noun: string }

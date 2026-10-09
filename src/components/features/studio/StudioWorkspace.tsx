@@ -47,6 +47,7 @@ import {
   formatWhen,
   latestByKind,
   mediaState,
+  needsMediaKinds,
   openSlots,
   queueKindsOf,
   readiness,
@@ -385,7 +386,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   // A carousel set to post to Threads only is left out of the Instagram queue unless the founder turns it back on.
   const instagramOff: DraftKind[] =
     latest.carousel && !rows.find((r) => r.kind === "carousel")?.targets.includes("instagram") ? ["carousel"] : [];
-  const excluded = queueSel.leftOut([...unwanted, ...instagramOff]);
+  // A caption or reel with no media attached cannot go out yet, so it starts unchecked; attaching media turns it on.
+  const excluded = queueSel.leftOut([...unwanted, ...instagramOff, ...needsMediaKinds(states)]);
   const summary = barSummary({
     states,
     generating: generation.running,
