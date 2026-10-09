@@ -47,7 +47,13 @@ async function draftsUsing(ctx: QueryCtx, assetId: Id<"mediaAssets">): Promise<D
   return drafts.filter((d) => d.mediaAssetId === assetId || (d.mediaAssetIds ?? []).includes(assetId));
 }
 
-/** Newest assets first, bounded, each with how many drafts use it. */
+/** Looks that use an asset as a reference image (bounded: a personal library). */
+async function looksUsing(ctx: QueryCtx, assetId: Id<"mediaAssets">): Promise<Doc<"looks">[]> {
+  const looks = await ctx.db.query("looks").take(200);
+  return looks.filter((l) => (l.referenceIds ?? []).includes(assetId));
+}
+
+/** Newest assets first, bounded, each with how many drafts and looks use it. */
 export const list = operatorQuery({
   args: {},
   handler: async (ctx) => {
@@ -58,6 +64,10 @@ export const list = operatorQuery({
       for (const id of new Set([d.mediaAssetId, ...(d.mediaAssetIds ?? [])])) {
         if (id) uses.set(id, (uses.get(id) ?? 0) + 1);
       }
+    }
+    const looks = await ctx.db.query("looks").take(200);
+    for (const l of looks) {
+      for (const id of new Set(l.referenceIds ?? [])) uses.set(id, (uses.get(id) ?? 0) + 1);
     }
     return assets.map((a) => ({ ...a, usedBy: uses.get(a._id) ?? 0 }));
   },
@@ -204,6 +214,13 @@ export const remove = operatorMutation({
         `${users.length} draft${users.length === 1 ? " uses" : "s use"} this file. Detach it first.`
       );
     }
+    const looks = await looksUsing(ctx, args.id);
+    if (looks.length > 0) {
+      throw refusal(
+        "IN_USE",
+        `${looks.length} look${looks.length === 1 ? " uses" : "s use"} this file as a reference. Remove it from the look first.`
+      );
+    }
     if (!doc.storageId.startsWith("external:")) {
       try {
         await ctx.storage.delete(doc.storageId as Id<"_storage">);
@@ -278,6 +295,10 @@ export const cleanupPublished = internalMutation({
     const sourceAssets = new Set<string>();
     for await (const s of ctx.db.query("sources")) {
       if (s.mediaAssetId) sourceAssets.add(s.mediaAssetId);
+    }
+    // A reference image of a look is kept too: the look would lose it.
+    for await (const l of ctx.db.query("looks")) {
+      for (const id of l.referenceIds ?? []) sourceAssets.add(id);
     }
 
     let deleted = 0;

@@ -488,3 +488,104 @@ describe("editing and attaching a carousel", () => {
     expect(rows.every((r) => r?.fileDeletedAt !== undefined)).toBe(true);
   });
 });
+
+describe("writing a carousel with a look", () => {
+  const plan = [
+    { layout: "cover" as const, tone: "pink" as const },
+    { layout: "cards" as const, tone: "yellow" as const },
+    { layout: "list" as const, tone: "blue" as const },
+    { layout: "close" as const, tone: "ink" as const },
+  ];
+
+  it("tells the model the plan, fitted to the slide count, and uses the plan's colours whatever the model chose", async () => {
+    const model = fakeModel(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    const { key } = await t.mutation(api.looks.save, { name: "Pastel", plan });
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 4 } } });
+    const [draft] = await carouselDrafts(t);
+    // GOOD_REPLY colours the slides coral, ink, blue, yellow: the plan wins.
+    expect(draft.slides?.map((s) => s.tone)).toEqual(["pink", "yellow", "blue", "ink"]);
+    expect(draft.lookKey).toBe(key);
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("1 cover in pink; 2 cards in yellow; 3 list in blue; 4 close in ink");
+    expect(sent).toContain("What the app can draw");
+    expect((await t.query(api.looks.list, {}))[0].usedCount).toBe(1);
+
+    // A different slide count stretches the plan: the middle slides cycle.
+    const model6 = fakeModel(JSON.stringify({ caption: "c", slides: JSON.parse(GOOD_REPLY).slides }));
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 6 } } });
+    expect(model6.bodies.join("\n")).toContain("1 cover in pink; 2 cards in yellow; 3 list in blue; 4 cards in yellow; 5 list in blue; 6 close in ink");
+  });
+
+  it("sends a design document as the founder wrote it, and the founder's own description still comes after it", async () => {
+    const model = fakeModel(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    const { key } = await t.mutation(api.looks.save, { name: "Doc", design: "# Calm\n- White space\n- One idea per slide" });
+    await t.action(api.drafting.generate, {
+      topicId: topic,
+      formats: ["instagram-carousel"],
+      setup: { carousel: { lookKey: key, brief: "Make it punchier.", count: 4 } },
+    });
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("design guide");
+    expect(sent).toContain("# Calm");
+    expect(sent).toContain("One idea per slide");
+    expect(sent.indexOf("Make it punchier.")).toBeGreaterThan(sent.indexOf("One idea per slide"));
+    // No plan, so the model's own colours are kept.
+    const [draft] = await carouselDrafts(t);
+    expect(draft.slides?.map((s) => s.tone)).toEqual(["coral", "ink", "blue", "yellow"]);
+  });
+
+  /** The model stub plus an image host: the AI SDK downloads a reference image itself, then sends it inline. */
+  function fakeModelWithImages(content: string) {
+    const model = fakeModel(content);
+    const completion = (globalThis.fetch as unknown as (url: string, init?: RequestInit) => Promise<Response>).bind(globalThis);
+    const fetched: string[] = [];
+    const PNG = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.startsWith("https://files.example/")) {
+          fetched.push(u);
+          return new Response(PNG, { status: 200, headers: { "content-type": "image/png" } });
+        }
+        return completion(u, init);
+      })
+    );
+    return { ...model, fetched };
+  }
+
+  it("sends reference images to the model as images, with the instruction not to copy their words", async () => {
+    const model = fakeModelWithImages(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    const imgs = await pngAssets(t, 2);
+    const { key } = await t.mutation(api.looks.save, { name: "Refs", referenceIds: imgs });
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 4 } } });
+    expect(model.fetched.sort()).toEqual(["https://files.example/0.png", "https://files.example/1.png"]);
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("image_url");
+    expect(sent).toContain("data:image/png;base64");
+    expect(sent).toContain("Reference images are attached");
+    expect(sent).toContain("Never copy their words");
+    // A reference whose file was removed from storage is left out rather than sent.
+    await t.run(async (ctx) => ctx.db.patch(imgs[1], { fileDeletedAt: Date.now() }));
+    const again = fakeModelWithImages(GOOD_REPLY);
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 4 } } });
+    expect(again.fetched).toEqual(["https://files.example/0.png"]);
+  });
+
+  it("refuses a look that is gone before any model call, and a run without a look sends none of it", async () => {
+    const model = fakeModel(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    await expect(
+      t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: "no-such-look" } } })
+    ).rejects.toThrow(/LOOK_NOT_FOUND/);
+    expect(model.bodies).toHaveLength(0);
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { count: 4 } } });
+    const sent = model.bodies.join("\n");
+    expect(sent).not.toContain("What the app can draw");
+    expect(sent).not.toContain("saved slide plan");
+    expect((await carouselDrafts(t))[0].lookKey).toBeUndefined();
+  });
+});

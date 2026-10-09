@@ -79,6 +79,7 @@ export default defineSchema({
     mediaAssetIds: v.optional(v.array(v.id("mediaAssets"))),
     /** "uploaded": the founder's own images (added 2026-10-08). `slides` then holds one placeholder per image and is never shown or drawn. */
     slideSource: v.optional(v.literal("uploaded")),
+    lookKey: v.optional(v.string()), // the carousel look it was written with (looks.key); soft reference
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference
@@ -176,6 +177,26 @@ export default defineSchema({
     version: v.number(),
     isActive: v.boolean(),
     createdAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  // Carousel looks (added 2026-10-08): a saved design the founder picks per run. Any mix of a slide plan, a design
+  // document and reference images; never a slide count or facts.
+  looks: defineTable({
+    key: v.string(),
+    name: v.string(),
+    plan: v.optional(
+      v.array(
+        v.object({
+          layout: v.union(v.literal("cover"), v.literal("cards"), v.literal("list"), v.literal("close")),
+          tone: v.union(v.literal("coral"), v.literal("cream"), v.literal("ink"), v.literal("pink"), v.literal("yellow"), v.literal("blue")),
+        })
+      )
+    ),
+    design: v.optional(v.string()),
+    referenceIds: v.optional(v.array(v.id("mediaAssets"))),
+    usedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   }).index("by_key", ["key"]),
 
   // The typed settings singleton (Settings sections). One row, created on first read.

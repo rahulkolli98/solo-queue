@@ -15,6 +15,7 @@ import {
   threadsConstraint,
 } from "./lib/drafting";
 import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
+import { isReferenceType, planForCount } from "./lib/looks";
 import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
@@ -51,6 +52,8 @@ const carouselSetupArg = v.object({
   count: v.optional(v.number()),
   brief: v.optional(v.string()),
   noFrame: v.optional(v.boolean()),
+  /** A saved look (looks.key): a slide plan, a design document and/or reference images. */
+  lookKey: v.optional(v.string()),
 });
 
 const formatArg = v.union(
@@ -120,6 +123,8 @@ export const storeDraft = internalMutation({
     format: v.optional(v.string()),
     /** A carousel's slides; `body` is then its caption. */
     slides: v.optional(v.array(slideValidator)),
+    /** The carousel look it was written with. */
+    lookKey: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -162,6 +167,7 @@ export const storeDraft = internalMutation({
       // A regenerated carousel has new slides, so its old rendered images are not carried over.
       mediaAssetId: args.platform === "instagram" && !args.slides ? carriedMedia : undefined,
       slides: args.slides,
+      lookKey: args.lookKey,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -275,6 +281,19 @@ export const generate = operatorAction({
       if (frame) frameFor.set(format, frame);
     }
 
+    // The carousel look chosen for this run: its plan (fitted to the slide count), design document and reference
+    // images. A missing look is refused here, before any model call is paid for.
+    const lookKey = formats.includes("instagram-carousel") ? args.setup?.carousel?.lookKey : undefined;
+    const look = lookKey ? (await ctx.runQuery(api.looks.list, {})).find((l) => l.key === lookKey) : undefined;
+    if (lookKey && !look) throw refusal("LOOK_NOT_FOUND", "That look is not available. Pick another.");
+    const referenceUrls: string[] = [];
+    if (look?.referenceIds?.length) {
+      for (const asset of await ctx.runQuery(api.media.byIds, { ids: look.referenceIds })) {
+        if (asset.fileDeletedAt === undefined && asset.publicUrl && isReferenceType(asset.mimeType)) referenceUrls.push(asset.publicUrl);
+      }
+    }
+    const lookPlan = look?.plan ? planForCount(look.plan, slideCount) : null;
+
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
     const sources = await ctx.runQuery(api.sources.listByTopic, { topicId: args.topicId });
@@ -328,12 +347,23 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, look: look ? { plan: lookPlan, design: look.design, references: referenceUrls.length > 0 } : undefined })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {
-        const reply = await withLlmErrors(async () => (await generateText({ model, system: carouselSystem, prompt })).text);
-        const written = parseCarousel(reply, slideCount);
+        // Reference images go to the model as images next to the text; without any it is the plain text call.
+        const reply = await withLlmErrors(
+          async () =>
+            (referenceUrls.length > 0
+              ? await generateText({
+                  model,
+                  system: carouselSystem,
+                  messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...referenceUrls.map((u) => ({ type: "image" as const, image: new URL(u) }))] }],
+                })
+              : await generateText({ model, system: carouselSystem, prompt })
+            ).text
+        );
+        const written = parseCarousel(reply, slideCount, { planTones: lookPlan?.map((p) => p.tone) });
         if (!written) {
           throw refusal("BAD_CAROUSEL", "The AI model did not send back a usable carousel. Try again.");
         }
@@ -350,8 +380,10 @@ export const generate = operatorAction({
           frameKey: useFrame ? frame.key : undefined,
           format: draftFormat,
           slides: written.slides,
+          lookKey: look?.key,
         });
         if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
+        if (look) await ctx.runMutation(internal.looks.recordUse, { key: look.key });
         results.push({ id, format, templateKey, templateVersion: template.version, ...check });
         return;
       }
