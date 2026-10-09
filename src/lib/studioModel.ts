@@ -14,14 +14,7 @@ import {
   threadOverBy,
 } from "@/lib/draftText";
 
-/**
- * "threadsCarousel" is the same carousel draft as "carousel", seen as its Threads post: its own text
- * (`threadsText`) over the same images. It exists only when the carousel also goes to Threads.
- */
-export type DraftKind = "threads" | "caption" | "reel" | "carousel" | "threadsCarousel" | "blog";
-
-/** The formats a run writes (everything but the Threads view of a carousel, which is written with the carousel). */
-export type WriteKind = Exclude<DraftKind, "threadsCarousel">;
+export type DraftKind = "threads" | "caption" | "reel" | "carousel" | "blog";
 
 /** The three formats `slots.queueTopic` can queue, in lane order. */
 export const QUEUE_KINDS: readonly DraftKind[] = ["threads", "caption", "reel"];
@@ -34,11 +27,7 @@ export function queueKindsOf(
   states: Partial<Record<DraftKind, unknown>>,
   excluded: readonly DraftKind[] = []
 ): readonly DraftKind[] {
-  const all: readonly DraftKind[] = [
-    ...QUEUE_KINDS,
-    ...(states.carousel ? (["carousel"] as const) : []),
-    ...(states.threadsCarousel ? (["threadsCarousel"] as const) : []),
-  ];
+  const all: readonly DraftKind[] = states.carousel ? [...QUEUE_KINDS, "carousel"] : QUEUE_KINDS;
   return excluded.length === 0 ? all : all.filter((k) => !excluded.includes(k));
 }
 
@@ -78,13 +67,6 @@ export const KIND_META: Record<
     label: "Carousel",
     noun: "carousel",
   },
-  // The id `slots.queueTopic` uses for the Threads post of the carousel (THREADS_CAROUSEL_ID); the draft is the carousel's.
-  threadsCarousel: {
-    templateKey: "carousel-slides@threads",
-    generateFormat: "instagram-carousel",
-    label: "Threads carousel",
-    noun: "Threads text",
-  },
   blog: {
     templateKey: "blog-draft",
     generateFormat: "blog",
@@ -114,8 +96,6 @@ export function latestByKind(drafts: Draft[]): Partial<Record<DraftKind, Draft>>
     const hit = byTemplate.get(KIND_META[kind].templateKey);
     if (hit) out[kind] = hit;
   }
-  // The carousel also goes to Threads when it has a Threads text (even an empty one).
-  if (out.carousel && out.carousel.threadsText !== undefined) out.threadsCarousel = out.carousel;
   return out;
 }
 
@@ -199,6 +179,8 @@ export function readiness(input: {
   body: string | undefined;
   media: MediaState;
   queued?: boolean;
+  /** Threads: the first post carries a carousel, so "no media yet" means its images are not drawn (not "no media wanted"). */
+  needsMedia?: boolean;
 }): Readiness {
   const make = (state: ReadyState, overBy = 0): Readiness => ({ state, overBy, reason: REASON[state] });
   if (input.body === undefined || !input.body.trim()) return make("missing");
@@ -206,20 +188,18 @@ export function readiness(input: {
   if (input.kind === "threads") {
     const over = threadOverBy(parseThread(input.body), THREADS_POST_LIMIT);
     if (over > 0) return make("over", over);
-    // Media on a thread is optional, but once attached it has to be usable.
+    // Media on a thread's first post is optional, but once attached it has to be usable. A thread that carries a
+    // carousel needs the carousel's images drawn first.
+    if (input.media === "none" && input.needsMedia) return make("media_required");
     if (input.media === "missing") return make("media_missing");
     if (input.media === "unverified") return make("media_unverified");
     if (input.media === "stale") return make("media_stale");
-  }
-  if (input.kind === "threadsCarousel") {
-    const over = charLen(input.body.trim()) - THREADS_POST_LIMIT;
-    if (over > 0) return make("over", over);
   }
   if (input.kind === "caption" || input.kind === "carousel") {
     const over = charLen(input.body.trim()) - CAPTION_LIMIT;
     if (over > 0) return make("over", over);
   }
-  if (input.kind === "caption" || input.kind === "reel" || input.kind === "carousel" || input.kind === "threadsCarousel") {
+  if (input.kind === "caption" || input.kind === "reel" || input.kind === "carousel") {
     if (input.media === "none") return make("media_required");
     if (input.media === "missing") return make("media_missing");
     if (input.media === "unverified") return make("media_unverified");
@@ -489,9 +469,7 @@ function kindOfTemplate(templateKey: string): DraftKind | undefined {
 
 /** "Week queued: 4 Threads, 3 Instagram" plus the skipped detail. */
 export function weekToast(result: QueueResult): WeekToast {
-  const threads = result.queued.filter(
-    (q) => q.templateKey === KIND_META.threads.templateKey || q.templateKey === KIND_META.threadsCarousel.templateKey
-  ).length;
+  const threads = result.queued.filter((q) => q.templateKey === KIND_META.threads.templateKey).length;
   const insta = result.queued.length - threads;
   const needsMediaSkip = result.skipped.find((s) => MEDIA_CODES.has(s.code));
   const skipText = result.skipped.map((s) => `${s.format}: ${s.message}`).join(" ");
@@ -649,6 +627,8 @@ export interface GuideInput {
   fromResearch?: boolean;
   /** Kinds switched off for this queue: the sentence ignores them. */
   excluded?: readonly DraftKind[];
+  /** The thread's first post carries a carousel (its images are the carousel's). */
+  threadCarousel?: boolean;
 }
 
 const IG_KINDS = ["reel", "caption"] as const;
@@ -675,12 +655,14 @@ export function studioGuide(input: GuideInput): StudioGuide {
   const readyN = ready.length;
 
   const draftsDone = written.length === kinds.length;
-  // The carousel's images are shared by its Instagram post and its Threads post, so either one needing them counts once.
-  const carouselCounts = kinds.includes("carousel") || kinds.includes("threadsCarousel");
+  // The carousel's images are shared by its Instagram post and the first post of a thread that carries it, so either
+  // one needing them counts once, and it is the carousel's sentence that says what to do.
+  const threadNeedsCarousel = Boolean(input.threadCarousel) && MEDIA_STATES.includes(at("threads"));
+  const carouselCounts = kinds.includes("carousel") || threadNeedsCarousel;
   const igWritten = (carouselCounts ? ([...IG_KINDS, "carousel"] as const) : IG_KINDS).filter(
-    (k) => at(k) !== "missing" || (k === "carousel" && at("threadsCarousel") !== "missing")
+    (k) => at(k) !== "missing" || (k === "carousel" && threadNeedsCarousel)
   );
-  const carouselState = (): ReadyState => (MEDIA_STATES.includes(at("carousel")) ? at("carousel") : MEDIA_STATES.includes(at("threadsCarousel")) ? at("threadsCarousel") : at("carousel"));
+  const carouselState = (): ReadyState => (MEDIA_STATES.includes(at("carousel")) ? at("carousel") : threadNeedsCarousel ? at("threads") : at("carousel"));
   const mediaNeed = igWritten.filter((k) => MEDIA_STATES.includes(k === "carousel" ? carouselState() : at(k)));
   const mediaDone = draftsDone && mediaNeed.length === 0;
   const queueDone = draftsDone && queued.length === written.length;
@@ -761,9 +743,6 @@ export function studioGuide(input: GuideInput): StudioGuide {
   if (at("caption") === "over") {
     fixes.push(`The caption is over the ${CAPTION_LIMIT.toLocaleString("en-GB")}-character limit: use Trim to fit.`);
   }
-  if (at("threadsCarousel") === "over") {
-    fixes.push(`The carousel's Threads text is over the ${THREADS_POST_LIMIT}-character limit: shorten it in the Threads column.`);
-  }
   const needsAttach = mediaNeed.filter((k) => at(k) === "media_required");
   const gone = mediaNeed.filter((k) => at(k) === "media_missing" && k !== "carousel");
   const unchecked = mediaNeed.filter((k) => at(k) === "media_unverified" && k !== "carousel");
@@ -773,8 +752,9 @@ export function studioGuide(input: GuideInput): StudioGuide {
   // A carousel's images are drawn in Studio, not attached from the library, so it has its own sentences.
   const carouselNeed = mediaNeed.find((k) => k === "carousel");
   const plainAttach = needsAttach.filter((k) => k !== "carousel");
-  // Media on a thread is optional, so it is only mentioned when what is attached cannot be used.
-  const threadMedia = at("threads");
+  // Media on a thread is optional, so it is only mentioned when what is attached cannot be used (a carousel on its
+  // first post is covered by the carousel's own sentence).
+  const threadMedia = input.threadCarousel ? "ready" : at("threads");
   if (threadMedia === "media_missing") mediaLines.push("the photo or video on the thread is gone: attach another or detach it");
   else if (threadMedia === "media_unverified") mediaLines.push("press Check on the thread's photo or video");
   else if (threadMedia === "media_stale") mediaLines.push("press Recheck on the thread's photo or video, it was checked too long ago");

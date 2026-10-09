@@ -8,11 +8,6 @@ import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
 import { KIND_META, weekToast, type Draft, type DraftKind } from "@/lib/studioModel";
 
-/** The key a queued time is kept under: a carousel's Threads post shares its draft id with the carousel. */
-export function queuedKey(kind: DraftKind, draftId: string): string {
-  return kind === "threadsCarousel" ? `${draftId}:threads` : draftId;
-}
-
 /**
  * The one-gesture "queue this week": `slots.queueTopic` assigns each ready
  * draft to its next free slot; the result becomes the board's toast with
@@ -50,8 +45,7 @@ export function useQueueWeek({
       for (const q of result.queued) {
         const kind = (Object.keys(KIND_META) as DraftKind[]).find((k) => KIND_META[k].templateKey === q.templateKey);
         const draft = kind ? latest[kind] : undefined;
-        // The carousel and its Threads post are one draft; the Threads post is marked under its own key.
-        if (draft && kind) marks[queuedKey(kind, draft._id)] = q.scheduledAt;
+        if (draft) marks[draft._id] = q.scheduledAt;
       }
       setQueuedAt((prev) => ({ ...prev, ...marks }));
       const t = weekToast(result);

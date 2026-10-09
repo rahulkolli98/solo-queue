@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +24,7 @@ import { useGeneration } from "@/components/features/studio/useGeneration";
 import { useMediaActions } from "@/components/features/studio/useMediaActions";
 import { useOpenSlots } from "@/components/features/studio/useOpenSlots";
 import { useQueueSelection } from "@/components/features/studio/useQueueSelection";
-import { queuedKey, useQueueWeek } from "@/components/features/studio/useQueueWeek";
+import { useQueueWeek } from "@/components/features/studio/useQueueWeek";
 import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
 import PageHeader from "@/components/ui/PageHeader";
@@ -57,17 +57,9 @@ import {
   type DraftKind,
   type MediaState,
   type Readiness,
-  type WriteKind,
 } from "@/lib/studioModel";
 
-const BOARD_CARD_KIND: Record<string, DraftKind> = { thread: "threads", caption: "caption", reel: "reel" };
-
-/** Which of the topic's drafts a card on the Queue board is: a carousel is its Instagram post or its Threads post by lane. */
-function cardKind(lane: "threads" | "instagram", format: string | null): DraftKind | undefined {
-  if (format === "carousel") return lane === "threads" ? "threadsCarousel" : "carousel";
-  return BOARD_CARD_KIND[format ?? ""];
-}
-const THREADS_KEY_SUFFIX = ":threads";
+const BOARD_CARD_KIND: Record<string, DraftKind> = { thread: "threads", caption: "caption", reel: "reel", carousel: "carousel" };
 const FALLBACK_BEATS = ["Hook", "Tension", "Turn", "Payoff"];
 
 /** Board 02 and states 07d-07f: one topic's three columns, bottom bar and blog view. */
@@ -85,18 +77,13 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const { board, chips, tz, browserTz, now } = useOpenSlots();
   const ensureDefaults = useMutation(api.frames.ensureDefaults);
   const saveDraft = useMutation(api.drafts.update);
-  const saveThreadsText = useMutation(api.drafts.setThreadsText);
-  const writeThreadsText = useAction(api.drafting.writeThreadsText);
+  const setCarouselLink = useMutation(api.drafts.setCarousel);
   const createManual = useMutation(api.drafts.createManual);
   const updateSettings = useMutation(api.settings.update);
   const { toast } = useToast();
 
   const editor = useDraftEditor(
-    // A carousel's Threads text is saved under its own key (the draft id and ":threads").
-    (draftId, body) =>
-      draftId.endsWith(THREADS_KEY_SUFFIX)
-        ? saveThreadsText({ id: draftId.slice(0, -THREADS_KEY_SUFFIX.length) as Id<"drafts">, text: body })
-        : saveDraft({ id: draftId as Id<"drafts">, body }),
+    (draftId, body) => saveDraft({ id: draftId as Id<"drafts">, body }),
     (e) => studioErrorText(e, "Couldn't save edits. Press Retry.")
   );
   const media = useMediaActions();
@@ -112,8 +99,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const [choices, setChoices] = useState<SetupChoices>(() => (angle ? choicesForAngle(angle) : {}));
   const [setupOpen, setSetupOpen] = useState(false);
   const [attachKind, setAttachKind] = useState<"reel" | "caption" | "threads" | null>(null);
-  // Writing the Threads text of a carousel (a separate action from writing the carousel itself).
-  const [threadsText, setThreadsText] = useState<{ writing: boolean; error: string | null }>({ writing: false, error: null });
+  // Why the first post's carousel could not be changed (for example the thread is already queued).
+  const [firstPostError, setFirstPostError] = useState<string | null>(null);
   const [manualText, setManualText] = useState<Record<string, boolean>>({});
   const [researchDismissed, setResearchDismissed] = useState(false);
   // `?write=1` opens the Threads column straight into the writer; nothing is generated.
@@ -132,10 +119,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     [latest]
   );
   const attached = useQuery(api.media.byIds, { ids: attachedIds });
-  const existingIds = useMemo(
-    () => (drafts ?? []).flatMap((d) => (d.threadsText !== undefined ? [d._id as string, queuedKey("threadsCarousel", d._id)] : [d._id as string])),
-    [drafts]
-  );
+  const existingIds = useMemo(() => (drafts ?? []).map((d) => d._id as string), [drafts]);
   const generation = useGeneration({ topicId, latest, onDone: () => editor.discard() });
   const queueWeek = useQueueWeek({
     topicId,
@@ -148,8 +132,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       }
     },
     onAttachMedia: (kind) => {
-      // A carousel's images (for either platform) are drawn on its own tab, not attached from the library.
-      if (kind === "carousel" || kind === "threadsCarousel") {
+      // A carousel's images are drawn on its own tab, not attached from the library; so are a thread's, when its first
+      // post carries the carousel.
+      if (kind === "carousel" || (kind === "threads" && latest.threads?.carouselDraftId)) {
         setPane("instagram");
         setIgTab("carousel");
       } else if (kind === "threads") openAttach("threads");
@@ -184,19 +169,20 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     looks: looks?.map((l) => ({ key: l.key, name: l.name, theme: l.theme })),
     usedLook: latest.carousel?.lookKey,
     usedTheme: latest.carousel?.theme,
-    usedThreads: latest.carousel?.threadsText !== undefined,
+    // A thread already carries the carousel on its first post, so Regenerate keeps it going to Threads.
+    usedThreads: Boolean(latest.threads?.carouselDraftId),
   });
   const threadsRow = rows.find((r) => r.kind === "threads");
   const beatsKey = threadsFrameKey ?? threadsRow?.frame?.key;
   const beatsFrame = useQuery(api.frames.getByKey, beatsKey ? { key: beatsKey } : "skip");
   const blogRow = rows.find((r) => r.kind === "blog");
 
-  function choose(kind: WriteKind, change: SetupChoice) {
+  function choose(kind: DraftKind, change: SetupChoice) {
     setChoices((c) => ({ ...c, [kind]: { ...c[kind], ...change } }));
   }
 
   /** Keep this row as the default for next time. A settings patch replaces the whole voice section. */
-  async function makeDefault(kind: WriteKind): Promise<void> {
+  async function makeDefault(kind: DraftKind): Promise<void> {
     const row = rows.find((r) => r.kind === kind);
     if (!settings || !row) return;
     const formatDefaults = withFormatDefault(settings.voice.formatDefaults, kind, {
@@ -224,9 +210,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
 
   /** Run now, or first ask once when it would replace text the founder already has. */
   function askThenRun(kinds: DraftKind[], run: () => void) {
-    // An empty Threads text is nothing to lose.
-    const have = { ...latest, threadsCarousel: bodyOf("threadsCarousel")?.trim() ? latest.threadsCarousel : undefined };
-    const atRisk = kindsAtRisk(kinds, have, Boolean(manualText.threads), manualText);
+    const atRisk = kindsAtRisk(kinds, latest, Boolean(manualText.threads), manualText);
     if (atRisk.length === 0) {
       run();
       return;
@@ -252,9 +236,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     });
   /** A panel's own Generate / Regenerate: writes just that draft, even if it is not ticked in the setup line. */
   const writeOne = (kind: DraftKind) => () =>
-    kind === "threadsCarousel"
-      ? askThenRun([kind], () => void writeThreads())
-      : askThenRun([kind], () => void generation.start([kind], kind === "blog" ? undefined : setupArgs([kind as WriteKind]), existingIds));
+    askThenRun([kind], () => void generation.start([kind], kind === "blog" ? undefined : setupArgs([kind]), existingIds));
   const generateAll = () => {
     const kinds = kindsToWrite;
     askThenRun(kinds, () => {
@@ -300,8 +282,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   );
   const bodyOf = (kind: DraftKind) => {
     const d = latest[kind];
-    if (!d) return undefined;
-    return kind === "threadsCarousel" ? editor.valueFor(queuedKey(kind, d._id), d.threadsText ?? "") : editor.valueFor(d._id, d.body);
+    return d ? editor.valueFor(d._id, d.body) : undefined;
   };
   const mediaOf = (kind: "caption" | "reel" | "threads"): { state: MediaState; asset: Asset | undefined } => {
     const d = latest[kind];
@@ -313,35 +294,32 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const queuedAtOf = (kind: DraftKind): number | undefined => {
     const d = latest[kind];
     if (!d) return undefined;
-    const key = queuedKey(kind, d._id);
-    if (queueWeek.queuedAt[key] !== undefined) return queueWeek.queuedAt[key];
+    if (queueWeek.queuedAt[d._id] !== undefined) return queueWeek.queuedAt[d._id];
     if (generation.freshIds.has(d._id) || !board) return undefined;
     const hits = board.days
-      .flatMap((day) => [
-        ...day.threads.map((c) => ({ c, lane: "threads" as const })),
-        ...day.instagram.map((c) => ({ c, lane: "instagram" as const })),
-      ])
-      .filter(({ c, lane }) => c.topicTitle === topic.title && cardKind(lane, c.format ?? null) === kind && c.status !== "failed")
-      .map(({ c }) => c);
+      .flatMap((day) => [...day.threads, ...day.instagram])
+      .filter((c) => c.topicTitle === topic.title && BOARD_CARD_KIND[c.format ?? ""] === kind && c.status !== "failed");
     return hits.length ? Math.min(...hits.map((c) => c.scheduledAt)) : undefined;
   };
 
-  const stateOf = (kind: "threads" | "caption" | "reel" | "carousel" | "threadsCarousel"): Readiness =>
+  // A thread whose first post carries the carousel needs that carousel's images, and uses their state.
+  const threadHasCarousel = Boolean(latest.threads?.carouselDraftId && latest.carousel);
+  const stateOf = (kind: "threads" | "caption" | "reel" | "carousel"): Readiness =>
     readiness({
       kind,
       body: bodyOf(kind),
       media:
-        kind === "carousel" || kind === "threadsCarousel"
+        kind === "carousel" || (kind === "threads" && threadHasCarousel)
           ? carouselMediaState(latest.carousel, assetById, now)
           : mediaOf(kind).state,
       queued: queuedAtOf(kind) !== undefined,
+      needsMedia: kind === "threads" && threadHasCarousel,
     });
-  // A carousel takes part in queueing only when this topic has one, and its Threads post only when it goes to Threads.
+  // A carousel takes part in queueing only when this topic has one.
   const baseStates = { threads: stateOf("threads"), caption: stateOf("caption"), reel: stateOf("reel") };
-  const states: typeof baseStates & { carousel?: Readiness; threadsCarousel?: Readiness } = {
+  const states: typeof baseStates & { carousel?: Readiness } = {
     ...baseStates,
     ...(latest.carousel ? { carousel: stateOf("carousel") } : {}),
-    ...(latest.threadsCarousel ? { threadsCarousel: stateOf("threadsCarousel") } : {}),
   };
 
   const days = board?.days ?? [];
@@ -360,15 +338,6 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const viewOf = (kind: DraftKind): DraftView | undefined => {
     const d = latest[kind];
     if (!d) return undefined;
-    if (kind === "threadsCarousel") {
-      const key = queuedKey(kind, d._id);
-      return {
-        draft: d,
-        body: editor.valueFor(key, d.threadsText ?? ""),
-        onChange: (body) => editor.change(key, body),
-        onBlur: () => void editor.flush(key),
-      };
-    }
     return {
       draft: d,
       body: editor.valueFor(d._id, d.body),
@@ -405,7 +374,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const queueToggle = (kind: DraftKind, what: string) => (
     <QueueToggle included={!excluded.includes(kind)} onChange={(on) => queueSel.setIncluded(kind, on)} what={what} />
   );
-  const threadsNeed = needFix.filter((k) => k === "threads" || k === "threadsCarousel").length;
+  const threadsNeed = needFix.filter((k) => k === "threads").length;
   const igNeed = needFix.length - threadsNeed;
   const save = editor.summary(existingIds);
   const hasDrafts = Boolean(latest.threads || latest.caption || latest.reel || latest.blog);
@@ -426,6 +395,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     writerOpen,
     fromResearch: arrivedFromResearch,
     excluded,
+    threadCarousel: threadHasCarousel,
   });
   const fromResearch = arrivedFromResearch && !researchDismissed;
   const research = angle ? angleBanner(KIND_META[angle.kind].noun) : researchBanner(hasDrafts, Boolean(topic?.brief));
@@ -440,40 +410,24 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     setAttachKind(kind);
   }
 
-  /** Write (or rewrite) the carousel's Threads text from its slides and caption; the slides and images stay as they are. */
-  async function writeThreads(): Promise<void> {
-    const carousel = latest.carousel;
-    if (!carousel) return;
-    setThreadsText({ writing: true, error: null });
-    try {
-      await writeThreadsText({ draftId: carousel._id });
-      // The new text wins over anything still being typed.
-      editor.discard(queuedKey("threadsCarousel", carousel._id));
-      setThreadsText({ writing: false, error: null });
-    } catch (e) {
-      setThreadsText({ writing: false, error: studioErrorText(e, "Couldn't write the Threads text. Try again.") });
-    }
-  }
-
-  /** Put the carousel on Threads with an empty text to write by hand, or take it off Threads. */
-  async function setCarouselThreads(text: string | null): Promise<void> {
-    const carousel = latest.carousel;
-    if (!carousel) return;
-    setThreadsText({ writing: false, error: null });
-    try {
-      if (text === null) editor.discard(queuedKey("threadsCarousel", carousel._id));
-      await saveThreadsText({ id: carousel._id, text });
-    } catch (e) {
-      setThreadsText({ writing: false, error: studioErrorText(e, "Couldn't change that. Try again.") });
-    }
-  }
-
   function retrySave() {
     save.failed.forEach((draftId) => void editor.flush(draftId));
   }
 
+  /** Put the topic's carousel on the thread's first post, or take it off. */
+  async function setCarouselOnThread(on: boolean): Promise<void> {
+    const thread = latest.threads;
+    if (!thread) return;
+    setFirstPostError(null);
+    try {
+      await setCarouselLink({ id: thread._id, carouselDraftId: on && latest.carousel ? latest.carousel._id : null });
+    } catch (e) {
+      setFirstPostError(studioErrorText(e, "Couldn't change the first post. Try again."));
+    }
+  }
+
   /** "Write it myself": store the text as the topic's draft; the editor takes over once it exists. */
-  async function saveManual(kind: Exclude<WriteKind, "carousel">, text: string): Promise<void> {
+  async function saveManual(kind: Exclude<DraftKind, "carousel">, text: string): Promise<void> {
     await createManual({ topicId: id, kind, body: text });
     setManualText((m) => ({ ...m, [kind]: false }));
   }
@@ -639,29 +593,27 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           onGenerate={writeOne("threads")}
           busy={generation.running}
           queueToggle={queueToggle("threads", "thread")}
-          threadMedia={{ asset: mediaOf("threads").asset, state: mediaOf("threads").state, media, onAttach: () => openAttach("threads") }}
-          carousel={
-            latest.carousel
+          firstPostMedia={
+            latest.threads
               ? {
-                  view: viewOf("threadsCarousel"),
-                  readiness: stateOf("threadsCarousel"),
-                  target: threadsTarget?.when,
-                  queuedWhen: whenOf("threadsCarousel"),
-                  images: (latest.carousel.mediaAssetIds ?? []).flatMap((aid) => {
+                  draftId: latest.threads._id,
+                  carouselOn: threadHasCarousel,
+                  hasCarousel: Boolean(latest.carousel),
+                  carouselImages: (latest.carousel?.mediaAssetIds ?? []).flatMap((aid) => {
                     const url = assetById.get(aid)?.publicUrl;
                     return url ? [url] : [];
                   }),
-                  writing: threadsText.writing,
-                  error: threadsText.error,
-                  busy: generation.running || threadsText.writing,
-                  onWrite: writeOne("threadsCarousel"),
-                  onWriteMyself: () => void setCarouselThreads(""),
-                  onRemove: () => void setCarouselThreads(null),
+                  carouselReady: carouselMediaState(latest.carousel, assetById, now) === "ok",
+                  onCarousel: (on) => void setCarouselOnThread(on),
                   onOpenCarousel: () => {
                     setPane("instagram");
                     setIgTab("carousel");
                   },
-                  queueToggle: queueToggle("threadsCarousel", "Threads carousel"),
+                  asset: mediaOf("threads").asset,
+                  mediaState: mediaOf("threads").state,
+                  media,
+                  onAttach: () => openAttach("threads"),
+                  error: firstPostError,
                 }
               : undefined
           }

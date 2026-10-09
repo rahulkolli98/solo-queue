@@ -346,6 +346,8 @@ type PublishItem = {
     /** A carousel: how many slides it has, and the images of those slides in order (two or more slides only). */
     slideCount?: number;
     slideAssets?: { publicUrl: string; mimeType: string }[];
+    /** A thread points at a carousel draft that no longer exists. */
+    carouselGone?: boolean;
   };
   asset: { publicUrl: string; mimeType: string; verifiedAt?: number } | null;
   topicTitle: string;
@@ -367,20 +369,23 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   if (slot.platform === "threads") {
     const conn = await ctx.runQuery(internal.connections.getOne, { platform: "threads" });
     if (!conn) return markPermanent(ctx, slot._id, now, "No Threads connection — reconnect in Settings.");
-    // A carousel of two or more slides posts every slide image with its one text (no replies); a one-slide
-    // carousel is an ordinary image post. A thread posts its first post as the slot, the rest as replies to it.
+    // The first post publishes as the slot, with the thread's media if it has any: a photo or video, or a carousel
+    // (its slide images, taken from the carousel the thread points at); the rest follow as replies to it, as text.
+    if (draft.carouselGone) {
+      return markPermanent(ctx, slot._id, now, "The carousel on this thread's first post is gone. Pick another, or take it off the first post, then queue the thread again.");
+    }
+    // A carousel of two or more slides posts every slide image; a one-slide carousel is an ordinary image post.
     const carousel = draft.slideCount !== undefined && draft.slideCount > 1;
     if (carousel && (draft.slideAssets?.length ?? 0) !== draft.slideCount) {
-      return markPermanent(ctx, slot._id, now, "A slide image is gone — draw the slides again, then queue the carousel again.");
+      return markPermanent(ctx, slot._id, now, "A slide image is gone — draw the slides again, then queue the thread again.");
     }
-    // Media the founder attached to a thread goes on its first post only. A file that is gone is a permanent failure.
+    // A file that is gone is a permanent failure.
     if (!carousel && draft.mediaAssetId && !asset) {
       return markPermanent(ctx, slot._id, now, "Attached media is gone — pick another in the Library, or remove it from the thread.");
     }
-    const posts = carousel ? [draft.body.trim()] : splitPosts(stripBeatHeaders(draft.body));
+    const posts = splitPosts(stripBeatHeaders(draft.body));
     const text = (posts.length > 0 ? posts[0] : draft.body).trim();
-    // A carousel's text is optional on Threads; a thread's first post is not.
-    if (!text && !carousel) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts. Write the post, then retry.");
+    if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts. Write the post, then retry.");
     if (text.length > THREADS_POST_LIMIT) {
       return markPermanent(ctx, slot._id, now, `Post 1 is ${text.length - THREADS_POST_LIMIT} characters over the ${THREADS_POST_LIMIT} cap — shorten it, then retry.`);
     }

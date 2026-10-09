@@ -31,7 +31,6 @@ import type * as lib_looks from "../lib/looks.js";
 import type * as lib_operator from "../lib/operator.js";
 import type * as lib_operatorConfig from "../lib/operatorConfig.js";
 import type * as lib_ownCarousel from "../lib/ownCarousel.js";
-import type * as lib_postText from "../lib/postText.js";
 import type * as lib_queueHold from "../lib/queueHold.js";
 import type * as lib_queueHoldDb from "../lib/queueHoldDb.js";
 import type * as lib_queueRules from "../lib/queueRules.js";
@@ -98,7 +97,6 @@ declare const fullApi: ApiFromModules<{
   "lib/operator": typeof lib_operator;
   "lib/operatorConfig": typeof lib_operatorConfig;
   "lib/ownCarousel": typeof lib_ownCarousel;
-  "lib/postText": typeof lib_postText;
   "lib/queueHold": typeof lib_queueHold;
   "lib/queueHoldDb": typeof lib_queueHoldDb;
   "lib/queueRules": typeof lib_queueRules;

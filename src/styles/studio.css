@@ -2423,18 +2423,26 @@ body:has(.studio-bar) {
 .studio-setup-targets .studio-setup-brief-hint {
   flex: 1 1 100%;
 }
-.studio-th-cr {
+/* What the first post of a thread carries: text only, a photo or video, or the carousel */
+.studio-fpm {
   display: flex;
   flex-direction: column;
   gap: var(--space-12);
   min-width: 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid color-mix(in srgb, var(--color-on-chrome-strong) 18%, transparent);
 }
-.studio-th-cr-head {
+.studio-fpm-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-8) var(--space-12);
   color: var(--color-muted-on-chrome);
+}
+.studio-fpm-carousel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
 }
 .studio-th-strip {
   display: flex;
@@ -2452,7 +2460,7 @@ body:has(.studio-bar) {
   border-radius: var(--rounded-sharp);
   border: 1px solid color-mix(in srgb, var(--color-on-chrome-strong) 25%, transparent);
 }
-.studio-col-threads .studio-th-cr .studio-muted,
+.studio-col-threads .studio-fpm .studio-muted,
 .studio-col-threads .studio-media-opt .t-meta {
   color: var(--color-muted-on-chrome);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { FRAME_EXPLAINER, type WriteKind } from "@/lib/studioModel";
+import { FRAME_EXPLAINER, type DraftKind } from "@/lib/studioModel";
 import { POSTS_MAX, POSTS_MIN } from "@/lib/studioCompose";
 import { BRIEF_MAX } from "../../../../convex/lib/carouselDraft";
 import { THEMES, themeOf } from "../../../../convex/lib/themes";
@@ -40,18 +40,18 @@ export default function FormatSetup({
   onToggle: () => void;
   /** Generation is running: the setup cannot change under it. */
   disabled: boolean;
-  onInclude: (kind: WriteKind, on: boolean) => void;
-  onFrame: (kind: WriteKind, key: string) => void;
-  onCount: (kind: WriteKind, count: number) => void;
+  onInclude: (kind: DraftKind, on: boolean) => void;
+  onFrame: (kind: DraftKind, key: string) => void;
+  onCount: (kind: DraftKind, count: number) => void;
   /** The carousel's own description of how it should read and look. */
-  onBrief: (kind: WriteKind, text: string) => void;
+  onBrief: (kind: DraftKind, text: string) => void;
   /** The carousel's saved look ("" for none). */
-  onLook: (kind: WriteKind, key: string) => void;
+  onLook: (kind: DraftKind, key: string) => void;
   /** The carousel's design (theme key). */
-  onTheme: (kind: WriteKind, key: string) => void;
+  onTheme: (kind: DraftKind, key: string) => void;
   /** The platforms the carousel is written for and posted to (at least one). */
-  onTargets: (kind: WriteKind, targets: CarouselTarget[]) => void;
-  onMakeDefault: (kind: WriteKind) => void;
+  onTargets: (kind: DraftKind, targets: CarouselTarget[]) => void;
+  onMakeDefault: (kind: DraftKind) => void;
 }) {
   const id = useId();
   return (
@@ -156,7 +156,7 @@ export default function FormatSetup({
                     );
                   })}
                   <span className="studio-setup-brief-hint sq-muted">
-                    The same images go to each. Threads gets its own short text, written with the carousel.
+                    Threads has no separate carousel post: the carousel goes on the first post of this topic&apos;s thread, and that post&apos;s text is its caption.
                   </span>
                 </fieldset>
               )}

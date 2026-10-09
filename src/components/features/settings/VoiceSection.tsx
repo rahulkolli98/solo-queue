@@ -449,6 +449,9 @@ export default function VoiceSection() {
                       </label>
                     );
                   })}
+                  <span className="sq-muted st-hint">
+                    Threads: the carousel goes on the first post of the topic&apos;s thread.
+                  </span>
                 </fieldset>
               )}
               {row.takesCount && row.kind === "threads" && (
