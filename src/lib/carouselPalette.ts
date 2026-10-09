@@ -47,6 +47,24 @@ export const SLIDE_COLORS: Record<SlideTone, ToneColors> = {
   blue: { bg: PALETTE.blue, text: PALETTE.ink, accent: PALETTE.red, kicker: PALETTE.ink },
 };
 
+export interface PillColors {
+  /** The first pill (the main ask): its fill and its text. */
+  solidBg: string;
+  solidText: string;
+  /** The other pills: their outline and text. */
+  outline: string;
+}
+
+/**
+ * The close slide's pills. They are drawn in the slide's opposite: dark on a light slide, light on the dark one, so
+ * they never vanish into the background (ink pills on an ink slide were invisible).
+ */
+export function pillColors(tone: SlideTone): PillColors {
+  return tone === "ink"
+    ? { solidBg: PALETTE.cream, solidText: PALETTE.ink, outline: PALETTE.cream }
+    : { solidBg: PALETTE.ink, solidText: PALETTE.cream, outline: PALETTE.ink };
+}
+
 export interface CardColors {
   bg: string;
   label: string;
