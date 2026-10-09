@@ -173,7 +173,7 @@ describe("saving", () => {
       name: "Calm explainer",
       design: "Quiet.\nPlain.",
     });
-    const edit = lookSaveArgs({ key: "calm", name: "Calm", plan: planned().plan, design: "  ", referenceIds: ["m1", "m2"] });
+    const edit = lookSaveArgs({ key: "calm", name: "Calm", plan: planned().plan, design: "  ", referenceIds: ["m1", "m2"], theme: "" });
     expect(edit).toEqual({
       key: "calm",
       name: "Calm",
@@ -187,9 +187,29 @@ describe("saving", () => {
   it("builds a draft from a saved look without sharing its arrays", () => {
     const plan = [{ layout: "cover" as const, tone: "ink" as const }, { layout: "close" as const, tone: "cream" as const }];
     const draft = draftFromLook({ key: "k", name: "K", plan, design: "d", referenceIds: ["a"], usedCount: 2 });
-    expect(draft).toEqual({ key: "k", name: "K", plan, design: "d", referenceIds: ["a"] });
+    expect(draft).toEqual({ key: "k", name: "K", plan, design: "d", referenceIds: ["a"], theme: "" });
     expect(draft.plan?.[0]).not.toBe(plan[0]);
-    expect(draftFromLook({ key: "k", name: "K", usedCount: 0 })).toEqual({ key: "k", name: "K", plan: null, design: "", referenceIds: [] });
+    expect(draftFromLook({ key: "k", name: "K", usedCount: 0 })).toEqual({ key: "k", name: "K", plan: null, design: "", referenceIds: [], theme: "" });
+  });
+
+  it("carries a look's theme into the draft, and drops one the app no longer has", () => {
+    expect(draftFromLook({ key: "k", name: "K", theme: "kraft-zine", usedCount: 0 }).theme).toBe("kraft-zine");
+    expect(draftFromLook({ key: "k", name: "K", theme: "gone", usedCount: 0 }).theme).toBe("");
+    expect(emptyDraft().theme).toBe("");
+  });
+
+  it("counts a theme as a part: a look with only a theme can be saved", () => {
+    const bare = { ...emptyDraft(), name: "Zine" };
+    expect(canSave(bare)).toBe(false);
+    expect(lookProblems(bare)[0]).toMatch(/a theme, a slide plan/);
+    expect(canSave({ ...bare, theme: "kraft-zine" })).toBe(true);
+    expect(lookProblems({ ...bare, theme: "nope" })).toEqual(["That theme is not available. Pick another."]);
+  });
+
+  it("sends the theme in the save arguments only when one is chosen", () => {
+    expect(lookSaveArgs({ ...emptyDraft(), name: "Zine", theme: "kraft-zine" })).toEqual({ name: "Zine", theme: "kraft-zine" });
+    expect("theme" in lookSaveArgs({ ...planned(), theme: "" })).toBe(false);
+    expect(lookSaveArgs({ ...planned(), theme: "solo-queue" }).theme).toBe("solo-queue");
   });
 });
 
@@ -279,5 +299,7 @@ describe("partsSummary", () => {
   it("leaves out the parts it does not have and says one reference in the singular", () => {
     expect(partsSummary({ design: "  ", referenceIds: ["a"], usedCount: 0 })).toEqual(["1 REFERENCE", "USED 0×"]);
     expect(partsSummary({ usedCount: 1 })).toEqual(["USED 1×"]);
+    expect(partsSummary({ theme: "kraft-zine", usedCount: 1 })).toEqual(["THEME · KRAFT ZINE", "USED 1×"]);
+    expect(partsSummary({ theme: "unknown", usedCount: 1 })).toEqual(["USED 1×"]);
   });
 });

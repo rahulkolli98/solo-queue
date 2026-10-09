@@ -41,7 +41,7 @@ describe("LooksSection", () => {
     list([]);
     const out = renderToStaticMarkup(<LooksSection />);
     expect(out).toContain("Carousel looks");
-    expect(out).toContain("A look is a saved carousel design: a slide plan, a design document, reference images, or any mix. Pick one when you write a carousel.");
+    expect(out).toContain("A look is a saved carousel design: a theme, a slide plan, a design document, reference images, or any mix. Pick one when you write a carousel.");
     expect(out).toMatch(/<button[^>]*id="lk-new"[^>]*>New look<\/button>/);
   });
 
@@ -77,6 +77,12 @@ describe("LooksSection", () => {
     expect(out).not.toContain('id="lk-editor"');
   });
 
+  it("shows a look's theme as a chip", () => {
+    list([{ ...look, _id: "l3", key: "zine", name: "Zine", plan: undefined, design: undefined, referenceIds: undefined, theme: "kraft-zine" }]);
+    const out = renderToStaticMarkup(<LooksSection />);
+    expect(out).toContain("THEME · KRAFT ZINE");
+  });
+
   it("shows only the parts a look has", () => {
     list([{ ...look, _id: "l2", key: "plain", name: "Plain", plan: undefined, design: undefined, referenceIds: undefined, usedCount: 0 }]);
     const out = renderToStaticMarkup(<LooksSection />);
@@ -107,6 +113,22 @@ describe("LookEditor", () => {
     expect(out).toContain(">Cancel<");
     // no problems are shown before the founder tries to save
     expect(out).not.toContain('role="alert"');
+  });
+
+  it("offers a Design select: no theme first, then every theme, with the chosen theme's blurb", () => {
+    useQueryMock.mockReturnValue(undefined);
+    const empty = renderToStaticMarkup(<LookEditor initial={emptyDraft()} usedCount={0} onSaved={noop} onCancel={noop} />);
+    expect(empty).toContain(">Design</label>");
+    expect(empty).toMatch(/<option value="" selected="">No theme \(the run decides\)<\/option>/);
+    expect(empty).toContain('<option value="solo-queue">Solo Queue</option>');
+    expect(empty).toContain('<option value="kraft-zine">Kraft zine</option>');
+    expect(empty).toContain("Leave it out and the run picks one");
+    const zine = renderToStaticMarkup(
+      <LookEditor initial={{ ...emptyDraft(), name: "Zine", theme: "kraft-zine" }} usedCount={0} onSaved={noop} onCancel={noop} />
+    );
+    expect(zine).toMatch(/<option value="kraft-zine" selected="">Kraft zine<\/option>/);
+    expect(zine).toContain("A printed zine on kraft paper");
+    expect(zine).not.toContain("Leave it out and the run picks one");
   });
 
   it("shows the plan rows with labelled selects, swatches and move, remove and add controls", () => {

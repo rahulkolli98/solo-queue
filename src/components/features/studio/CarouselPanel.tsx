@@ -10,6 +10,7 @@ import CarouselCaption from "@/components/features/studio/CarouselCaption";
 import { OwnCarouselEditor, OwnCarouselStart } from "@/components/features/studio/OwnCarousel";
 import SaveLook from "@/components/features/studio/SaveLook";
 import { planFromSlides } from "../../../../convex/lib/looks";
+import { THEMES, themeOf, themeShowsNotes, type ThemeKey } from "../../../../convex/lib/themes";
 import SlidePreview from "@/components/features/studio/SlidePreview";
 import type { GenState } from "@/components/features/studio/types";
 import { useCarouselRender } from "@/components/features/studio/useCarouselRender";
@@ -25,7 +26,7 @@ import {
   addCard,
   addItem,
   addPill,
-  addSlide,
+  addSlide,
   moveSlide,
   normalizeSlide,
   removeCard,
@@ -194,42 +195,62 @@ function SelectField<T extends string>({
   value,
   options,
   onChange,
+  disabled,
+  hint,
 }: {
   id: string;
   label: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  disabled?: boolean;
+  hint?: ReactNode;
 }) {
   return (
     <div className="studio-cr-field">
       <label htmlFor={id} className="studio-cr-label">
         {label}
       </label>
-      <select id={id} className="sq-input studio-cr-input" value={value} onChange={(e) => onChange(e.target.value as T)}>
+      <select
+        id={id}
+        className="sq-input studio-cr-input"
+        value={value}
+        disabled={disabled}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
       </select>
+      {hint && (
+        <span id={`${id}-hint`} className="studio-cr-hint">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
 
 const LAYOUT_OPTIONS = SLIDE_LAYOUTS.map((value) => ({ value, label: LAYOUT_LABELS[value] }));
 const TONE_OPTIONS = SLIDE_TONES.map((value) => ({ value, label: TONE_LABELS[value] }));
+const THEME_OPTIONS = THEMES.map((t) => ({ value: t.key as ThemeKey, label: t.name }));
 
 /** The form for the selected slide. Typing changes the local slides; leaving a field (or a select change) saves. */
 function SlideForm({
   slide,
   position,
+  theme,
   onEdit,
   onCommit,
   onSave,
 }: {
   slide: Slide;
   position: number;
+  /** The carousel's theme: a hand-written note is only offered when the theme draws one. */
+  theme?: string;
   /** Change the slide, keep it local (saved on blur). */
   onEdit: (change: (s: Slide) => Slide) => void;
   /** Change the slide and save now. */
@@ -298,6 +319,18 @@ function SlideForm({
           max={LIMITS.sub}
           multiline
           onChange={(sub) => onEdit((s) => ({ ...s, sub }))}
+          onBlur={onSave}
+        />
+      )}
+
+      {themeShowsNotes(theme) && (
+        <TextField
+          id={id("note")}
+          label="Hand-written note"
+          value={slide.note ?? ""}
+          max={LIMITS.note}
+          hint="A short aside drawn in handwriting. Leave it empty for none."
+          onChange={(note) => onEdit((s) => ({ ...s, note }))}
           onBlur={onSave}
         />
       )}
@@ -471,6 +504,66 @@ function SlideForm({
   );
 }
 
+/**
+ * The carousel's design (theme). A change removes the drawn images, so when there are some the choice waits for a
+ * confirm (`pending`) before it is applied.
+ */
+export function DesignControl({
+  id,
+  current,
+  pending,
+  imageCount,
+  busy,
+  locked,
+  onChange,
+  onConfirm,
+  onCancel,
+}: {
+  id: string;
+  current: ThemeKey;
+  /** A design chosen but not applied yet (only when images are attached). */
+  pending: ThemeKey | null;
+  imageCount: number;
+  /** The change is being saved. */
+  busy: boolean;
+  /** Something else is running (drawing, saving, writing). */
+  locked: boolean;
+  onChange: (theme: ThemeKey) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const shown = pending ?? current;
+  const nameOf = (key: ThemeKey) => THEMES.find((t) => t.key === key)?.name;
+  return (
+    <div className="studio-cr-row studio-cr-row-end">
+      <SelectField
+        id={id}
+        label="Design"
+        value={shown}
+        options={THEME_OPTIONS}
+        disabled={busy || locked}
+        hint={THEMES.find((t) => t.key === shown)?.blurb}
+        onChange={onChange}
+      />
+      {pending && (
+        <div role="group" aria-label="Change the design">
+          <p className="studio-cr-note" role="alert">
+            Changing the design removes the {imageCount === 1 ? "drawn image" : "drawn images"}. You will need to draw the slides again.
+          </p>
+          <div className="studio-actions-row">
+            <button type="button" className="sq-btn sq-btn-sm sq-btn-dark studio-cr-btn" disabled={busy} onClick={onConfirm}>
+              {busy ? "Changing…" : `Change to ${nameOf(pending)}`}
+            </button>
+            <button type="button" className="sq-btn sq-btn-sm studio-cr-btn" disabled={busy} onClick={onCancel}>
+              Keep {nameOf(current)}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---- the editor ---- */
 
 function CarouselEditor({
@@ -487,6 +580,7 @@ function CarouselEditor({
   onUseOwn: () => void;
 }) {
   const updateSlides = useMutation(api.drafts.updateSlides);
+  const setTheme = useMutation(api.drafts.setTheme);
   const imageIds = draft.mediaAssetIds ?? [];
   const assets = useQuery(api.media.byIds, imageIds.length > 0 ? { ids: imageIds.slice(0, 10) } : "skip");
   const verifyImage = useAction(api.media.verify);
@@ -503,6 +597,10 @@ function CarouselEditor({
   const [selected, setSelected] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // A design chosen but not applied yet: changing it removes the drawn images, so it asks first.
+  const [pendingTheme, setPendingTheme] = useState<ThemeKey | null>(null);
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
 
   if (!slidesEqual(serverSeen, serverSlides)) {
     // The saved slides changed (our own save arriving, or a rewrite): follow them unless there are unsaved edits.
@@ -612,6 +710,35 @@ function CarouselEditor({
     if (to === null) return;
     e.preventDefault();
     select(to, true);
+  }
+
+  const currentTheme = themeOf(draft.theme);
+
+  /** Change the design. The server removes the drawn images, so clear them out of the library as an edit does. */
+  async function applyTheme(next: ThemeKey) {
+    const hadImages = imagesRef.current;
+    setThemeBusy(true);
+    setThemeError(null);
+    try {
+      await setTheme({ id: draft._id, theme: next });
+      setPendingTheme(null);
+      if (hadImages.length > 0) void discard(hadImages);
+    } catch (e) {
+      setThemeError(studioErrorText(e, "Couldn't change the design. Try again."));
+    } finally {
+      setThemeBusy(false);
+    }
+  }
+
+  function onThemeChange(next: ThemeKey) {
+    setThemeError(null);
+    if (next === currentTheme) {
+      setPendingTheme(null);
+    } else if (attached) {
+      setPendingTheme(next);
+    } else {
+      void applyTheme(next);
+    }
   }
 
   async function drawSlides() {
@@ -732,6 +859,7 @@ function CarouselEditor({
             key={at}
             slide={current}
             position={at}
+            theme={draft.theme}
             onEdit={edit}
             onCommit={commit}
             onSave={() => void save()}
@@ -748,9 +876,20 @@ function CarouselEditor({
         {attached && (
           <p className="studio-cr-note">Editing slides removes the drawn images. Draw the slides again.</p>
         )}
-        {(draw.error || saveError || checkError) && (
+        <DesignControl
+          id={`${draft._id}-design`}
+          current={currentTheme}
+          pending={pendingTheme}
+          imageCount={imageIds.length}
+          busy={themeBusy}
+          locked={busy || saving || gen.writing}
+          onChange={onThemeChange}
+          onConfirm={() => pendingTheme && void applyTheme(pendingTheme)}
+          onCancel={() => setPendingTheme(null)}
+        />
+        {(draw.error || saveError || checkError || themeError) && (
           <p className="studio-inline-error" role="alert">
-            {draw.error ?? saveError ?? checkError}
+            {draw.error ?? saveError ?? checkError ?? themeError}
           </p>
         )}
         <div className="studio-actions-row">

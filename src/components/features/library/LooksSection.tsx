@@ -47,6 +47,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { PlanLayout } from "../../../../convex/lib/looks";
 import type { SlideTone } from "../../../../convex/lib/carouselSlides";
+import { THEMES, themeOf } from "../../../../convex/lib/themes";
 
 const NEW_ID = "lk-new";
 const editId = (key: string) => `lk-edit-${key}`;
@@ -95,8 +96,8 @@ export default function LooksSection() {
             Carousel looks
           </h2>
           <p className="lk-lead">
-            A look is a saved carousel design: a slide plan, a design document, reference images, or any mix. Pick one when you write a
-            carousel.
+            A look is a saved carousel design: a theme, a slide plan, a design document, reference images, or any mix. Pick one when you
+            write a carousel.
           </p>
         </div>
         <button
@@ -128,8 +129,8 @@ export default function LooksSection() {
         <div className="lk-empty">
           <b>No looks yet</b>
           <span>
-            Press New look to save a design you like: the layout and colour of each slide, a few words on how it should read, or pictures of
-            carousels you admire.
+            Press New look to save a design you like: a theme, the layout and colour of each slide, a few words on how it should read, or
+            pictures of carousels you admire.
           </span>
         </div>
       ) : (
@@ -415,6 +416,33 @@ export function LookEditor({
           placeholder="Calm explainer"
           onChange={(e) => change({ ...draft, name: e.target.value })}
         />
+      </div>
+
+      <div className="lk-part">
+        <div className="lk-part-head">
+          <label className="lk-part-title" htmlFor={`${uid}-theme`}>
+            Design
+          </label>
+        </div>
+        <select
+          id={`${uid}-theme`}
+          className="sq-input lk-select lk-theme"
+          value={draft.theme}
+          aria-describedby={`${uid}-theme-hint`}
+          onChange={(e) => change({ ...draft, theme: e.target.value })}
+        >
+          <option value="">No theme (the run decides)</option>
+          {THEMES.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <p className="lk-hint" id={`${uid}-theme-hint`}>
+          {draft.theme
+            ? THEMES.find((t) => t.key === themeOf(draft.theme))?.blurb
+            : "A theme is how every slide is drawn: colours, fonts and shapes. Leave it out and the run picks one, Solo Queue by default."}
+        </p>
       </div>
 
       <div className="lk-part" role="group" aria-labelledby={`${uid}-plan-title`}>

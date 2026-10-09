@@ -15,7 +15,7 @@ const rows = (choices = {}) =>
 const noop = vi.fn();
 const render = (over: Partial<Parameters<typeof FormatSetup>[0]> = {}) =>
   renderToStaticMarkup(
-    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onLook={noop} onMakeDefault={noop} {...over} />
+    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onLook={noop} onTheme={noop} onMakeDefault={noop} {...over} />
   );
 const disabledDefaults = (out: string) => (out.match(/<button[^>]*studio-setup-default[^>]*disabled/g) ?? []).length;
 
@@ -82,6 +82,36 @@ describe("FormatSetup", () => {
     const none = render({ open: true });
     expect(none).toContain("Make one in Library");
     expect(none).toMatch(/aria-label="Carousel look"[^>]*disabled/);
+  });
+
+  it("the carousel row has a design select above the look select, with the effective theme and its hint", () => {
+    const withLooks = (choices = {}) =>
+      buildSetupRows({
+        choices,
+        defaults: undefined,
+        legacyDefaultKey: "confession",
+        legacyPostCount: undefined,
+        frames,
+        looks: [{ key: "zine", name: "Zine look", theme: "kraft-zine" }],
+      });
+    const out = render({ open: true });
+    expect(out.match(/aria-label="Carousel design"/g)).toHaveLength(1);
+    const carousel = out.slice(out.indexOf('data-kind="carousel"'), out.indexOf('data-kind="blog"'));
+    expect(carousel.indexOf('aria-label="Carousel design"')).toBeLessThan(carousel.indexOf('aria-label="Carousel look"'));
+    const select = out.slice(out.indexOf('aria-label="Carousel design"'), out.indexOf("</select>", out.indexOf('aria-label="Carousel design"')));
+    expect(select).toContain(">Solo Queue<");
+    expect(select).toContain(">Kraft zine<");
+    expect(select).toMatch(/<option value="solo-queue" selected/);
+    expect(out).toContain("The app&#x27;s own design");
+    expect(out).toContain("A look can set the design too.");
+    // The look's theme is the one shown, and the hint follows it.
+    const viaLook = render({ open: true, rows: withLooks({ carousel: { include: true, lookKey: "zine" } }) });
+    expect(viaLook).toMatch(/<option value="kraft-zine" selected/);
+    expect(viaLook).toContain("A printed zine on kraft paper");
+    // Only the carousel has one, and it is locked with the row.
+    expect(out.match(/Carousel design/g)).toHaveLength(1);
+    expect(out).toMatch(/aria-label="Carousel design"[^>]*disabled/);
+    expect(render({ open: true, rows: rows({ carousel: { include: true } }) })).not.toMatch(/aria-label="Carousel design"[^>]*disabled/);
   });
 
   it("Make default is disabled until a row differs from the saved default", () => {

@@ -11,7 +11,9 @@
  * (carouselMetrics.ts, made by scripts/font-metrics.mjs), wrapped the way the renderer wraps it. Pure, so it is tested.
  */
 import { SLIDE_HEIGHT, SLIDE_WIDTH, headlineSize, splitHeadline, type Slide } from "../../convex/lib/carouselSlides";
-import { METRICS, type FontName } from "@/lib/carouselMetrics";
+import { wrapLines, textWidth } from "@/lib/carouselText";
+
+export { textWidth, wrapLines };
 
 export const PAD_X = 80;
 export const PAD_TOP = 64;
@@ -92,44 +94,6 @@ function sizesFor(slide: Slide, k: number): Sizes {
     listText: r(44),
     listMt: r(120),
   };
-}
-
-function advance(font: FontName, ch: string): number {
-  const m = METRICS[font];
-  return (m.widths[ch] ?? m.fallback) / m.unitsPerEm;
-}
-
-/** The width of `text` on one line, in pixels, with the letter spacing the renderer applies after every character. */
-export function textWidth(font: FontName, text: string, size: number, letterSpacing: number): number {
-  let w = 0;
-  for (const ch of text) w += advance(font, ch) * size + letterSpacing;
-  return w;
-}
-
-/** How many lines `text` takes in a box `width` wide: words wrap at spaces, a new paragraph at a line break. */
-export function wrapLines(font: FontName, text: string, size: number, letterSpacing: number, width: number): number {
-  const space = advance(font, " ") * size + letterSpacing;
-  let lines = 0;
-  for (const paragraph of text.split("\n")) {
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
-      lines += 1;
-      continue;
-    }
-    let n = 1;
-    let line = 0;
-    for (const word of words) {
-      const w = textWidth(font, word, size, letterSpacing);
-      if (line === 0) line = w;
-      else if (line + space + w <= width) line += space + w;
-      else {
-        n += 1;
-        line = w;
-      }
-    }
-    lines += n;
-  }
-  return lines;
 }
 
 function headlineHeight(slide: Slide, size: number): number {
