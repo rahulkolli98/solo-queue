@@ -2,13 +2,13 @@ import type { CSSProperties, ReactElement } from "react";
 import {
   SLIDE_HEIGHT,
   SLIDE_WIDTH,
-  headlineSize,
   pageLabel,
   splitHeadline,
   type Slide,
   type SlideCard,
 } from "../../../convex/lib/carouselSlides";
 import { CARD_COLORS, CARD_SHADOW, PALETTE, SLIDE_COLORS, pillColors } from "@/lib/carouselPalette";
+import { PAD_X, fitSlide, type Sizes } from "@/lib/carouselFit";
 
 /**
  * One carousel slide as 1080 x 1350 markup. It is drawn by `next/og` (satori) on the server, so it sticks to what
@@ -21,8 +21,6 @@ export const FONT = {
   mono: "DMMono",
 } as const;
 
-const PAD_X = 80;
-
 const mono = (size: number, color: string, extra: CSSProperties = {}): CSSProperties => ({
   display: "flex",
   fontFamily: FONT.mono,
@@ -34,9 +32,8 @@ const mono = (size: number, color: string, extra: CSSProperties = {}): CSSProper
   ...extra,
 });
 
-function Headline({ slide }: { slide: Slide }): ReactElement {
+function Headline({ slide, size }: { slide: Slide; size: number }): ReactElement {
   const colors = SLIDE_COLORS[slide.tone];
-  const size = headlineSize(slide.layout, slide.headline);
   const lines = splitHeadline(slide.headline, slide.accent);
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -71,10 +68,10 @@ function Headline({ slide }: { slide: Slide }): ReactElement {
   );
 }
 
-function Sub({ slide, size = 64 }: { slide: Slide; size?: number }): ReactElement | null {
+function Sub({ slide, px }: { slide: Slide; px: number }): ReactElement | null {
   if (!slide.sub) return null;
-  // The italic line is DM Sans Italic (the app's own subtext style). It runs wider than a serif, so it is set smaller.
-  const px = Math.round(size * 0.8);
+  // The italic line is DM Sans Italic (the app's own subtext style). It runs wider than a serif, so it is set smaller
+  // (the fit has already applied that: 0.8 of the designed size, and the shrink when the slide is crowded).
   return (
     <div
       style={{
@@ -93,7 +90,7 @@ function Sub({ slide, size = 64 }: { slide: Slide; size?: number }): ReactElemen
   );
 }
 
-function Card({ card, row, tilt }: { card: SlideCard; row: boolean; tilt: number }): ReactElement {
+function Card({ card, row, tilt, s }: { card: SlideCard; row: boolean; tilt: number; s: Sizes }): ReactElement {
   const c = CARD_COLORS[card.tone];
   return (
     <div
@@ -101,25 +98,25 @@ function Card({ card, row, tilt }: { card: SlideCard; row: boolean; tilt: number
         display: "flex",
         flexDirection: "column",
         width: row ? 432 : "100%",
-        padding: row ? "40px 40px 44px" : "40px 44px 44px",
+        padding: `${s.cardPadTop}px ${row ? s.cardPadXRow : s.cardPadX}px ${s.cardPadBottom}px`,
         borderRadius: 40,
         backgroundColor: c.bg,
         boxShadow: CARD_SHADOW,
         transform: `rotate(${tilt}deg)`,
       }}
     >
-      {card.label && <div style={mono(26, c.label, { marginBottom: card.big ? 14 : 18 })}>{card.label}</div>}
+      {card.label && <div style={mono(26, c.label, { marginBottom: card.big ? s.labelMbBig : s.labelMb })}>{card.label}</div>}
       {card.big && (
         <div
           style={{
             display: "flex",
             fontFamily: FONT.headline,
             fontWeight: 800,
-            fontSize: 112,
+            fontSize: s.big,
             lineHeight: 1,
-            letterSpacing: -6,
+            letterSpacing: -6 * s.k,
             color: c.big,
-            marginBottom: 10,
+            marginBottom: s.bigMb,
           }}
         >
           {card.big}
@@ -130,9 +127,9 @@ function Card({ card, row, tilt }: { card: SlideCard; row: boolean; tilt: number
           display: "flex",
           fontFamily: FONT.body,
           fontWeight: 400,
-          fontSize: row ? 36 : 42,
+          fontSize: row ? s.cardTextRow : s.cardText,
           lineHeight: 1.3,
-          letterSpacing: -1,
+          letterSpacing: -1 * s.k,
           color: c.text,
         }}
       >
@@ -142,7 +139,7 @@ function Card({ card, row, tilt }: { card: SlideCard; row: boolean; tilt: number
   );
 }
 
-function Cards({ slide }: { slide: Slide }): ReactElement | null {
+function Cards({ slide, s }: { slide: Slide; s: Sizes }): ReactElement | null {
   const cards = slide.cards ?? [];
   if (cards.length === 0) return null;
   const row = cards.length === 2 && cards.every((c) => c.big);
@@ -154,37 +151,37 @@ function Cards({ slide }: { slide: Slide }): ReactElement | null {
         flexDirection: row ? "row" : "column",
         justifyContent: "space-between",
         alignItems: row ? "flex-start" : "stretch",
-        gap: row ? 0 : 44,
+        gap: row ? 0 : s.cardsGap,
         width: "100%",
       }}
     >
       {cards.map((card, i) => (
-        <div key={i} style={{ display: "flex", marginTop: row && i === 1 ? 56 : 0, width: row ? 432 : "100%" }}>
-          <Card card={card} row={row} tilt={tilts[i % tilts.length]} />
+        <div key={i} style={{ display: "flex", marginTop: row && i === 1 ? s.rowOffset : 0, width: row ? 432 : "100%" }}>
+          <Card card={card} row={row} tilt={tilts[i % tilts.length]} s={s} />
         </div>
       ))}
     </div>
   );
 }
 
-function List({ slide }: { slide: Slide }): ReactElement | null {
+function List({ slide, s }: { slide: Slide; s: Sizes }): ReactElement | null {
   const items = slide.items ?? [];
   if (items.length === 0) return null;
   const colors = SLIDE_COLORS[slide.tone];
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 34, width: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: s.listGap, width: "100%" }}>
       {items.map((item, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 36 }}>
+        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: s.listItemGap }}>
           <div
             style={{
               display: "flex",
               fontFamily: FONT.headline,
               fontWeight: 800,
-              fontSize: 96,
+              fontSize: s.listNum,
               lineHeight: 0.9,
-              letterSpacing: -5,
+              letterSpacing: -5 * s.k,
               color: colors.accent,
-              minWidth: 96,
+              minWidth: s.listNum,
             }}
           >
             {i + 1}
@@ -196,9 +193,9 @@ function List({ slide }: { slide: Slide }): ReactElement | null {
                 display: "flex",
                 fontFamily: FONT.body,
                 fontWeight: 500,
-                fontSize: 44,
+                fontSize: s.listText,
                 lineHeight: 1.22,
-                letterSpacing: -0.8,
+                letterSpacing: -0.8 * s.k,
                 color: colors.text,
               }}
             >
@@ -270,6 +267,7 @@ function Wordmark({ tone }: { tone: Slide["tone"] }): ReactElement {
  */
 function StatementSlide({ slide }: { slide: Slide }): ReactElement {
   const colors = SLIDE_COLORS[slide.tone];
+  const s = fitSlide(slide).sizes;
   return (
     <div
       style={{
@@ -285,11 +283,11 @@ function StatementSlide({ slide }: { slide: Slide }): ReactElement {
         <div style={mono(24, slide.tone === "ink" ? PALETTE.cream : PALETTE.ink)}>{slide.kicker ?? ""}</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: 76 }}>
-        <Headline slide={slide} />
+        <Headline slide={slide} size={s.headline} />
       </div>
       <div style={{ display: "flex", flex: 1 }} />
       <div style={{ display: "flex", alignItems: "flex-start", height: 340 }}>
-        <Sub slide={slide} size={64} />
+        <Sub slide={slide} px={s.subPx} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 46 }}>
         <Wordmark tone={slide.tone} />
@@ -312,6 +310,8 @@ export default function SlideView({
   const colors = SLIDE_COLORS[slide.tone];
   const last = index >= total - 1;
   const cover = slide.layout === "cover";
+  // Every size comes from the fit: the designed sizes, or smaller ones when the text would run off the slide.
+  const s = fitSlide(slide).sizes;
   return (
     <div
       style={{
@@ -328,33 +328,33 @@ export default function SlideView({
         <div style={mono(26, slide.tone === "ink" ? PALETTE.cream : PALETTE.ink)}>{pageLabel(index, total)}</div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", marginTop: cover ? 100 : 36 }}>
-        <Headline slide={slide} />
+      <div style={{ display: "flex", flexDirection: "column", marginTop: s.headMt }}>
+        <Headline slide={slide} size={s.headline} />
       </div>
 
       {cover && (
-        <div style={{ display: "flex", marginTop: 110 }}>
-          <Sub slide={slide} size={64} />
+        <div style={{ display: "flex", marginTop: s.subMt }}>
+          <Sub slide={slide} px={s.subPx} />
         </div>
       )}
       {slide.layout === "close" && (
-        <div style={{ display: "flex", marginTop: 90 }}>
-          <Sub slide={slide} size={64} />
+        <div style={{ display: "flex", marginTop: s.subMt }}>
+          <Sub slide={slide} px={s.subPx} />
         </div>
       )}
       {slide.layout === "list" && (
-        <div style={{ display: "flex", marginTop: 120 }}>
-          <List slide={slide} />
+        <div style={{ display: "flex", marginTop: s.listMt }}>
+          <List slide={slide} s={s} />
         </div>
       )}
 
       <div style={{ display: "flex", flex: 1 }} />
 
-      {slide.layout === "cards" && <Cards slide={slide} />}
+      {slide.layout === "cards" && <Cards slide={slide} s={s} />}
       {slide.layout === "close" && <Pills slide={slide} />}
       {slide.layout === "cards" && slide.sub && (
-        <div style={{ display: "flex", marginTop: 56 }}>
-          <Sub slide={slide} size={56} />
+        <div style={{ display: "flex", marginTop: s.subMt }}>
+          <Sub slide={slide} px={s.subPx} />
         </div>
       )}
 
