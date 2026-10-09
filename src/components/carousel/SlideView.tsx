@@ -8,7 +8,7 @@ import {
   type Slide,
   type SlideCard,
 } from "../../../convex/lib/carouselSlides";
-import { CARD_COLORS, CARD_SHADOW, PALETTE, SLIDE_COLORS } from "@/lib/carouselPalette";
+import { CARD_COLORS, CARD_SHADOW, PALETTE, SLIDE_COLORS, pillColors } from "@/lib/carouselPalette";
 
 /**
  * One carousel slide as 1080 x 1350 markup. It is drawn by `next/og` (satori) on the server, so it sticks to what
@@ -213,6 +213,7 @@ function List({ slide }: { slide: Slide }): ReactElement | null {
 
 function Pills({ slide }: { slide: Slide }): ReactElement {
   const pills = slide.pills?.length ? slide.pills : ["Follow", "Save", "Share"];
+  const pill = pillColors(slide.tone);
   return (
     <div style={{ display: "flex", gap: 16 }}>
       {pills.map((p, i) => (
@@ -230,8 +231,8 @@ function Pills({ slide }: { slide: Slide }): ReactElement {
             letterSpacing: 3,
             textTransform: "uppercase",
             ...(i === 0
-              ? { backgroundColor: PALETTE.ink, color: PALETTE.cream }
-              : { border: `3px solid ${PALETTE.ink}`, color: PALETTE.ink }),
+              ? { backgroundColor: pill.solidBg, color: pill.solidText }
+              : { border: `3px solid ${pill.outline}`, color: pill.outline }),
           }}
         >
           {p}

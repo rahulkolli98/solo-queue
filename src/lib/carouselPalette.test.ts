@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SLIDE_TONES } from "../../convex/lib/carouselSlides";
-import { CARD_COLORS, PALETTE, PALETTE_TOKENS, SLIDE_COLORS } from "@/lib/carouselPalette";
+import { CARD_COLORS, PALETTE, PALETTE_TOKENS, SLIDE_COLORS, pillColors } from "@/lib/carouselPalette";
 
 const tokens = readFileSync(resolve(import.meta.dirname, "../styles/tokens.css"), "utf8");
 const tokenValue = (name: string) => new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`).exec(tokens)?.[1].toLowerCase();
@@ -43,5 +43,25 @@ describe("carousel colours", () => {
       expect(existsSync(resolve(import.meta.dirname, "../../assets/fonts", f)), f).toBe(true);
     }
     expect(existsSync(resolve(import.meta.dirname, "../../assets/fonts/LICENSE.md"))).toBe(true);
+  });
+});
+
+describe("the close slide's pills", () => {
+  it("are never the colour of the slide they sit on, whatever the slide colour", () => {
+    for (const tone of SLIDE_TONES) {
+      const pill = pillColors(tone);
+      const bg = SLIDE_COLORS[tone].bg;
+      // The outlined pills and the solid one must stand out from the background, and the solid one's text from its fill.
+      expect(pill.outline, `outline on ${tone}`).not.toBe(bg);
+      expect(pill.solidBg, `fill on ${tone}`).not.toBe(bg);
+      expect(pill.solidText, `text on ${tone}`).not.toBe(pill.solidBg);
+    }
+  });
+
+  it("are light on the dark slide and dark on the rest", () => {
+    expect(pillColors("ink")).toEqual({ solidBg: PALETTE.cream, solidText: PALETTE.ink, outline: PALETTE.cream });
+    for (const tone of SLIDE_TONES.filter((t) => t !== "ink")) {
+      expect(pillColors(tone)).toEqual({ solidBg: PALETTE.ink, solidText: PALETTE.cream, outline: PALETTE.ink });
+    }
   });
 });
