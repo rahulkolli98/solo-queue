@@ -25,7 +25,7 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn(), dis
 const pillars: Pillar[] = [
   { key: "build", name: "Build in public", color: "pillar-build", description: "", targetShare: 40, links: [] },
 ];
-const filters: LibraryFilters = { search: "", pillar: "", platform: "" };
+const filters: LibraryFilters = { search: "", pillar: "", platform: "", topicId: "", format: "", sort: "newest" };
 
 function frame(over: Partial<Frame>): Frame {
   return {

@@ -6,7 +6,8 @@ import { readSettings } from "./lib/settingsDb";
 /** What the Library shows: published history and drafts that were never queued. */
 
 const DAY_MS = 86400000;
-const PAGE = 200;
+// The newest this many rows are read before the Library narrows them, so a long history is not cut short too early.
+const PAGE = 500;
 
 function firstPost(body: string): string {
   return body.split(/^\s*---\s*$/m)[0].trim();
@@ -51,6 +52,8 @@ export const published = operatorQuery({
       const pillar = pillars.get(pillarKey);
       out.push({
         slotId: slot._id,
+        draftId: draft._id,
+        topicId: draft.topicId,
         platform: slot.platform,
         publishedAt,
         topicTitle: topic?.title ?? "(deleted topic)",

@@ -1,7 +1,13 @@
+import { Suspense } from "react";
+import LibrarySkeleton from "@/components/skeletons/LibrarySkeleton";
 import LibraryScreen from "@/components/features/library/LibraryScreen";
 
 export const metadata = { title: "Media · Library · Solo Queue" };
 
 export default function LibraryMediaPage() {
-  return <LibraryScreen tab="media" />;
+  return (
+    <Suspense fallback={<LibrarySkeleton />}>
+      <LibraryScreen tab="media" />
+    </Suspense>
+  );
 }

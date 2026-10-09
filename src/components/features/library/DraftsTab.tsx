@@ -17,9 +17,11 @@ import {
 } from "@/lib/libraryBoard";
 import { copyText } from "@/lib/clipboard";
 import { refusalText } from "@/lib/refusalText";
+import { narrowBy, sortItems, topicOptions, type ViewFilters } from "@/lib/libraryView";
 import { useTwoTap } from "@/lib/useTwoTap";
 import { api } from "../../../../convex/_generated/api";
 import { AttachDrawer, TrimDrawer } from "./DraftDrawers";
+import LibraryControls from "./LibraryControls";
 import LibraryRail from "./LibraryRail";
 import { PostcardSkeletons } from "./PublishedTab";
 import { pillarColorVar, type DraftCard, type Frame, type LibraryFilters, type Pillar } from "./types";
@@ -165,6 +167,8 @@ function shortAction(action: string) {
 /** Library › Drafts: everything written that never got a slot, with the fix that matches why. */
 export default function DraftsTab({
   filters,
+  onView,
+  onClear,
   pillars,
   tz,
   frames,
@@ -172,6 +176,8 @@ export default function DraftsTab({
   learnedFrom,
 }: {
   filters: LibraryFilters;
+  onView: (change: Partial<ViewFilters>) => void;
+  onClear: () => void;
   pillars: Pillar[];
   tz: string;
   frames: Frame[] | undefined;
@@ -189,15 +195,23 @@ export default function DraftsTab({
     return key && pillars.some((p) => p.key === key) ? key : "build";
   };
 
-  const cards = (data?.cards ?? []).filter(
+  const everyCard = data?.cards ?? [];
+  const matching = everyCard.filter(
     (c) =>
       matchesDraftFilter(c.status, filter) &&
       (!filters.platform || c.platform === filters.platform) &&
       (!filters.pillar || pillarOfCard(c) === filters.pillar) &&
       matchesSearch([c.topicTitle, c.body], filters.search)
   );
+  const cards = sortItems(narrowBy(matching, filters), filters.sort, (c) => c.createdAt);
   const counts = data?.counts;
-  const narrowed = Boolean(filters.search.trim() || filters.pillar || filters.platform || filter !== "all");
+  const narrowed = Boolean(
+    filters.search.trim() || filters.pillar || filters.platform || filters.topicId || filters.format || filter !== "all"
+  );
+  const clearAll = () => {
+    setFilter("all");
+    onClear();
+  };
 
   return (
     <div className="lb-grid">
@@ -213,6 +227,17 @@ export default function DraftsTab({
             Saved{counts ? ` · ${counts.saved}` : ""}
           </FilterChip>
         </div>
+        <LibraryControls
+          filters={filters}
+          onView={onView}
+          dateWord="added"
+          topics={topicOptions(everyCard)}
+          shown={cards.length}
+          total={everyCard.length}
+          noun="draft"
+          narrowed={narrowed}
+          onClear={clearAll}
+        />
         <div className="lb-cards">
           {data === undefined ? (
             <PostcardSkeletons />
