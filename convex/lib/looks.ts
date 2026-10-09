@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isThemeKey } from "./themes";
 import { SLIDE_TONES, type Slide, type SlideLayout, type SlideTone } from "./carouselSlides";
 
 /**
@@ -36,6 +37,8 @@ export interface LookInput {
   plan?: PlanSlide[];
   design?: string;
   referenceIds?: string[];
+  /** The theme (design) carousels written with this look are drawn in (themes.ts). */
+  theme?: string;
 }
 
 export type LookValidation = { ok: true; look: LookInput } | { ok: false; message: string };
@@ -67,10 +70,13 @@ export function validateLook(input: LookInput): LookValidation {
     if (new Set(referenceIds).size !== referenceIds.length) return { ok: false, message: "The same image is in the look twice." };
   }
 
-  if (!plan && !design && !referenceIds) {
-    return { ok: false, message: "A look needs at least one thing: a slide plan, a design document or reference images." };
+  const theme = input.theme || undefined;
+  if (theme !== undefined && !isThemeKey(theme)) return { ok: false, message: "That theme is not available. Pick another." };
+
+  if (!plan && !design && !referenceIds && !theme) {
+    return { ok: false, message: "A look needs at least one thing: a theme, a slide plan, a design document or reference images." };
   }
-  return { ok: true, look: { name, plan, design, referenceIds } };
+  return { ok: true, look: { name, plan, design, referenceIds, theme } };
 }
 
 /** "Calm explainer" becomes "calm-explainer"; empty or symbol-only names become "look". */

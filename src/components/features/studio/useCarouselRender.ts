@@ -41,6 +41,8 @@ export interface RenderInput {
   slides: readonly Slide[];
   /** The images the draft has now: removed (best effort) once the new ones are attached. */
   previousIds?: readonly string[];
+  /** The design to draw in (themes.ts); missing is Solo Queue. */
+  theme?: string;
   caption?: string;
 }
 
@@ -141,7 +143,7 @@ export async function renderCarousel(deps: RenderDeps, input: RenderInput): Prom
   const blobs = await pool(slides, RENDER_PARALLEL, async (slide, i) => {
     stopIfAborted();
     try {
-      const blob = await drawSlide(deps.fetch, slide, i, total, deps.signal);
+      const blob = await drawSlide(deps.fetch, slide, i, total, deps.signal, input.theme);
       drawn += 1;
       progress("drawing", drawn);
       return blob;
@@ -244,6 +246,7 @@ export function useCarouselRender({
   const draftId = draft?._id;
   const draftBody = draft?.body;
   const previous = draft?.mediaAssetIds;
+  const theme = draft?.theme;
   const overrideRef = useRef(override);
   useEffect(() => {
     overrideRef.current = override;
@@ -277,7 +280,7 @@ export function useCarouselRender({
         },
       };
       try {
-        await renderCarousel(deps, { draftId, slides, previousIds: previous ?? [], caption });
+        await renderCarousel(deps, { draftId, slides, previousIds: previous ?? [], caption, theme });
         if (alive.current) setState("done");
         return true;
       } catch (e) {
@@ -292,7 +295,7 @@ export function useCarouselRender({
         running.current = false;
       }
     },
-    [draftId, draftBody, previous, generateUploadUrl, store, verify, attach, remove, update]
+    [draftId, draftBody, previous, theme, generateUploadUrl, store, verify, attach, remove, update]
   );
 
   const discardImages = useCallback(

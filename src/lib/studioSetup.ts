@@ -13,6 +13,7 @@ import {
   type FormatDefaults,
 } from "../../convex/lib/formatSetup";
 import { DEFAULT_SLIDE_COUNT, clampSlideCount } from "../../convex/lib/carouselDraft";
+import { DEFAULT_THEME, THEMES, isThemeKey, themeName } from "../../convex/lib/themes";
 import type { FrameFit } from "../../convex/lib/framesModel";
 import { POSTS_FALLBACK, clampPosts } from "@/lib/studioCompose";
 import { KIND_META, type DraftKind } from "@/lib/studioModel";
@@ -42,6 +43,8 @@ export interface SetupChoice {
   brief?: string;
   /** Carousel: a saved look (a slide plan, a design document, reference images); "" means none. */
   lookKey?: string;
+  /** Carousel: the design (theme) to draw it in, a key from convex/lib/themes.ts. */
+  theme?: string;
 }
 export type SetupChoices = Partial<Record<DraftKind, SetupChoice>>;
 
@@ -56,9 +59,11 @@ export interface SetupInput {
   /** Kinds that already have a draft (the blog is written again when it exists, unless unticked). */
   hasDraft?: Partial<Record<DraftKind, boolean>>;
   /** The saved carousel looks, for the select. */
-  looks?: readonly { key: string; name: string }[];
+  looks?: readonly { key: string; name: string; theme?: string }[];
   /** The look the existing carousel was written with, so Regenerate keeps it unless it is changed. */
   usedLook?: string;
+  /** The theme the existing carousel is drawn in, so Regenerate keeps it unless it is changed. */
+  usedTheme?: string;
 }
 
 export interface SetupRow {
@@ -79,6 +84,15 @@ export interface SetupRow {
   look: string;
   lookName: string;
   lookOptions: { key: string; name: string }[];
+  /**
+   * Carousel: the design (theme) in effect, a key from themes.ts: picked now, else the one the existing carousel is
+   * drawn in, else the chosen look's, else Solo Queue. Other formats: "".
+   */
+  theme: string;
+  /** The themes to pick from (carousel only). */
+  themeOptions: { key: string; name: string }[];
+  /** Carousel: the theme to send with the run, or undefined (the drafting action then follows the look, else Solo Queue). */
+  themeToSend: string | undefined;
   /** Differs from what is saved, so "Make default" has something to save. */
   changed: boolean;
 }
@@ -109,6 +123,10 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
     // Picked now ("" is none), else the look the existing carousel used; only a look that still exists counts.
     const wantedLook = choice.lookKey !== undefined ? choice.lookKey : (input.usedLook ?? "");
     const lookKey = kind === "carousel" && input.looks?.some((l) => l.key === wantedLook) ? wantedLook : "";
+    // Picked now, else the theme the existing carousel is drawn in, else the chosen look's, else Solo Queue.
+    const explicitTheme = isThemeKey(choice.theme) ? choice.theme : isThemeKey(input.usedTheme) ? input.usedTheme : undefined;
+    const lookTheme = input.looks?.find((l) => l.key === lookKey)?.theme;
+    const theme = explicitTheme ?? (isThemeKey(lookTheme) ? lookTheme : DEFAULT_THEME);
     const frameKey = hasFrame && !noFrame
       ? (usableFrame(input.frames, choice.frameKey, kind)?.key ??
         usableFrame(input.frames, input.usedFrame?.[kind], kind)?.key ??
@@ -152,7 +170,10 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
       brief: kind === "carousel" ? (choice.brief ?? "") : "",
       look: kind === "carousel" ? lookKey : "",
       lookName: kind === "carousel" ? (input.looks?.find((l) => l.key === lookKey)?.name ?? "") : "",
-      lookOptions: kind === "carousel" ? [...(input.looks ?? [])] : [],
+      lookOptions: kind === "carousel" ? (input.looks ?? []).map((l) => ({ key: l.key, name: l.name })) : [],
+      theme: kind === "carousel" ? theme : "",
+      themeOptions: kind === "carousel" ? THEMES.map((t) => ({ key: t.key, name: t.name })) : [],
+      themeToSend: kind === "carousel" ? explicitTheme : undefined,
       changed,
     };
   });
@@ -166,6 +187,7 @@ export function setupSummary(rows: readonly SetupRow[]): string {
       const bits = [r.label];
       if (r.frame) bits.push(r.frame.name);
       else if (r.noFrame) bits.push(r.brief.trim() ? "Your description" : "No story frame");
+      if (r.kind === "carousel" && r.theme && r.theme !== DEFAULT_THEME) bits.push(`Design: ${themeName(r.theme)}`);
       if (r.look && r.lookName) bits.push(`Look: ${r.lookName}`);
       if (r.kind === "threads" && r.count !== undefined) bits.push(`${r.count} posts`);
       if (r.kind === "carousel" && r.count !== undefined) bits.push(r.count === 1 ? "1 slide" : `${r.count} slides`);
@@ -184,7 +206,7 @@ export interface GenerateSetup {
   threads?: { frameKey?: string; count?: number };
   caption?: { frameKey?: string };
   reel?: { frameKey?: string };
-  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean; lookKey?: string };
+  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean; lookKey?: string; theme?: string };
 }
 
 /**
@@ -215,6 +237,8 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
       if (row.count !== undefined && row.count !== baseline) entry.count = row.count;
       if (row.brief.trim()) entry.brief = row.brief.trim();
       if (row.look) entry.lookKey = row.look;
+      // Only a theme the founder picked, or the one the existing carousel has: otherwise the look's theme applies.
+      if (row.themeToSend) entry.theme = row.themeToSend;
       if (Object.keys(entry).length) out.carousel = entry;
     }
   }

@@ -44,9 +44,10 @@ export const save = operatorMutation({
     plan: v.optional(planArg),
     design: v.optional(v.string()),
     referenceIds: v.optional(v.array(v.id("mediaAssets"))),
+    theme: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const checked = validateLook({ name: args.name, plan: args.plan, design: args.design, referenceIds: args.referenceIds });
+    const checked = validateLook({ name: args.name, plan: args.plan, design: args.design, referenceIds: args.referenceIds, theme: args.theme });
     if (!checked.ok) throw refusal("INVALID_LOOK", checked.message);
     const look = checked.look;
     await assertReferences(ctx, (look.referenceIds ?? []) as Id<"mediaAssets">[]);
@@ -55,6 +56,7 @@ export const save = operatorMutation({
       plan: look.plan,
       design: look.design,
       referenceIds: look.referenceIds as Id<"mediaAssets">[] | undefined,
+      theme: look.theme,
       updatedAt: Date.now(),
     };
     if (args.key !== undefined) {

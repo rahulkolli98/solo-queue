@@ -77,8 +77,11 @@ export default function SlidePreview({
   total,
   decorative = false,
   className,
+  theme,
 }: {
   slide: Slide;
+  /** The design the slide is drawn in (themes.ts); missing is Solo Queue. */
+  theme?: string;
   /** 0-based position in the carousel (the route prints it as "03/06"). */
   index: number;
   total: number;
@@ -86,7 +89,7 @@ export default function SlidePreview({
   decorative?: boolean;
   className?: string;
 }) {
-  const key = slideKey(slide, index, total);
+  const key = slideKey(slide, index, total, theme);
   const problems = slideIssues(slide);
   const invalid = problems.length > 0;
   const cached = urls.get(key);
@@ -99,7 +102,7 @@ export default function SlidePreview({
       hold(key);
       return () => drop(key);
     }
-    const [payload, at, count] = JSON.parse(key) as [Slide, number, number];
+    const [payload, at, count, chosen] = JSON.parse(key) as [Slide, number, number, string];
     const controller = new AbortController();
     let held = false;
     const timer = setTimeout(async () => {
@@ -107,7 +110,7 @@ export default function SlidePreview({
         await acquire(controller.signal);
         let blob: Blob;
         try {
-          blob = await drawSlide((...args) => fetch(...args), payload, at, count, controller.signal);
+          blob = await drawSlide((...args) => fetch(...args), payload, at, count, controller.signal, chosen);
         } finally {
           release();
         }

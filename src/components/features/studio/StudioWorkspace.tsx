@@ -155,8 +155,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       carousel: latest.carousel?.frameKey,
     },
     hasDraft: { blog: Boolean(latest.blog) },
-    looks: looks?.map((l) => ({ key: l.key, name: l.name })),
+    looks: looks?.map((l) => ({ key: l.key, name: l.name, theme: l.theme })),
     usedLook: latest.carousel?.lookKey,
+    usedTheme: latest.carousel?.theme,
   });
   const threadsRow = rows.find((r) => r.kind === "threads");
   const beatsKey = threadsFrameKey ?? threadsRow?.frame?.key;
@@ -461,6 +462,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         onFrame={(kind, frameKey) => choose(kind, frameKey === NO_FRAME ? { noFrame: true, frameKey: undefined } : { noFrame: false, frameKey })}
         onBrief={(kind, brief) => choose(kind, { brief })}
         onLook={(kind, lookKey) => choose(kind, { lookKey })}
+        onTheme={(kind, theme) => choose(kind, { theme })}
         onCount={(kind, count) => choose(kind, { count })}
         onMakeDefault={(kind) => void makeDefault(kind)}
       />

@@ -4,6 +4,7 @@ import { useId } from "react";
 import { FRAME_EXPLAINER, type DraftKind } from "@/lib/studioModel";
 import { POSTS_MAX, POSTS_MIN } from "@/lib/studioCompose";
 import { BRIEF_MAX } from "../../../../convex/lib/carouselDraft";
+import { THEMES, themeOf } from "../../../../convex/lib/themes";
 import { NO_FRAME, setupSummary, type SetupRow } from "@/lib/studioSetup";
 
 const POST_COUNTS = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
@@ -24,6 +25,7 @@ export default function FormatSetup({
   onCount,
   onBrief,
   onLook,
+  onTheme,
   onMakeDefault,
 }: {
   rows: SetupRow[];
@@ -38,6 +40,8 @@ export default function FormatSetup({
   onBrief: (kind: DraftKind, text: string) => void;
   /** The carousel's saved look ("" for none). */
   onLook: (kind: DraftKind, key: string) => void;
+  /** The carousel's design (theme key). */
+  onTheme: (kind: DraftKind, key: string) => void;
   onMakeDefault: (kind: DraftKind) => void;
 }) {
   const id = useId();
@@ -119,6 +123,27 @@ export default function FormatSetup({
               >
                 Make default
               </button>
+              {row.kind === "carousel" && (
+                <label className="studio-setup-look">
+                  <span className="t-meta">DESIGN</span>
+                  <select
+                    className="sq-input studio-setup-select"
+                    aria-label="Carousel design"
+                    value={row.theme}
+                    disabled={disabled || !row.include}
+                    onChange={(e) => onTheme(row.kind, e.target.value)}
+                  >
+                    {row.themeOptions.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="studio-setup-brief-hint sq-muted">
+                    {THEMES.find((t) => t.key === themeOf(row.theme))?.blurb} A look can set the design too.
+                  </span>
+                </label>
+              )}
               {row.kind === "carousel" && (
                 <label className="studio-setup-look">
                   <span className="t-meta">LOOK</span>

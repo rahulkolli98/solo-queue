@@ -9,6 +9,8 @@ import {
 } from "../../../convex/lib/carouselSlides";
 import { CARD_COLORS, CARD_SHADOW, PALETTE, SLIDE_COLORS, pillColors } from "@/lib/carouselPalette";
 import { PAD_X, fitSlide, type Sizes } from "@/lib/carouselFit";
+import KraftSlide from "@/components/carousel/KraftSlide";
+import { themeOf } from "../../../convex/lib/themes";
 
 /**
  * One carousel slide as 1080 x 1350 markup. It is drawn by `next/og` (satori) on the server, so it sticks to what
@@ -301,11 +303,15 @@ export default function SlideView({
   slide,
   index,
   total,
+  theme,
 }: {
   slide: Slide;
   index: number;
   total: number;
+  /** The design to draw in (themes.ts). Solo Queue is drawn here; other themes have their own renderer. */
+  theme?: string;
 }): ReactElement {
+  if (themeOf(theme) === "kraft-zine") return <KraftSlide slide={slide} index={index} total={total} />;
   if (slide.layout === "statement") return <StatementSlide slide={slide} />;
   const colors = SLIDE_COLORS[slide.tone];
   const last = index >= total - 1;

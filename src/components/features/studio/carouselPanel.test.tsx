@@ -12,7 +12,7 @@ vi.mock("convex/react", () => ({
 
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import { MAX_SLIDES, MIN_SLIDES, type Slide } from "../../../../convex/lib/carouselSlides";
-import CarouselPanel from "@/components/features/studio/CarouselPanel";
+import CarouselPanel, { DesignControl } from "@/components/features/studio/CarouselPanel";
 import type { GenState } from "@/components/features/studio/types";
 import {
   CarouselRenderError,
@@ -236,6 +236,88 @@ function fakes(over: Partial<RenderDeps> = {}) {
   return deps as unknown as RenderDeps & Record<"fetch" | "generateUploadUrl" | "upload" | "store" | "verify" | "attach" | "remove", Mock>;
 }
 const input = (over: Record<string, unknown> = {}) => ({ draftId: "d1", slides: slides(4), previousIds: ["old1", "old2"], ...over });
+
+describe("the carousel's design", () => {
+  const select = (out: string) => out.slice(out.indexOf('id="d1-design"'), out.indexOf("</select>", out.indexOf('id="d1-design"')));
+
+  it("offers a Design select with every theme, Solo Queue chosen when the draft has none", () => {
+    const out = panel(draft());
+    expect(out).toMatch(/<label[^>]*>Design<\/label>/);
+    expect(select(out)).toContain(">Solo Queue<");
+    expect(select(out)).toContain(">Kraft zine<");
+    expect(select(out)).toMatch(/<option value="solo-queue" selected/);
+    expect(out).toContain("The app&#x27;s own design");
+    // nothing to confirm until a different design is chosen
+    expect(out).not.toContain("Changing the design removes");
+  });
+
+  it("shows the draft's own theme and its description", () => {
+    const out = panel(draft({ theme: "kraft-zine" }));
+    expect(select(out)).toMatch(/<option value="kraft-zine" selected/);
+    expect(out).toContain("A printed zine on kraft paper");
+    // an unknown stored theme is shown as Solo Queue, as it is drawn
+    expect(select(panel(draft({ theme: "gone" })))).toMatch(/<option value="solo-queue" selected/);
+  });
+
+  it("is enabled when idle, and gone while the carousel is being written", () => {
+    expect(select(panel(draft()))).not.toContain("disabled");
+    expect(panel(draft(), { writing: true })).not.toContain('id="d1-design"');
+  });
+
+  it("is not offered on a carousel of the founder's own images", () => {
+    const own = draft({ slideSource: "uploaded", mediaAssetIds: ["a0", "a1", "a2"] });
+    expect(panel(own)).not.toContain("-design");
+  });
+
+  describe("the confirm before it removes drawn images", () => {
+    const props = { id: "x", current: "solo-queue" as const, imageCount: 3, busy: false, locked: false, onChange: vi.fn(), onConfirm: vi.fn(), onCancel: vi.fn() };
+
+    it("asks nothing until a different design is chosen", () => {
+      expect(html(<DesignControl {...props} pending={null} />)).not.toContain("removes the drawn");
+    });
+
+    it("warns, names both designs and offers Change and Keep once one is chosen", () => {
+      const out = html(<DesignControl {...props} pending="kraft-zine" />);
+      expect(out).toContain("Changing the design removes the drawn images. You will need to draw the slides again.");
+      expect(button(out, "Change to Kraft zine")).not.toBe("");
+      expect(button(out, "Keep Solo Queue")).not.toBe("");
+      // the select already shows the chosen design and its description
+      expect(select(out.replace('id="x"', 'id="d1-design"'))).toMatch(/<option value="kraft-zine" selected/);
+      expect(out).toContain("A printed zine on kraft paper");
+      expect(out).toContain('role="alert"');
+    });
+
+    it("says drawn image for one image, and locks both buttons while the change is saving", () => {
+      const out = html(<DesignControl {...props} imageCount={1} busy pending="kraft-zine" />);
+      expect(out).toContain("removes the drawn image.");
+      expect(out).toContain("Changing…");
+      expect(button(out, "Keep Solo Queue")).toContain('disabled=""');
+    });
+  });
+});
+
+describe("the hand-written note", () => {
+  const withNote = (theme: string | undefined, over: Partial<Slide> = {}) =>
+    panel(draft({ ...(theme ? { theme } : {}), slides: [slide({ layout: "cover", ...over }), slide(), slide()] }));
+
+  it("is shown only for a theme that draws notes", () => {
+    const zine = withNote("kraft-zine");
+    expect(zine).toMatch(/<label[^>]*>Hand-written note<\/label>/);
+    expect(zine).toContain("A short aside drawn in handwriting.");
+    expect(withNote(undefined)).not.toContain("Hand-written note");
+    expect(withNote("solo-queue")).not.toContain("Hand-written note");
+  });
+
+  it("holds the slide's note and counts it against 40 characters", () => {
+    expect(withNote("kraft-zine", { note: "only 60 days" })).toContain('value="only 60 days"');
+    const near = withNote("kraft-zine", { note: "n".repeat(33) });
+    expect(near).toContain("33 / 40");
+    const over = withNote("kraft-zine", { note: "n".repeat(41) });
+    expect(over).toContain("41 / 40");
+    expect(over).toContain('data-over="true"');
+    expect(over).toContain("Note is over 40 characters.");
+  });
+});
 
 describe("renderCarousel", () => {
   it("draws, stores, checks and attaches every slide, keeping the slide order", async () => {

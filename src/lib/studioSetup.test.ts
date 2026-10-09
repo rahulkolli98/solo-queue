@@ -202,6 +202,81 @@ describe("the carousel's saved look", () => {
   });
 });
 
+describe("the carousel's design (theme)", () => {
+  const looks = [
+    { key: "pastel", name: "Pastel" },
+    { key: "zine", name: "Zine look", theme: "kraft-zine" },
+    { key: "old", name: "Old look", theme: "removed-theme" },
+  ];
+  const rowFor = (choice: object, extra: object = {}) => {
+    const input: SetupInput = { ...base, looks, choices: { carousel: { include: true, ...choice } }, ...extra };
+    return { row: buildSetupRows(input).find((r) => r.kind === "carousel")!, input };
+  };
+  const sent = (r: { input: SetupInput }) => setupToSend(buildSetupRows(r.input), r.input).carousel;
+
+  it("lists every theme, and is Solo Queue when nothing says otherwise", () => {
+    const { row: r, input } = rowFor({});
+    expect(r.theme).toBe("solo-queue");
+    expect(r.themeOptions).toEqual([
+      { key: "solo-queue", name: "Solo Queue" },
+      { key: "kraft-zine", name: "Kraft zine" },
+    ]);
+    // nothing explicit: the backend resolves the theme itself, so none is sent and the summary says nothing
+    expect(r.themeToSend).toBeUndefined();
+    expect(setupToSend(buildSetupRows(input), input).carousel).toEqual({ frameKey: "ig-carousel" });
+    expect(setupSummary(buildSetupRows(input))).not.toContain("Design:");
+  });
+
+  it("resolves in order: this run's choice, the existing carousel's theme, the chosen look's, Solo Queue", () => {
+    expect(rowFor({ lookKey: "zine" }).row.theme).toBe("kraft-zine");
+    expect(rowFor({ lookKey: "pastel" }).row.theme).toBe("solo-queue");
+    // a look whose theme the app no longer has falls back to Solo Queue
+    expect(rowFor({ lookKey: "old" }).row.theme).toBe("solo-queue");
+    // the existing carousel's theme beats the look's, so Regenerate keeps the design
+    expect(rowFor({ lookKey: "zine" }, { usedTheme: "solo-queue" }).row.theme).toBe("solo-queue");
+    expect(rowFor({}, { usedTheme: "kraft-zine" }).row.theme).toBe("kraft-zine");
+    // this run's choice beats everything
+    expect(rowFor({ theme: "solo-queue", lookKey: "zine" }, { usedTheme: "kraft-zine" }).row.theme).toBe("solo-queue");
+    expect(rowFor({ theme: "kraft-zine" }, { usedTheme: "solo-queue" }).row.theme).toBe("kraft-zine");
+    // an unknown key is ignored, not shown
+    expect(rowFor({ theme: "nope" }).row.theme).toBe("solo-queue");
+    expect(rowFor({}, { usedTheme: "nope" }).row.theme).toBe("solo-queue");
+  });
+
+  it("sends a theme only for an explicit choice or the existing carousel's, never one a look would set", () => {
+    expect(sent(rowFor({ lookKey: "zine" }))).toEqual({ frameKey: "ig-carousel", lookKey: "zine" });
+    expect(sent(rowFor({ theme: "kraft-zine" }))).toEqual({ frameKey: "ig-carousel", theme: "kraft-zine" });
+    // choosing Solo Queue on purpose is still a choice, so it is sent (it overrides a look's theme)
+    expect(sent(rowFor({ theme: "solo-queue", lookKey: "zine" }))).toEqual({ frameKey: "ig-carousel", lookKey: "zine", theme: "solo-queue" });
+    expect(sent(rowFor({}, { usedTheme: "kraft-zine" }))).toEqual({ frameKey: "ig-carousel", theme: "kraft-zine" });
+    expect(sent(rowFor({ theme: "nope" }))).toEqual({ frameKey: "ig-carousel" });
+  });
+
+  it("the summary names the design when it is not Solo Queue", () => {
+    const zine = rowFor({ theme: "kraft-zine" });
+    expect(setupSummary(buildSetupRows(zine.input))).toContain("Carousel · Carousel: cover, story, close · Design: Kraft zine · 6 slides");
+    const viaLook = rowFor({ lookKey: "zine" });
+    expect(setupSummary(buildSetupRows(viaLook.input))).toContain("Design: Kraft zine · Look: Zine look");
+    expect(setupSummary(buildSetupRows(rowFor({ theme: "solo-queue" }).input))).not.toContain("Design:");
+  });
+
+  it("other formats never carry a theme, and a theme does not change what Make default saves", () => {
+    const { input } = rowFor({ theme: "kraft-zine" });
+    const rows = buildSetupRows(input);
+    for (const kind of ["threads", "caption", "reel", "blog"]) {
+      expect(rows.find((r) => r.kind === kind)).toMatchObject({ theme: "", themeOptions: [], themeToSend: undefined });
+    }
+    const themeOnly = { ...base, looks, choices: { carousel: { theme: "kraft-zine" } } };
+    expect(buildSetupRows(themeOnly).find((r) => r.kind === "carousel")?.changed).toBe(false);
+    expect(setupToSend(rows, input).threads).not.toHaveProperty("theme");
+  });
+
+  it("a carousel that is not ticked sends nothing", () => {
+    const input: SetupInput = { ...base, choices: { carousel: { include: false, theme: "kraft-zine" } } };
+    expect(setupToSend(buildSetupRows(input), input).carousel).toBeUndefined();
+  });
+});
+
 describe("Draft this on an angle card", () => {
   it("ticks only the angle's format and picks its frame", () => {
     const input = { ...base, choices: choicesForAngle({ kind: "caption", frameKey: "receipt" }) };

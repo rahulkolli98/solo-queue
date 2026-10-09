@@ -15,6 +15,7 @@ import {
   type PlanLayout,
   type PlanSlide,
 } from "../../convex/lib/looks";
+import { isThemeKey, themeName } from "../../convex/lib/themes";
 
 export { DESIGN_MAX, NAME_MAX, PLAN_MAX, PLAN_MIN, REFERENCES_MAX, REFERENCE_MAX_BYTES };
 
@@ -47,6 +48,8 @@ export interface LookDraft {
   design: string;
   /** Library media ids, in the order they were added. */
   referenceIds: string[];
+  /** The theme (design) the look draws in (convex/lib/themes.ts); "" when the look leaves it to the run. */
+  theme: string;
 }
 
 /** The parts of a saved look the editor and the cards read (a row of api.looks.list). */
@@ -56,11 +59,13 @@ export interface LookLike {
   plan?: readonly PlanSlide[];
   design?: string;
   referenceIds?: readonly string[];
+  /** The theme the look draws in; missing means the run decides. */
+  theme?: string;
   usedCount: number;
 }
 
 export function emptyDraft(): LookDraft {
-  return { key: null, name: "", plan: null, design: "", referenceIds: [] };
+  return { key: null, name: "", plan: null, design: "", referenceIds: [], theme: "" };
 }
 
 export function draftFromLook(look: LookLike): LookDraft {
@@ -70,6 +75,8 @@ export function draftFromLook(look: LookLike): LookDraft {
     plan: look.plan && look.plan.length > 0 ? look.plan.map((s) => ({ ...s })) : null,
     design: look.design ?? "",
     referenceIds: [...(look.referenceIds ?? [])],
+    // A theme the app no longer has is shown as "no theme" rather than kept as a value the select cannot show.
+    theme: isThemeKey(look.theme) ? look.theme : "",
   };
 }
 
@@ -255,8 +262,10 @@ export function lookProblems(draft: LookDraft): string[] {
   }
   if (draft.referenceIds.length > REFERENCES_MAX) problems.push(`A look holds ${REFERENCES_MAX} reference images at most.`);
 
-  const hasPart = draft.plan !== null || designLength(draft.design) > 0 || draft.referenceIds.length > 0;
-  if (!hasPart) problems.push("A look needs at least one thing: a slide plan, a design document or reference images.");
+  if (draft.theme !== "" && !isThemeKey(draft.theme)) problems.push("That theme is not available. Pick another.");
+
+  const hasPart = draft.plan !== null || designLength(draft.design) > 0 || draft.referenceIds.length > 0 || draft.theme !== "";
+  if (!hasPart) problems.push("A look needs at least one thing: a theme, a slide plan, a design document or reference images.");
   return problems;
 }
 
@@ -271,6 +280,7 @@ export interface LookSaveArgs {
   plan?: PlanSlide[];
   design?: string;
   referenceIds?: string[];
+  theme?: string;
 }
 
 /** The arguments of api.looks.save: empty parts are left out, which clears them on an edit. */
@@ -282,6 +292,7 @@ export function lookSaveArgs(draft: LookDraft): LookSaveArgs {
     ...(draft.plan !== null ? { plan: normalizePlan(draft.plan) } : {}),
     ...(design ? { design } : {}),
     ...(draft.referenceIds.length > 0 ? { referenceIds: [...draft.referenceIds] } : {}),
+    ...(draft.theme !== "" ? { theme: draft.theme } : {}),
   };
 }
 
@@ -301,8 +312,9 @@ export function designExcerpt(design: string, max = 140): string {
 }
 
 /** The chips on a look's card: which parts it has, and how often it has been used. */
-export function partsSummary(look: Pick<LookLike, "plan" | "design" | "referenceIds" | "usedCount">): string[] {
+export function partsSummary(look: Pick<LookLike, "plan" | "design" | "referenceIds" | "theme" | "usedCount">): string[] {
   const chips: string[] = [];
+  if (isThemeKey(look.theme)) chips.push(`THEME · ${themeName(look.theme).toUpperCase()}`);
   const slides = look.plan?.length ?? 0;
   if (slides > 0) chips.push(`PLAN · ${slides} ${slides === 1 ? "SLIDE" : "SLIDES"}`);
   if (look.design && look.design.trim().length > 0) chips.push("DESIGN DOC");
