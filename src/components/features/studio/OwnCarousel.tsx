@@ -4,8 +4,10 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Doc, Id } from "../../../../convex/_generated/dataModel";
+import { REFERENCES_MAX } from "../../../../convex/lib/looks";
 import { VERIFIED_TTL_MS } from "../../../../convex/lib/slots";
 import CarouselCaption from "@/components/features/studio/CarouselCaption";
+import SaveLook from "@/components/features/studio/SaveLook";
 import { UploadIcon } from "@/components/ui/icons";
 import { captionCount } from "@/lib/carouselEditor";
 import {
@@ -429,13 +431,23 @@ export function OwnCarouselEditor({ draft, bannedWords }: { draft: Doc<"drafts">
             {error}
           </p>
         )}
-        {needsCheck && (
-          <div className="studio-actions-row">
+        <div className="studio-actions-row">
+          {needsCheck && (
             <button type="button" className="sq-btn sq-btn-sm sq-btn-primary studio-cr-btn" disabled={busy !== null} onClick={() => void checkImages()}>
               {busy === "Checking the images…" ? "Checking…" : "Check the images"}
             </button>
-          </div>
-        )}
+          )}
+          <SaveLook
+            label="Use as a reference look"
+            hint={
+              ids.length > REFERENCES_MAX
+                ? `Saves the first ${REFERENCES_MAX} of these images as reference images, so the model can match their look when it writes a carousel.`
+                : "Saves these images as reference images, so the model can match their look when it writes a carousel. The images stay in your library."
+            }
+            parts={{ referenceIds: ids.slice(0, REFERENCES_MAX) }}
+            disabled={busy !== null}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PlanSlide } from "./looks";
 import {
   LIMITS,
   MAX_SLIDES,
@@ -48,6 +49,8 @@ export function carouselInstructions(input: {
   brief?: string;
   /** False when the run has no story frame: the model plans the order of ideas itself. */
   arc?: boolean;
+  /** The founder's saved look for this run: the plan for exactly `count` slides, a design document, reference images. */
+  look?: { plan?: readonly PlanSlide[] | null; design?: string; references?: boolean };
 }): string {
   const lines = input.count === 1 ? singleSlideInstructions() : [
     `Write exactly ${input.count} slides, in order, plus one Instagram caption.`,
@@ -69,12 +72,44 @@ export function carouselInstructions(input: {
   if (input.style?.trim()) {
     lines.push(`Style and references for this carousel (follow the look and tone they describe):\n${input.style.trim()}`);
   }
+  if (input.look && (input.look.plan || input.look.design?.trim() || input.look.references)) {
+    lines.push(...lookInstructions(input.look));
+  }
   if (input.brief?.trim()) {
     lines.push(
       `The founder's request for this carousel. Follow it over the style note and the template: structure, tone, colours (if it names colours, use only those slide tones), what to emphasise and what to leave out. It never lets you invent facts or experience.\n${input.brief.trim()}`
     );
   }
   return lines.join("\n");
+}
+
+/** What the app can draw, so a design (a document or a picture) can be mapped onto it and the rest left out. */
+export const DRAWING_VOCABULARY =
+  "What the app can draw (map any design onto this and ignore what it cannot draw): the layouts cover (a huge headline and one italic line), cards (a headline and 1 to 3 cards, a card can carry a big figure), list (a headline and 2 to 5 items) and close (a headline, an italic line and pills such as Follow, Save, Share); and the slide colours cream (warm off-white), ink (near-black brown), coral (warm red-orange), yellow (bright yellow), blue (soft blue) and pink (soft pink). Headlines are a bold grotesque, the aside is italic and labels are monospace; fonts and exact colours cannot change.";
+
+const PLAN_LAYOUT_TEXT: Record<PlanSlide["layout"], string> = { cover: "cover", cards: "cards", list: "list", close: "close" };
+
+/** The lines a saved look adds to the instructions: its plan, its design document, and a note about reference images. */
+function lookInstructions(look: NonNullable<Parameters<typeof carouselInstructions>[0]["look"]>): string[] {
+  const lines = [DRAWING_VOCABULARY];
+  if (look.plan && look.plan.length > 0) {
+    const steps = look.plan.map((p, i) => `${i + 1} ${PLAN_LAYOUT_TEXT[p.layout]} in ${p.tone}`).join("; ");
+    lines.push(
+      `The founder's saved slide plan. Use exactly this layout and colour for each slide, in this order: ${steps}. Fit the content to the layout: a "cards" slide has cards and a "list" slide has items.`
+    );
+  }
+  if (look.design?.trim()) {
+    lines.push(
+      `The founder's design guide (a Markdown document). Follow its intent for structure, text density, tone of voice and colour mood, using only what the app can draw:
+${look.design.trim()}`
+    );
+  }
+  if (look.references) {
+    lines.push(
+      "Reference images are attached: carousels the founder likes. Match their structure and feel (how much text a slide holds, which layouts, the colour mood, the tone of voice) using only what the app can draw. Never copy their words, numbers or claims; the content comes only from the topic, notes and sources."
+    );
+  }
+  return lines;
 }
 
 /** One slide is a single statement image: one bold line with an italic aside, no story to swipe through. */
@@ -133,7 +168,7 @@ function tone(value: unknown, fallback: SlideTone): SlideTone {
 const ROTATION: SlideTone[] = ["coral", "ink", "cream", "yellow", "blue", "pink"];
 
 /** One slide the way it is stored, or null when nothing usable is left of it (it is then left out). */
-function normalizeSlide(raw: Record<string, unknown>, index: number, count: number): unknown | null {
+function normalizeSlide(raw: Record<string, unknown>, index: number, count: number, planTone?: string): unknown | null {
   const layoutRaw = SLIDE_LAYOUTS.includes(raw.layout as never) ? (raw.layout as Slide["layout"]) : "cards";
   const layout: Slide["layout"] =
     count === 1
@@ -145,7 +180,8 @@ function normalizeSlide(raw: Record<string, unknown>, index: number, count: numb
           : index === count - 1 && layoutRaw === "cover"
             ? "close"
             : layoutRaw;
-  const slideTone = tone(raw.tone, ROTATION[index % ROTATION.length]);
+  // A saved plan decides the colour of each slide; otherwise the model's colour, else a rotation that never repeats.
+  const slideTone = planTone ? tone(planTone, ROTATION[index % ROTATION.length]) : tone(raw.tone, ROTATION[index % ROTATION.length]);
   const cards = Array.isArray(raw.cards)
     ? raw.cards
         .map((c) => {
@@ -239,14 +275,14 @@ export interface WrittenCarousel {
  * carousel. The first slide is always the cover; a closing slide that came back as a cover becomes the close.
  * At most `count` slides are kept.
  */
-export function parseCarousel(text: string, count: number): WrittenCarousel | null {
+export function parseCarousel(text: string, count: number, opts: { planTones?: readonly (string | undefined)[] } = {}): WrittenCarousel | null {
   const parsed = rawSchema.safeParse(extractJson(text));
   if (!parsed.success) return null;
   const wanted = clampSlideCount(count);
   const raw = parsed.data.slides.slice(0, wanted);
   const slides: Slide[] = [];
   for (let i = 0; i < raw.length; i += 1) {
-    const normalized = normalizeSlide(raw[i], i, raw.length);
+    const normalized = normalizeSlide(raw[i], i, raw.length, opts.planTones?.[i]);
     if (normalized === null) continue;
     const checked = validateSlide(compact(normalized));
     if (checked.ok) slides.push(checked.slide);

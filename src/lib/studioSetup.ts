@@ -40,6 +40,8 @@ export interface SetupChoice {
   noFrame?: boolean;
   /** Carousel: how the founder wants it to read and look, in their own words. */
   brief?: string;
+  /** Carousel: a saved look (a slide plan, a design document, reference images); "" means none. */
+  lookKey?: string;
 }
 export type SetupChoices = Partial<Record<DraftKind, SetupChoice>>;
 
@@ -53,6 +55,10 @@ export interface SetupInput {
   usedFrame?: Partial<Record<DraftKind, string | undefined>>;
   /** Kinds that already have a draft (the blog is written again when it exists, unless unticked). */
   hasDraft?: Partial<Record<DraftKind, boolean>>;
+  /** The saved carousel looks, for the select. */
+  looks?: readonly { key: string; name: string }[];
+  /** The look the existing carousel was written with, so Regenerate keeps it unless it is changed. */
+  usedLook?: string;
 }
 
 export interface SetupRow {
@@ -69,6 +75,10 @@ export interface SetupRow {
   noFrame: boolean;
   /** Carousel: what the founder asked for this run, "" when nothing. */
   brief: string;
+  /** Carousel: the saved look in use ("" none), its name, and the looks to pick from. */
+  look: string;
+  lookName: string;
+  lookOptions: { key: string; name: string }[];
   /** Differs from what is saved, so "Make default" has something to save. */
   changed: boolean;
 }
@@ -96,6 +106,9 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
     const hasFrame = FIT_OF[kind] !== null;
     // Picked now, else the frame the existing draft used, else the saved default.
     const noFrame = kind === "carousel" && choice.noFrame === true;
+    // Picked now ("" is none), else the look the existing carousel used; only a look that still exists counts.
+    const wantedLook = choice.lookKey !== undefined ? choice.lookKey : (input.usedLook ?? "");
+    const lookKey = kind === "carousel" && input.looks?.some((l) => l.key === wantedLook) ? wantedLook : "";
     const frameKey = hasFrame && !noFrame
       ? (usableFrame(input.frames, choice.frameKey, kind)?.key ??
         usableFrame(input.frames, input.usedFrame?.[kind], kind)?.key ??
@@ -137,6 +150,9 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
       count,
       noFrame,
       brief: kind === "carousel" ? (choice.brief ?? "") : "",
+      look: kind === "carousel" ? lookKey : "",
+      lookName: kind === "carousel" ? (input.looks?.find((l) => l.key === lookKey)?.name ?? "") : "",
+      lookOptions: kind === "carousel" ? [...(input.looks ?? [])] : [],
       changed,
     };
   });
@@ -150,6 +166,7 @@ export function setupSummary(rows: readonly SetupRow[]): string {
       const bits = [r.label];
       if (r.frame) bits.push(r.frame.name);
       else if (r.noFrame) bits.push(r.brief.trim() ? "Your description" : "No story frame");
+      if (r.look && r.lookName) bits.push(`Look: ${r.lookName}`);
       if (r.kind === "threads" && r.count !== undefined) bits.push(`${r.count} posts`);
       if (r.kind === "carousel" && r.count !== undefined) bits.push(r.count === 1 ? "1 slide" : `${r.count} slides`);
       return bits.join(" · ");
@@ -167,7 +184,7 @@ export interface GenerateSetup {
   threads?: { frameKey?: string; count?: number };
   caption?: { frameKey?: string };
   reel?: { frameKey?: string };
-  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean };
+  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean; lookKey?: string };
 }
 
 /**
@@ -197,6 +214,7 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
       else if (row.frame) entry.frameKey = row.frame.key;
       if (row.count !== undefined && row.count !== baseline) entry.count = row.count;
       if (row.brief.trim()) entry.brief = row.brief.trim();
+      if (row.look) entry.lookKey = row.look;
       if (Object.keys(entry).length) out.carousel = entry;
     }
   }

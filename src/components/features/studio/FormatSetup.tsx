@@ -23,6 +23,7 @@ export default function FormatSetup({
   onFrame,
   onCount,
   onBrief,
+  onLook,
   onMakeDefault,
 }: {
   rows: SetupRow[];
@@ -35,6 +36,8 @@ export default function FormatSetup({
   onCount: (kind: DraftKind, count: number) => void;
   /** The carousel's own description of how it should read and look. */
   onBrief: (kind: DraftKind, text: string) => void;
+  /** The carousel's saved look ("" for none). */
+  onLook: (kind: DraftKind, key: string) => void;
   onMakeDefault: (kind: DraftKind) => void;
 }) {
   const id = useId();
@@ -116,6 +119,30 @@ export default function FormatSetup({
               >
                 Make default
               </button>
+              {row.kind === "carousel" && (
+                <label className="studio-setup-look">
+                  <span className="t-meta">LOOK</span>
+                  <select
+                    className="sq-input studio-setup-select"
+                    aria-label="Carousel look"
+                    value={row.look}
+                    disabled={disabled || !row.include}
+                    onChange={(e) => onLook(row.kind, e.target.value)}
+                  >
+                    <option value="">No look</option>
+                    {row.lookOptions.map((l) => (
+                      <option key={l.key} value={l.key}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="studio-setup-brief-hint sq-muted">
+                    {row.lookOptions.length === 0
+                      ? "A look is a saved design: a slide plan, a design document or reference images. Make one in Library → Frames, or save one from a carousel here."
+                      : "A saved design for the carousel: a slide plan, a design document or reference images."}
+                  </span>
+                </label>
+              )}
               {row.kind === "carousel" && (
                 <label className="studio-setup-brief">
                   <span className="t-meta">HOW YOU WANT IT</span>
