@@ -13,6 +13,7 @@ import { api } from "../../../../convex/_generated/api";
 import DraftsTab from "./DraftsTab";
 import FramesTab from "./FramesTab";
 import LibraryTopbar from "./LibraryTopbar";
+import LooksSection from "./LooksSection";
 import MediaTab from "./MediaTab";
 import PublishedTab from "./PublishedTab";
 import type { LibraryFilters } from "./types";
@@ -71,6 +72,7 @@ export default function LibraryScreen({ tab }: { tab: LibraryTab }) {
       {tab === "published" && <PublishedTab filters={applied} pillars={settings.pillars} tz={tz} {...common} />}
       {tab === "drafts" && <DraftsTab filters={applied} pillars={settings.pillars} tz={tz} {...common} />}
       {tab === "frames" && <FramesTab filters={applied} pillars={settings.pillars} frames={frames} voice={settings.voice} />}
+      {tab === "frames" && <LooksSection />}
       {tab === "media" && <MediaTab filters={applied} tz={tz} {...common} />}
     </>
   );

@@ -575,6 +575,29 @@ describe("writing a carousel with a look", () => {
     expect(again.fetched).toEqual(["https://files.example/0.png"]);
   });
 
+  it("reads a stored reference image from storage and sends its bytes inline, and refuses one over 5 MB", async () => {
+    const model = fakeModelWithImages(GOOD_REPLY);
+    const { t, topic } = await seeded();
+    const stored = async (bytes: number) =>
+      await t.run(async (ctx) => {
+        const storageId = await ctx.storage.store(new Blob([new Uint8Array(bytes).fill(7)], { type: "image/png" }));
+        return await ctx.db.insert("mediaAssets", { storageId, publicUrl: "https://files.example/stored.png", mimeType: "image/png", source: "upload", filename: "big.png", createdAt: Date.now() });
+      });
+    const small = await stored(2048);
+    const { key } = await t.mutation(api.looks.save, { name: "Stored", referenceIds: [small] });
+    await t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: key, count: 4 } } });
+    // The bytes travel inside the request; nothing was downloaded from the public URL.
+    expect(model.fetched).toEqual([]);
+    expect(model.bodies.join("\n")).toContain("data:image/png;base64");
+    const big = await stored(5 * 1024 * 1024 + 1);
+    const { key: bigKey } = await t.mutation(api.looks.save, { name: "Big", referenceIds: [big] });
+    const before = model.bodies.length;
+    await expect(
+      t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { lookKey: bigKey, count: 4 } } })
+    ).rejects.toThrow(/REFERENCE_TOO_BIG: Reference image 1 \(big\.png\) is over 5 MB/);
+    expect(model.bodies).toHaveLength(before);
+  });
+
   it("refuses a look that is gone before any model call, and a run without a look sends none of it", async () => {
     const model = fakeModel(GOOD_REPLY);
     const { t, topic } = await seeded();

@@ -147,6 +147,7 @@ const COUNT_LABELS: Record<string, [string, string]> = {
   assets: ["media file", "media files"],
   media: ["media file", "media files"],
   frames: ["frame", "frames"],
+  looks: ["look", "looks"],
   templates: ["template", "templates"],
   connections: ["connection", "connections"],
   settings: ["setting", "settings"],

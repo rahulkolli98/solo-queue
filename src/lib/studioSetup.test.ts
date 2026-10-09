@@ -164,6 +164,44 @@ describe("the carousel's own description and no-frame choice", () => {
   });
 });
 
+describe("the carousel's saved look", () => {
+  const looks = [{ key: "pastel", name: "Pastel" }, { key: "calm", name: "Calm doc" }];
+  const rowFor = (choice: object, extra: object = {}) => {
+    const input = { ...base, looks, choices: { carousel: { include: true, ...choice } }, ...extra };
+    return { row: buildSetupRows(input).find((r) => r.kind === "carousel")!, input };
+  };
+
+  it("lists the looks, uses none by default, and sends the chosen one with the run", () => {
+    const none = rowFor({});
+    expect(none.row.look).toBe("");
+    expect(none.row.lookOptions.map((l) => l.key)).toEqual(["pastel", "calm"]);
+    expect(setupToSend(buildSetupRows(none.input), none.input).carousel).toEqual({ frameKey: "ig-carousel" });
+    const picked = rowFor({ lookKey: "pastel" });
+    expect(picked.row.look).toBe("pastel");
+    expect(picked.row.lookName).toBe("Pastel");
+    expect(setupToSend(buildSetupRows(picked.input), picked.input).carousel).toEqual({ frameKey: "ig-carousel", lookKey: "pastel" });
+    expect(setupSummary(buildSetupRows(picked.input))).toContain("Carousel · Carousel: cover, story, close · Look: Pastel · 6 slides");
+    // Other formats never carry a look.
+    expect(buildSetupRows(picked.input).find((r) => r.kind === "threads")).toMatchObject({ look: "", lookOptions: [] });
+  });
+
+  it("keeps the look the existing carousel used until it is changed, and ignores a look that no longer exists", () => {
+    expect(rowFor({}, { usedLook: "calm" }).row.look).toBe("calm");
+    expect(rowFor({ lookKey: "pastel" }, { usedLook: "calm" }).row.look).toBe("pastel");
+    // Choosing "No look" ("") overrides the used one.
+    expect(rowFor({ lookKey: "" }, { usedLook: "calm" }).row.look).toBe("");
+    expect(rowFor({}, { usedLook: "deleted" }).row.look).toBe("");
+    expect(rowFor({ lookKey: "deleted" }).row.look).toBe("");
+  });
+
+  it("works with a description and with no frame, and does not change what Make default saves", () => {
+    const both = rowFor({ noFrame: true, brief: "Calm.", lookKey: "calm" });
+    expect(setupToSend(buildSetupRows(both.input), both.input).carousel).toEqual({ noFrame: true, brief: "Calm.", lookKey: "calm" });
+    const changed = { ...base, looks, choices: { carousel: { lookKey: "calm" } } };
+    expect(buildSetupRows(changed).find((r) => r.kind === "carousel")?.changed).toBe(false);
+  });
+});
+
 describe("Draft this on an angle card", () => {
   it("ticks only the angle's format and picks its frame", () => {
     const input = { ...base, choices: choicesForAngle({ kind: "caption", frameKey: "receipt" }) };

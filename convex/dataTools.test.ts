@@ -50,6 +50,7 @@ async function seedEverything(t: TestConvex) {
       isActive: true,
       createdAt: Date.now(),
     });
+    await ctx.db.insert("looks", { key: "lk", name: "Look", design: "Quiet.", usedCount: 0, createdAt: Date.now(), updatedAt: Date.now() });
     await ctx.db.insert("templates", { key: "tk", version: 1, body: "b", isActive: true, createdAt: Date.now() });
     await ctx.db.insert("appSettings", DEFAULT_SETTINGS);
     await ctx.db.insert("settings", { key: "legacy", value: "1", updatedAt: Date.now() });
@@ -151,6 +152,7 @@ describe("exportAllJson", () => {
       drafts: 1,
       slots: 1,
       frames: 1,
+      looks: 1,
       templates: 1,
       publishReceipts: 1,
       appSettings: 1,
@@ -213,7 +215,7 @@ describe("disconnectAll", () => {
     await addConnection(t, "instagram");
     expect(await t.mutation(api.dataTools.disconnectAll, {})).toEqual({ removed: 2 });
     expect(await tableCount(t, "connections")).toBe(0);
-    for (const table of ["topics", "drafts", "slots", "mediaAssets", "publishReceipts", "frames", "templates", "appSettings", "sources", "settings", "waitlist"] as const) {
+    for (const table of ["topics", "drafts", "slots", "mediaAssets", "publishReceipts", "frames", "looks", "templates", "appSettings", "sources", "settings", "waitlist"] as const) {
       expect(await tableCount(t, table)).toBe(1);
     }
     expect(await t.mutation(api.dataTools.disconnectAll, {})).toEqual({ removed: 0 });
@@ -251,6 +253,7 @@ describe("deleteEverything", () => {
       mediaAssets: 2,
       topics: 1,
       frames: 1,
+      looks: 1,
       templates: 1,
       appSettings: 1,
       settings: 1,

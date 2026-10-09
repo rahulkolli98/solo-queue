@@ -67,6 +67,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   const drafts = useQuery(api.drafts.listByTopic, { topicId: id });
   const sources = useQuery(api.sources.listByTopic, { topicId: id });
   const frames = useQuery(api.frames.list);
+  const looks = useQuery(api.looks.list);
   const settings = useQuery(api.settings.get);
   const assets = useQuery(api.media.list);
   const { board, chips, tz, browserTz, now } = useOpenSlots();
@@ -154,6 +155,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       carousel: latest.carousel?.frameKey,
     },
     hasDraft: { blog: Boolean(latest.blog) },
+    looks: looks?.map((l) => ({ key: l.key, name: l.name })),
+    usedLook: latest.carousel?.lookKey,
   });
   const threadsRow = rows.find((r) => r.kind === "threads");
   const beatsKey = threadsFrameKey ?? threadsRow?.frame?.key;
@@ -457,6 +460,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         onInclude={(kind, include) => choose(kind, { include })}
         onFrame={(kind, frameKey) => choose(kind, frameKey === NO_FRAME ? { noFrame: true, frameKey: undefined } : { noFrame: false, frameKey })}
         onBrief={(kind, brief) => choose(kind, { brief })}
+        onLook={(kind, lookKey) => choose(kind, { lookKey })}
         onCount={(kind, count) => choose(kind, { count })}
         onMakeDefault={(kind) => void makeDefault(kind)}
       />

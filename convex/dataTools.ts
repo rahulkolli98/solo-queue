@@ -22,6 +22,7 @@ export const WIPE_TABLES = [
   "mediaAssets",
   "topics",
   "frames",
+  "looks",
   "templates",
   "appSettings",
   "settings",
@@ -157,6 +158,7 @@ export const exportAllJson = operatorQuery({
     keep("drafts", await ctx.db.query("drafts").take(EXPORT_CAP + 1));
     keep("slots", await ctx.db.query("slots").take(EXPORT_CAP + 1));
     keep("frames", await ctx.db.query("frames").take(EXPORT_CAP + 1));
+    keep("looks", await ctx.db.query("looks").take(EXPORT_CAP + 1));
     keep("templates", await ctx.db.query("templates").take(EXPORT_CAP + 1));
     keep("publishReceipts", await ctx.db.query("publishReceipts").take(EXPORT_CAP + 1));
     keep(

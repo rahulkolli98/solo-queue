@@ -24,6 +24,8 @@ export const NAME_MAX = 60;
 /** A design document is read in full by the model, so it is bounded (about 3,000 tokens). */
 export const DESIGN_MAX = 12000;
 export const REFERENCES_MAX = 6;
+/** A reference image is sent to the model inside the request, so it is kept small (a slide is usually well under 2 MB). */
+export const REFERENCE_MAX_BYTES = 5 * 1024 * 1024;
 /** What the model can read as a reference image. */
 export const REFERENCE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 

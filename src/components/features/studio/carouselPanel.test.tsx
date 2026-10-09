@@ -449,3 +449,25 @@ describe("a carousel made from the founder's own images", () => {
     );
   });
 });
+
+describe("saving a carousel as a look", () => {
+  it("a written carousel can be saved as a look from its layouts and colours, but a single slide cannot", () => {
+    expect(button(panel(draft()), "Save as a look")).not.toBe("");
+    expect(panel(draft({}, 1))).not.toContain("Save as a look");
+    // Nothing to save while a slide has a problem to fix.
+    const bad = draft({ slides: [slide({ layout: "cover", headline: "" }), slide()] }, 2);
+    expect(panel(bad)).not.toContain("Save as a look");
+  });
+
+  it("a carousel of the founder's own images can be saved as a reference look", () => {
+    const own = draft({ slideSource: "uploaded", mediaAssetIds: ["a0", "a1"] }, 2);
+    hooks.assets = [
+      { _id: "a0", publicUrl: "https://files.example/0.png", verifiedAt: Date.now() },
+      { _id: "a1", publicUrl: "https://files.example/1.png", verifiedAt: Date.now() },
+    ];
+    const out = panel(own);
+    hooks.assets = undefined;
+    expect(button(out, "Use as a reference look")).not.toBe("");
+    expect(out).not.toContain("Save as a look");
+  });
+});

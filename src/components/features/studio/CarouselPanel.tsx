@@ -8,6 +8,8 @@ import { LIMITS, SLIDE_TONES, splitHeadline, type Slide, type SlideLayout, type 
 import { AlertIcon } from "@/components/ui/icons";
 import CarouselCaption from "@/components/features/studio/CarouselCaption";
 import { OwnCarouselEditor, OwnCarouselStart } from "@/components/features/studio/OwnCarousel";
+import SaveLook from "@/components/features/studio/SaveLook";
+import { planFromSlides } from "../../../../convex/lib/looks";
 import SlidePreview from "@/components/features/studio/SlidePreview";
 import type { GenState } from "@/components/features/studio/types";
 import { useCarouselRender } from "@/components/features/studio/useCarouselRender";
@@ -778,6 +780,14 @@ function CarouselEditor({
           <button type="button" className="sq-btn sq-btn-sm studio-cr-btn" disabled={busy || saving || gen.writing} onClick={onUseOwn}>
             Use my own images instead
           </button>
+          {total >= 2 && badSlides.length === 0 && (
+            <SaveLook
+              label="Save as a look"
+              hint={`Saves the layout and colour of each of these ${total} slides as a look. It never saves the words, so you can write a new carousel in the same shape.`}
+              parts={{ plan: planFromSlides(slides) ?? undefined }}
+              disabled={busy || saving || gen.writing}
+            />
+          )}
         </div>
         {attached && !dirty && downloads.length > 0 && (
           <div className="studio-cr-downloads">

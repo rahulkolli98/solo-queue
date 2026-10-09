@@ -15,7 +15,7 @@ const rows = (choices = {}) =>
 const noop = vi.fn();
 const render = (over: Partial<Parameters<typeof FormatSetup>[0]> = {}) =>
   renderToStaticMarkup(
-    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onMakeDefault={noop} {...over} />
+    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onLook={noop} onMakeDefault={noop} {...over} />
   );
 const disabledDefaults = (out: string) => (out.match(/<button[^>]*studio-setup-default[^>]*disabled/g) ?? []).length;
 
@@ -65,6 +65,23 @@ describe("FormatSetup", () => {
     expect(none).toMatch(/<option value="__none__" selected/);
     const off = render({ open: true });
     expect(off).toMatch(/<textarea[^>]*disabled/);
+  });
+
+  it("the carousel row has a look select with the saved looks; no other row does", () => {
+    const looks = [{ key: "pastel", name: "Pastel" }, { key: "calm", name: "Calm doc" }];
+    const withLooks = (choices = {}) =>
+      buildSetupRows({ choices, defaults: undefined, legacyDefaultKey: "confession", legacyPostCount: undefined, frames, looks });
+    const out = render({ open: true, rows: withLooks({ carousel: { include: true, lookKey: "calm" } }) });
+    expect(out.match(/aria-label="Carousel look"/g)).toHaveLength(1);
+    const select = out.slice(out.indexOf('aria-label="Carousel look"'), out.indexOf("</select>", out.indexOf('aria-label="Carousel look"')));
+    expect(select).toContain('<option value="">No look</option>');
+    expect(select).toContain(">Pastel<");
+    expect(select).toMatch(/<option value="calm" selected/);
+    expect(out).toContain("A saved design for the carousel");
+    // With no looks yet it says how to make one.
+    const none = render({ open: true });
+    expect(none).toContain("Make one in Library");
+    expect(none).toMatch(/aria-label="Carousel look"[^>]*disabled/);
   });
 
   it("Make default is disabled until a row differs from the saved default", () => {

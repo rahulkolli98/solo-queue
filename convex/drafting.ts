@@ -1,3 +1,4 @@
+import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 import { operatorAction } from "./lib/operator";
 import { api, internal } from "./_generated/api";
@@ -15,7 +16,7 @@ import {
   threadsConstraint,
 } from "./lib/drafting";
 import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
-import { isReferenceType, planForCount } from "./lib/looks";
+import { REFERENCE_MAX_BYTES, isReferenceType, planForCount } from "./lib/looks";
 import { slideValidator } from "./lib/carouselValidators";
 import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
@@ -286,10 +287,22 @@ export const generate = operatorAction({
     const lookKey = formats.includes("instagram-carousel") ? args.setup?.carousel?.lookKey : undefined;
     const look = lookKey ? (await ctx.runQuery(api.looks.list, {})).find((l) => l.key === lookKey) : undefined;
     if (lookKey && !look) throw refusal("LOOK_NOT_FOUND", "That look is not available. Pick another.");
-    const referenceUrls: string[] = [];
+    // Each reference image is read from storage here and sent inside the request (not as a URL the model provider
+    // must fetch), so it works wherever the file is stored. A file that is gone is left out; one that is too big is refused.
+    const references: { data: Uint8Array | URL; mediaType: string }[] = [];
     if (look?.referenceIds?.length) {
-      for (const asset of await ctx.runQuery(api.media.byIds, { ids: look.referenceIds })) {
-        if (asset.fileDeletedAt === undefined && asset.publicUrl && isReferenceType(asset.mimeType)) referenceUrls.push(asset.publicUrl);
+      for (const [i, asset] of (await ctx.runQuery(api.media.byIds, { ids: look.referenceIds })).entries()) {
+        if (asset.fileDeletedAt !== undefined || !isReferenceType(asset.mimeType)) continue;
+        if (asset.storageId.startsWith("external:")) {
+          if (asset.publicUrl) references.push({ data: new URL(asset.publicUrl), mediaType: asset.mimeType });
+          continue;
+        }
+        const blob = await ctx.storage.get(asset.storageId as Id<"_storage">);
+        if (!blob) continue;
+        if (blob.size > REFERENCE_MAX_BYTES) {
+          throw refusal("REFERENCE_TOO_BIG", `Reference image ${i + 1}${asset.filename ? ` (${asset.filename})` : ""} is over 5 MB. Use a smaller image in the look.`);
+        }
+        references.push({ data: new Uint8Array(await blob.arrayBuffer()), mediaType: asset.mimeType });
       }
     }
     const lookPlan = look?.plan ? planForCount(look.plan, slideCount) : null;
@@ -347,18 +360,23 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, look: look ? { plan: lookPlan, design: look.design, references: referenceUrls.length > 0 } : undefined })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {
         // Reference images go to the model as images next to the text; without any it is the plain text call.
         const reply = await withLlmErrors(
           async () =>
-            (referenceUrls.length > 0
+            (references.length > 0
               ? await generateText({
                   model,
                   system: carouselSystem,
-                  messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...referenceUrls.map((u) => ({ type: "image" as const, image: new URL(u) }))] }],
+                  messages: [
+                    {
+                      role: "user",
+                      content: [{ type: "text", text: prompt }, ...references.map((r) => ({ type: "file" as const, data: r.data, mediaType: r.mediaType }))],
+                    },
+                  ],
                 })
               : await generateText({ model, system: carouselSystem, prompt })
             ).text
