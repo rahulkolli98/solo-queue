@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Slide } from "../../convex/lib/carouselSlides";
 import SlideView from "@/components/carousel/SlideView";
-import { fitKraft, isTerminal, kraftHeadlineBase, kraftSizes } from "@/lib/carouselKraftFit";
+import { fitKraft, isTerminal, kraftHeadlineBase, kraftSizes, widestHeadlineWord } from "@/lib/carouselKraftFit";
 
 const paper = (text: string, over: Partial<NonNullable<Slide["cards"]>[number]> = {}) => ({ text, tone: "cream" as const, ...over });
 
@@ -19,6 +19,31 @@ const THREE_CARDS: Slide = {
     paper("Basecamp. Simple, but breaks when one customer gets 10x the value.", { label: "FLAT FEE" }),
   ],
 };
+
+describe("fitKraft: a headline word wider than the row (I-058)", () => {
+  // Inner width of a slide: 1080 wide, 80 padding each side.
+  const ROW = 920;
+
+  it("shrinks a cover whose accent word would run past the right margin", () => {
+    // At the designed size "positioning," alone was 1,037px wide: no wrapping fits it, so it touched the edge.
+    for (const [headline, accent] of [
+      ["Pricing is positioning, not math", "positioning,"],
+      ["Most SaaS is underpriced", "underpriced"],
+    ] as const) {
+      const slide: Slide = { layout: "cover", tone: "yellow", headline, accent };
+      const fit = fitKraft(slide);
+      expect(widestHeadlineWord(slide, kraftSizes(slide, 1.1))).toBeGreaterThan(ROW);
+      expect(widestHeadlineWord(slide, fit.sizes)).toBeLessThanOrEqual(ROW);
+      expect(fit.k).toBeLessThan(1.1);
+      expect(fit.fits).toBe(true);
+    }
+  });
+
+  it("leaves a cover whose words all fit at its normal size", () => {
+    const slide: Slide = { layout: "cover", tone: "yellow", headline: "Charge for what grows", accent: "grows" };
+    expect(fitKraft(slide).k).toBe(1.1);
+  });
+});
 
 describe("fitKraft", () => {
   it("uses the largest scale that fits, never above 1.3, and the estimate stays inside the slide", () => {
