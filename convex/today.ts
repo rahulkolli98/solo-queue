@@ -1,3 +1,4 @@
+import { postText } from "./lib/postText";
 import type { QueryCtx } from "./_generated/server";
 import { operatorQuery } from "./lib/operator";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -144,7 +145,7 @@ export const summary = operatorQuery({
         platform: nextSlot.platform,
         scheduledAt: nextSlot.scheduledAt,
         time: `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`,
-        body: (draft?.body ?? "").split(/^\s*---\s*$/m)[0].trim(),
+        body: (draft ? postText(draft, nextSlot.platform) : "").split(/^\s*---\s*$/m)[0].trim(),
         topicTitle: topic?.title ?? "",
       };
     }

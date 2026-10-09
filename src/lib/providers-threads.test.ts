@@ -12,6 +12,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+// A media URL answers its reachability check before any container is made.
+const ok = () => new Response(null, { status: 200 });
+
 function mockFetch(plan: (Response | Error)[]) {
   const calls: { url: string; body: string }[] = [];
   let i = 0;
@@ -89,6 +92,7 @@ describe("publishThreadsPost", () => {
 
   it("polls media through processing then publishes", async () => {
     const { fn } = mockFetch([
+      ok(),
       json({ id: "c9" }),
       json({ status: "IN_PROGRESS" }),
       json({ status: "IN_PROGRESS" }),
@@ -106,6 +110,7 @@ describe("publishThreadsPost", () => {
 
   it("fails terminally when the container errors", async () => {
     const { fn } = mockFetch([
+      ok(),
       json({ id: "c2" }),
       json({ status: "ERROR", error_message: "bad image" }),
     ]);
@@ -139,7 +144,7 @@ describe("publishThreadsPost", () => {
   });
 
   it("returns the container for resume when media never finishes", async () => {
-    const { fn, calls } = mockFetch([json({ id: "c3" }), json({ status: "IN_PROGRESS" })]);
+    const { fn, calls } = mockFetch([ok(), json({ id: "c3" }), json({ status: "IN_PROGRESS" })]);
     const c = clock();
     // Jump past the 5-minute media budget on the first sleep.
     const realSleep = c.sleepMs;

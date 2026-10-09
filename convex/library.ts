@@ -1,3 +1,4 @@
+import { postText } from "./lib/postText";
 import type { Doc } from "./_generated/dataModel";
 import { operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
@@ -45,7 +46,7 @@ export const published = operatorQuery({
       const topic = await ctx.db.get(draft.topicId);
       const pillarKey = topic?.pillar && pillars.has(topic.pillar) ? topic.pillar : "build";
       if (args.pillar && pillarKey !== args.pillar) continue;
-      const body = firstPost(draft.body);
+      const body = firstPost(postText(draft, slot.platform));
       if (needle && !`${body} ${topic?.title ?? ""}`.toLowerCase().includes(needle)) continue;
       const publishedAt = slot.publishedAt ?? slot.scheduledAt;
       const restLeftMs = Math.max(0, publishedAt + restMs - args.now);

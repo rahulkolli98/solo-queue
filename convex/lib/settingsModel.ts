@@ -140,6 +140,13 @@ const formatDefaultSchema = (min: number, max: number) =>
     include: z.boolean().optional(),
     frameKey: z.string().min(1).max(60).optional(),
     count: z.number().int().min(min).max(max).optional(),
+    /** Carousel only: where it is posted. At least one platform, no repeats. */
+    targets: z
+      .array(z.enum(["instagram", "threads"]))
+      .min(1)
+      .max(2)
+      .refine((list) => new Set(list).size === list.length, "Each platform once.")
+      .optional(),
   });
 const formatDefaultsSchema = z.object({
   threads: formatDefaultSchema(2, 12).optional(),

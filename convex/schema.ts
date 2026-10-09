@@ -7,6 +7,8 @@ const formatDefaultValidator = v.object({
   include: v.optional(v.boolean()),
   frameKey: v.optional(v.string()),
   count: v.optional(v.number()),
+  /** Carousel only: the platforms it is written for and posted to (added 2026-10-09). Missing means Instagram only. */
+  targets: v.optional(v.array(v.union(v.literal("instagram"), v.literal("threads")))),
 });
 
 const platform = v.union(v.literal("threads"), v.literal("instagram"));
@@ -82,6 +84,11 @@ export default defineSchema({
     lookKey: v.optional(v.string()), // the carousel look it was written with (looks.key); soft reference
     /** The theme the carousel is drawn in (themes.ts); missing means the default, Solo Queue (added 2026-10-09). */
     theme: v.optional(v.string()),
+    /**
+     * A carousel that also goes to Threads: the text posted with the images there (added 2026-10-09). Missing means
+     * the carousel is not going to Threads; an empty string means it is, with no text. `body` stays the Instagram caption.
+     */
+    threadsText: v.optional(v.string()),
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference

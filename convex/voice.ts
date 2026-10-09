@@ -1,3 +1,4 @@
+import { postText } from "./lib/postText";
 import { generateText } from "ai";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
@@ -29,7 +30,7 @@ export const recentPublishedText = internalQuery({
       const text =
         slot.platform === "instagram"
           ? instagramCaption(draft.templateKey, draft.body)
-          : splitPosts(draft.body).join("\n\n");
+          : splitPosts(postText(draft, "threads")).join("\n\n");
       if (text.trim()) texts.push(text.trim());
     }
     return texts;

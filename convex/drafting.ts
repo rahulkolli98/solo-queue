@@ -19,7 +19,7 @@ import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from 
 import { REFERENCE_MAX_BYTES, isReferenceType, planForCount } from "./lib/looks";
 import { DEFAULT_THEME, isThemeKey, type ThemeKey } from "./lib/themes";
 import { slideValidator } from "./lib/carouselValidators";
-import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
+import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, resolveTargets, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
 import { refusal } from "./lib/slots";
@@ -58,6 +58,8 @@ const carouselSetupArg = v.object({
   lookKey: v.optional(v.string()),
   /** The design to draw in for this run (themes.ts). It wins over the look's theme; missing means the look's, else Solo Queue. */
   theme: v.optional(v.string()),
+  /** Where the carousel is going. Missing: the saved default for the carousel, else Instagram only. Threads adds a Threads text. */
+  targets: v.optional(v.array(v.union(v.literal("instagram"), v.literal("threads")))),
 });
 
 const formatArg = v.union(
@@ -131,6 +133,8 @@ export const storeDraft = internalMutation({
     lookKey: v.optional(v.string()),
     /** The theme it is drawn in (missing: the default). */
     theme: v.optional(v.string()),
+    /** A carousel that also goes to Threads: its Threads text. */
+    threadsText: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -175,6 +179,7 @@ export const storeDraft = internalMutation({
       slides: args.slides,
       lookKey: args.lookKey,
       theme: args.theme,
+      threadsText: args.threadsText,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -317,6 +322,11 @@ export const generate = operatorAction({
     if (themeArg && !isThemeKey(themeArg)) throw refusal("THEME_NOT_FOUND", "That theme is not available. Pick another.");
     const theme: ThemeKey = themeArg && isThemeKey(themeArg) ? themeArg : look?.theme && isThemeKey(look.theme) ? look.theme : DEFAULT_THEME;
 
+    // The carousel also goes to Threads when this run, or the saved default, says so: it then gets a Threads text too.
+    const carouselToThreads =
+      formats.includes("instagram-carousel") &&
+      resolveTargets({ defaults: settings.voice.formatDefaults, picked: args.setup?.carousel?.targets }).includes("threads");
+
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
     const sources = await ctx.runQuery(api.sources.listByTopic, { topicId: args.topicId });
@@ -370,7 +380,7 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, theme, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, theme, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined, threads: carouselToThreads })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {
@@ -410,6 +420,8 @@ export const generate = operatorAction({
           slides: written.slides,
           lookKey: look?.key,
           theme: theme === DEFAULT_THEME ? undefined : theme,
+          // The Threads text, when the carousel goes to Threads (an empty text still marks it as going there).
+          threadsText: carouselToThreads ? (written.threadsText ?? "") : undefined,
         });
         if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
         if (look) await ctx.runMutation(internal.looks.recordUse, { key: look.key });

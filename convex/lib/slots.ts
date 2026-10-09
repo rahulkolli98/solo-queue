@@ -55,12 +55,18 @@ export function parseRefusal(err: unknown): { code: string; message: string } | 
  * publish-shaped. Structural only — platform limits are checked separately
  * so their messages stay specific.
  */
-export const enqueuePayloadSchema = z.object({
-  platform: z.union([z.literal("threads"), z.literal("instagram")]),
-  text: z.string().min(1).max(5000),
-  mediaUrl: z.string().url().optional(),
-  scheduledAt: z.number().int().positive(),
-});
+export const enqueuePayloadSchema = z
+  .object({
+    platform: z.union([z.literal("threads"), z.literal("instagram")]),
+    text: z.string().max(5000),
+    mediaUrl: z.string().url().optional(),
+    scheduledAt: z.number().int().positive(),
+  })
+  // A post needs words, except a Threads carousel, image or video, which may go with none.
+  .refine((p) => p.text.length > 0 || (p.platform === "threads" && p.mediaUrl !== undefined), {
+    message: "Too small: expected the post to have at least 1 character.",
+    path: ["text"],
+  });
 
 export type EnqueuePayload = z.infer<typeof enqueuePayloadSchema>;
 
