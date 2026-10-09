@@ -1,4 +1,3 @@
-import { postText } from "./lib/postText";
 import type { Doc } from "./_generated/dataModel";
 import { operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
@@ -46,7 +45,8 @@ export const published = operatorQuery({
       const topic = await ctx.db.get(draft.topicId);
       const pillarKey = topic?.pillar && pillars.has(topic.pillar) ? topic.pillar : "build";
       if (args.pillar && pillarKey !== args.pillar) continue;
-      const body = firstPost(postText(draft, slot.platform));
+      const linked = draft.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
+      const body = firstPost(draft.body);
       if (needle && !`${body} ${topic?.title ?? ""}`.toLowerCase().includes(needle)) continue;
       const publishedAt = slot.publishedAt ?? slot.scheduledAt;
       const restLeftMs = Math.max(0, publishedAt + restMs - args.now);
@@ -60,7 +60,7 @@ export const published = operatorQuery({
         topicTitle: topic?.title ?? "(deleted topic)",
         body,
         format: draft.format ?? null,
-        slideCount: draft.slides?.length ?? null,
+        slideCount: draft.slides?.length ?? linked?.slides?.length ?? null,
         pillarKey,
         pillarName: pillar?.name ?? "Build in public",
         pillarColor: pillar?.color ?? "pillar-build",
@@ -96,13 +96,14 @@ export const drafts = operatorQuery({
         .first();
       if (slot) continue;
       const topic = await ctx.db.get(draft.topicId);
+      const linked = draft.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
       cards.push({
         draftId: draft._id,
         topicId: draft.topicId,
         topicTitle: topic?.title ?? "(deleted topic)",
         platform: draft.platform,
         format: draft.format ?? null,
-        slideCount: draft.slides?.length ?? null,
+        slideCount: draft.slides?.length ?? linked?.slides?.length ?? null,
         body: firstPost(draft.body),
         charCount: draft.charCount,
         status: draftStatus(draft),

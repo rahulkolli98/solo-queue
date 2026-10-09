@@ -1,4 +1,3 @@
-import { postText } from "./lib/postText";
 import type { Id } from "./_generated/dataModel";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
@@ -84,6 +83,8 @@ export const dayColumns = operatorQuery({
       for (const slot of rows) {
         const draft = await ctx.db.get(slot.draftId);
         const topic = draft ? await ctx.db.get(draft.topicId) : null;
+        // A thread whose first post carries a carousel shows that carousel's slide count.
+        const linked = draft?.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
         const card: Card = {
           _id: slot._id,
           platform,
@@ -91,12 +92,12 @@ export const dayColumns = operatorQuery({
           time: hhmm(slot.scheduledAt, tz),
           status: slot.status,
           topicTitle: topic?.title ?? "(deleted topic)",
-          snippet: (draft ? postText(draft, slot.platform) : "").split(/^\s*---\s*$/m)[0].trim().slice(0, 140),
+          snippet: (draft?.body ?? "").split(/^\s*---\s*$/m)[0].trim().slice(0, 140),
           constraintOk: draft?.constraintOk ?? false,
           pillarColor: pillarColor.get(topic?.pillar ?? "build") ?? "pillar-build",
           format: draft?.format ?? null,
-          hasMedia: Boolean(draft?.mediaAssetId),
-          slideCount: draft?.slides?.length ?? null,
+          hasMedia: Boolean(draft?.mediaAssetId || linked?.mediaAssetId),
+          slideCount: draft?.slides?.length ?? linked?.slides?.length ?? null,
           attempts: slot.attempts,
           lastError: slot.lastError ?? null,
           atRisk: slotRisk(
@@ -160,7 +161,9 @@ export const detail = operatorQuery({
     const draft = await ctx.db.get(slot.draftId);
     const topic = draft ? await ctx.db.get(draft.topicId) : null;
     const asset = draft?.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
-    const slideAssets = draft?.slides ? await Promise.all((draft.mediaAssetIds ?? []).map((id) => ctx.db.get(id))) : [];
+    const linked = draft?.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
+    const carousel = draft?.slides ? draft : linked && linked.slides ? linked : null;
+    const slideAssets = carousel ? await Promise.all((carousel.mediaAssetIds ?? []).map((id) => ctx.db.get(id))) : [];
     const connection = await ctx.db
       .query("connections")
       .withIndex("by_platform", (q) => q.eq("platform", slot.platform))
@@ -177,9 +180,9 @@ export const detail = operatorQuery({
         ? {
             _id: draft._id,
             platform: draft.platform,
-            body: postText(draft, slot.platform),
+            body: draft.body,
             format: draft.format ?? null,
-            slideCount: draft.slides?.length ?? null,
+            slideCount: carousel?.slides?.length ?? null,
             constraintOk: draft.constraintOk,
           }
         : null,
@@ -295,6 +298,10 @@ export const requeue = operatorMutation({
     }
     if (draft.slides) {
       await loadCarouselAssets(ctx, draft, { fresh: false });
+    } else if (slot.platform === "threads" && draft.carouselDraftId) {
+      const carousel = await ctx.db.get(draft.carouselDraftId);
+      if (!carousel || !carousel.slides) throw refusal("CAROUSEL_GONE", "The carousel on this thread's first post is gone.");
+      await loadCarouselAssets(ctx, carousel, { fresh: false });
     } else if (slot.platform === "instagram" || (slot.platform === "threads" && draft.mediaAssetId)) {
       const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
       if (!asset) throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");

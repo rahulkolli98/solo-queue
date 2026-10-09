@@ -85,10 +85,15 @@ export default defineSchema({
     /** The theme the carousel is drawn in (themes.ts); missing means the default, Solo Queue (added 2026-10-09). */
     theme: v.optional(v.string()),
     /**
-     * A carousel that also goes to Threads: the text posted with the images there (added 2026-10-09). Missing means
-     * the carousel is not going to Threads; an empty string means it is, with no text. `body` stays the Instagram caption.
+     * Retired 2026-10-09: a carousel's own Threads text. A carousel now goes to Threads on the first post of a thread
+     * (`carouselDraftId` on the thread), so nothing reads or writes this. Kept in the schema so rows that have it stay valid.
      */
     threadsText: v.optional(v.string()),
+    /**
+     * A thread whose first post carries a carousel: the carousel draft (an Instagram carousel of the same topic) whose
+     * slide images go on that post. The images stay on the carousel; this only points at it (added 2026-10-09).
+     */
+    carouselDraftId: v.optional(v.id("drafts")),
     templateKey: v.string(),
     templateVersion: v.number(),
     frameKey: v.optional(v.string()), // story frame used (frames.key); soft reference

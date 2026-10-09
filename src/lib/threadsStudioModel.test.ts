@@ -1,121 +1,89 @@
 import { describe, expect, it } from "vitest";
 import { describeMediaStatus } from "@/lib/mediaStatus";
-import { postcardMeta } from "@/lib/libraryBoard";
+import { draftMeta, postcardMeta } from "@/lib/libraryBoard";
 import {
   KIND_META,
   barSummary,
   draftsNeedingFix,
-  latestByKind,
-  queueKindsOf,
   readiness,
   studioGuide,
   weekToast,
-  type Draft,
   type ReadyState,
   type Readiness,
 } from "@/lib/studioModel";
 import { buildSetupRows, sameTargets, setupSummary, setupToSend, type SetupFrame } from "@/lib/studioSetup";
-import { THREADS_CAROUSEL_ID } from "../../convex/slots";
 
 const r = (state: ReadyState, overBy = 0): Readiness => ({ state, overBy, reason: "" });
-const draft = (over: Partial<Draft> & { templateKey: string }): Draft =>
-  ({ _id: "d1", _creationTime: 0, topicId: "t1", platform: "instagram", body: "Caption", templateVersion: 1, charCount: 7, constraintOk: true, createdAt: 1, ...over }) as unknown as Draft;
 
-describe("the Threads view of a carousel", () => {
-  it("uses the id the server queues it under", () => {
-    expect(KIND_META.threadsCarousel.templateKey).toBe(THREADS_CAROUSEL_ID);
+describe("a thread whose first post carries a carousel", () => {
+  it("needs the carousel's images: no images drawn is media required, drawn and checked is ready", () => {
+    expect(readiness({ kind: "threads", body: "A post", media: "none", needsMedia: true }).state).toBe("media_required");
+    expect(readiness({ kind: "threads", body: "A post", media: "ok", needsMedia: true }).state).toBe("ready");
+    expect(readiness({ kind: "threads", body: "A post", media: "stale", needsMedia: true }).state).toBe("media_stale");
+    expect(readiness({ kind: "threads", body: "A post", media: "missing", needsMedia: true }).state).toBe("media_missing");
+    expect(readiness({ kind: "threads", body: "A post", media: "ok", needsMedia: true, queued: true }).state).toBe("queued");
   });
 
-  it("is the carousel draft itself, present only when the carousel has a Threads text (even an empty one)", () => {
-    const plain = latestByKind([draft({ templateKey: "carousel-slides" })]);
-    expect(plain.carousel).toBeDefined();
-    expect(plain.threadsCarousel).toBeUndefined();
-    const going = latestByKind([draft({ templateKey: "carousel-slides", threadsText: "" })]);
-    expect(going.threadsCarousel?._id).toBe(going.carousel?._id);
-    expect(latestByKind([draft({ templateKey: "carousel-slides", threadsText: "Hello" })]).threadsCarousel).toBeDefined();
-  });
-
-  it("joins the queue only with its carousel's Threads text", () => {
-    expect(queueKindsOf({})).toEqual(["threads", "caption", "reel"]);
-    expect(queueKindsOf({ carousel: r("ready") })).toEqual(["threads", "caption", "reel", "carousel"]);
-    expect(queueKindsOf({ carousel: r("ready"), threadsCarousel: r("ready") })).toEqual(["threads", "caption", "reel", "carousel", "threadsCarousel"]);
-    expect(queueKindsOf({ carousel: r("ready"), threadsCarousel: r("ready") }, ["carousel"])).toEqual(["threads", "caption", "reel", "threadsCarousel"]);
-  });
-});
-
-describe("readiness of the Threads text and of media on a thread", () => {
-  it("a Threads text is not written when empty, over at 501, and needs the carousel's images", () => {
-    expect(readiness({ kind: "threadsCarousel", body: undefined, media: "ok" }).state).toBe("missing");
-    expect(readiness({ kind: "threadsCarousel", body: "   ", media: "ok" }).state).toBe("missing");
-    expect(readiness({ kind: "threadsCarousel", body: "x".repeat(500), media: "ok" }).state).toBe("ready");
-    expect(readiness({ kind: "threadsCarousel", body: "x".repeat(501), media: "ok" })).toMatchObject({ state: "over", overBy: 1 });
-    expect(readiness({ kind: "threadsCarousel", body: "Hi", media: "none" }).state).toBe("media_required");
-    expect(readiness({ kind: "threadsCarousel", body: "Hi", media: "stale" }).state).toBe("media_stale");
-    expect(readiness({ kind: "threadsCarousel", body: "Hi", media: "ok", queued: true }).state).toBe("queued");
+  it("a thread with nothing on its first post needs no media at all", () => {
+    expect(readiness({ kind: "threads", body: "A post", media: "none" }).state).toBe("ready");
+    expect(readiness({ kind: "threads", body: "A post", media: "none", needsMedia: false }).state).toBe("ready");
   });
 
   it("media on a thread is optional, but once attached it has to be usable", () => {
-    expect(readiness({ kind: "threads", body: "A post", media: "none" }).state).toBe("ready");
     expect(readiness({ kind: "threads", body: "A post", media: "ok" }).state).toBe("ready");
     expect(readiness({ kind: "threads", body: "A post", media: "missing" }).state).toBe("media_missing");
     expect(readiness({ kind: "threads", body: "A post", media: "unverified" }).state).toBe("media_unverified");
     expect(readiness({ kind: "threads", body: "A post", media: "stale" }).state).toBe("media_stale");
   });
 
-  it("a Threads text that needs fixing counts as a blocking draft, unless it is left out", () => {
-    const states = { threads: r("ready"), caption: r("ready"), reel: r("missing"), carousel: r("ready"), threadsCarousel: r("over", 20) };
-    expect(draftsNeedingFix(states)).toEqual(["threadsCarousel"]);
-    expect(draftsNeedingFix(states, [], ["threadsCarousel"])).toEqual([]);
+  it("a thread over the limit says so before it asks for images", () => {
+    expect(readiness({ kind: "threads", body: "x".repeat(501), media: "none", needsMedia: true }).state).toBe("over");
   });
 });
 
-describe("the bar and the sentence with a carousel on both platforms", () => {
-  const states = { threads: r("ready"), caption: r("missing"), reel: r("missing"), carousel: r("ready"), threadsCarousel: r("ready") };
+describe("the bar and the sentence for a thread that carries the carousel", () => {
+  const base = { generating: false, generationFailed: false, manualText: false, hasOpenSlot: true };
 
-  it("counts the Threads post as one more draft to queue", () => {
-    const bar = barSummary({ states, generating: false, emptySub: "", excluded: ["caption", "reel"] });
-    expect(bar).toMatchObject({ readyCount: 3, needFixing: 0, canQueue: true, buttonLabel: "Queue 3 posts" });
+  it("asks for the carousel's images once, in the carousel's words, even when the Instagram post is left out", () => {
+    const states = { threads: r("media_required"), caption: r("missing"), reel: r("missing"), carousel: r("media_required") };
+    const both = studioGuide({ ...base, states, threadCarousel: true, excluded: ["caption", "reel"] });
+    expect(both.text).toContain("Draw the slides");
+    expect(both.text.match(/Draw the slides/g)).toHaveLength(1);
+    const onlyThread = studioGuide({ ...base, states, threadCarousel: true, excluded: ["caption", "reel", "carousel"] });
+    expect(onlyThread.text).toContain("Draw the slides");
   });
 
-  it("asks for the shared images once, whichever post needs them", () => {
-    const base = { generating: false, generationFailed: false, manualText: false, hasOpenSlot: true, excluded: ["caption", "reel"] as const };
-    const needImages = studioGuide({ ...base, states: { ...states, carousel: r("media_required"), threadsCarousel: r("media_required") } });
-    expect(needImages.text).toContain("Draw the slides");
-    expect(needImages.text.match(/Draw the slides/g)).toHaveLength(1);
-    // The Instagram post left out, the Threads post still needs the images.
-    const onlyThreads = studioGuide({ ...base, excluded: ["caption", "reel", "carousel"], states: { ...states, carousel: r("media_required"), threadsCarousel: r("media_required") } });
-    expect(onlyThreads.text).toContain("Draw the slides");
+  it("does not talk about a photo on the thread when the first post carries a carousel", () => {
+    const states = { threads: r("media_stale"), caption: r("missing"), reel: r("missing"), carousel: r("ready") };
+    const carries = studioGuide({ ...base, states, threadCarousel: true, excluded: ["caption", "reel"] });
+    expect(carries.text).not.toMatch(/photo or video on the thread/);
+    const photo = studioGuide({ ...base, states, excluded: ["caption", "reel"] });
+    expect(photo.text).toMatch(/Recheck on the thread's photo or video/);
+    const gone = studioGuide({ ...base, states: { ...states, threads: r("media_missing") }, excluded: ["caption", "reel"] });
+    expect(gone.text).toMatch(/photo or video on the thread is gone/);
   });
 
-  it("says when the Threads text is over the limit, and when the photo on a thread cannot be used", () => {
-    const base = { generating: false, generationFailed: false, manualText: false, hasOpenSlot: true, excluded: ["caption", "reel"] as const };
-    expect(studioGuide({ ...base, states: { ...states, threadsCarousel: r("over", 12) } }).text).toMatch(/Threads text is over the 500-character limit/);
-    expect(studioGuide({ ...base, states: { ...states, threads: r("media_missing") } }).text).toMatch(/photo or video on the thread is gone/);
-    expect(studioGuide({ ...base, states: { ...states, threads: r("media_stale") } }).text).toMatch(/Recheck on the thread's photo or video/);
+  it("the bar counts the thread as needing a fix until the images are drawn, and as ready after", () => {
+    const need = { threads: r("media_required"), caption: r("missing"), reel: r("missing"), carousel: r("media_required") };
+    expect(draftsNeedingFix(need, [], ["caption", "reel"])).toEqual(["threads", "carousel"]);
+    const done = { threads: r("ready"), caption: r("missing"), reel: r("missing"), carousel: r("ready") };
+    expect(barSummary({ states: done, generating: false, emptySub: "", excluded: ["caption", "reel"] })).toMatchObject({ readyCount: 2, needFixing: 0, buttonLabel: "Queue 2 posts" });
   });
 });
 
 describe("the toast after Queue this week", () => {
-  it("counts the carousel's Threads post as Threads, and points a media problem at the carousel", () => {
-    const out = weekToast({
-      queued: [
-        { format: "Threads", templateKey: KIND_META.threads.templateKey, scheduledAt: 1 },
-        { format: "Threads carousel", templateKey: KIND_META.threadsCarousel.templateKey, scheduledAt: 2 },
-        { format: "IG carousel", templateKey: KIND_META.carousel.templateKey, scheduledAt: 3 },
-      ],
-      skipped: [],
-    });
-    expect(out.title).toBe("Week queued: 2 Threads, 1 Instagram");
+  it("points a media problem at the right draft", () => {
     const media = weekToast({
       queued: [],
-      skipped: [{ format: "Threads carousel", templateKey: KIND_META.threadsCarousel.templateKey, code: "MEDIA_STALE", message: "Check the images." }],
+      skipped: [{ format: "Threads", templateKey: KIND_META.threads.templateKey, code: "MEDIA_STALE", message: "Check the images." }],
     });
-    expect(media).toMatchObject({ needsMedia: true, mediaKind: "threadsCarousel" });
+    expect(media).toMatchObject({ needsMedia: true, mediaKind: "threads" });
     const type = weekToast({
       queued: [],
       skipped: [{ format: "Threads", templateKey: KIND_META.threads.templateKey, code: "MEDIA_TYPE", message: "Threads takes JPEG or PNG." }],
     });
     expect(type).toMatchObject({ needsMedia: true, mediaKind: "threads" });
+    expect(weekToast({ queued: [{ format: "Threads", templateKey: KIND_META.threads.templateKey, scheduledAt: 1 }], skipped: [] }).title).toBe("Week queued: 1 Threads, 0 Instagram");
   });
 });
 
@@ -172,11 +140,17 @@ describe("labels", () => {
     expect(describeMediaStatus("ready", asset, Date.now(), "threads").label).toBe("READY FOR THREADS");
   });
 
-  it("a published carousel on Threads says carousel and its slides; a thread still says Threads", () => {
-    const base = { platform: "threads" as const, publishedAt: Date.UTC(2026, 9, 9, 12), slideCount: 7 };
-    expect(postcardMeta({ ...base, format: "carousel" }, "UTC")).toBe("THREADS · CAROUSEL · 7 SLIDES · 9 OCT");
-    expect(postcardMeta({ ...base, format: "carousel", slideCount: null }, "UTC")).toBe("THREADS · CAROUSEL · 9 OCT");
+  it("a thread that carries a carousel says so, with its slides; a plain thread and an Instagram carousel keep their labels", () => {
+    const base = { platform: "threads" as const, publishedAt: Date.UTC(2026, 9, 9, 12) };
+    expect(postcardMeta({ ...base, format: "thread", slideCount: 7 }, "UTC")).toBe("THREADS · THREAD · 7 SLIDES · 9 OCT");
+    expect(postcardMeta({ ...base, format: "thread", slideCount: 1 }, "UTC")).toBe("THREADS · THREAD · 1 SLIDE · 9 OCT");
     expect(postcardMeta({ ...base, format: "thread", slideCount: null }, "UTC")).toBe("THREADS · 9 OCT");
     expect(postcardMeta({ platform: "instagram", format: "carousel", publishedAt: base.publishedAt, slideCount: 7 }, "UTC")).toBe("CAROUSEL · 7 SLIDES · 9 OCT");
+  });
+
+  it("the Library draft card says the same", () => {
+    expect(draftMeta("threads", "thread", 6)).toBe("THREADS · THREAD · 6 SLIDES");
+    expect(draftMeta("threads", "thread", null)).toBe("THREADS · THREAD");
+    expect(draftMeta("instagram", "carousel", 6)).toBe("CAROUSEL · 6 SLIDES");
   });
 });

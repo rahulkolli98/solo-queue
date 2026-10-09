@@ -77,13 +77,8 @@ export function postcardMeta(
   tz: string
 ): string {
   const word = post.format ? (FORMAT_WORD[post.format] ?? post.format.toUpperCase()) : null;
-  // A carousel posted to Threads says so (the same draft also goes to Instagram), with its slide count.
-  const threadsLead =
-    post.format === "carousel"
-      ? post.slideCount
-        ? `THREADS · CAROUSEL · ${post.slideCount} ${post.slideCount === 1 ? "SLIDE" : "SLIDES"}`
-        : "THREADS · CAROUSEL"
-      : "THREADS";
+  // A thread whose first post carries a carousel says so, with the slide count.
+  const threadsLead = post.slideCount ? `THREADS · THREAD · ${post.slideCount} ${post.slideCount === 1 ? "SLIDE" : "SLIDES"}` : "THREADS";
   const lead =
     post.platform === "threads"
       ? threadsLead
@@ -130,8 +125,8 @@ export function matchesDraftFilter(status: DraftStatusKey, filter: DraftFilter):
 export function draftMeta(platform: "threads" | "instagram" | "blog", format: string | null, slideCount?: number | null): string {
   if (platform === "blog") return "BLOG";
   const base = format ? (FORMAT_WORD[format] ?? format.toUpperCase()) : null;
-  // A carousel says how many slides it has: "CAROUSEL · 6 SLIDES".
-  const word = base && format === "carousel" && slideCount ? `${base} · ${slideCount} ${slideCount === 1 ? "SLIDE" : "SLIDES"}` : base;
+  // A carousel says how many slides it has: "CAROUSEL · 6 SLIDES"; so does a thread whose first post carries one.
+  const word = base && (format === "carousel" || (platform === "threads" && format === "thread")) && slideCount ? `${base} · ${slideCount} ${slideCount === 1 ? "SLIDE" : "SLIDES"}` : base;
   if (platform === "threads") return word ? `THREADS · ${word}` : "THREADS";
   return word ?? "INSTAGRAM";
 }

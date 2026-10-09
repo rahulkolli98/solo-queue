@@ -19,13 +19,13 @@ import { DEFAULT_SLIDE_COUNT, clampSlideCount } from "../../convex/lib/carouselD
 import { DEFAULT_THEME, THEMES, isThemeKey, themeName } from "../../convex/lib/themes";
 import type { FrameFit } from "../../convex/lib/framesModel";
 import { POSTS_FALLBACK, clampPosts } from "@/lib/studioCompose";
-import { KIND_META, type WriteKind } from "@/lib/studioModel";
+import { KIND_META, type DraftKind } from "@/lib/studioModel";
 
 /** The carousel frame select's value for "no story frame: I will describe it". */
 export const NO_FRAME = "__none__";
 
 /** The formats Studio can write, in display order. */
-export const SETUP_ROWS: readonly WriteKind[] = ["threads", "caption", "reel", "carousel", "blog"];
+export const SETUP_ROWS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 
 export interface SetupFrame {
   key: string;
@@ -51,7 +51,7 @@ export interface SetupChoice {
   /** Carousel: the platforms to write and post it for. */
   targets?: CarouselTarget[];
 }
-export type SetupChoices = Partial<Record<WriteKind, SetupChoice>>;
+export type SetupChoices = Partial<Record<DraftKind, SetupChoice>>;
 
 export interface SetupInput {
   choices: SetupChoices;
@@ -60,9 +60,9 @@ export interface SetupInput {
   legacyPostCount: number | undefined;
   frames: readonly SetupFrame[];
   /** The story frame each existing draft used, so Regenerate keeps it unless it is changed. */
-  usedFrame?: Partial<Record<WriteKind, string | undefined>>;
+  usedFrame?: Partial<Record<DraftKind, string | undefined>>;
   /** Kinds that already have a draft (the blog is written again when it exists, unless unticked). */
-  hasDraft?: Partial<Record<WriteKind, boolean>>;
+  hasDraft?: Partial<Record<DraftKind, boolean>>;
   /** The saved carousel looks, for the select. */
   looks?: readonly { key: string; name: string; theme?: string }[];
   /** The look the existing carousel was written with, so Regenerate keeps it unless it is changed. */
@@ -74,7 +74,7 @@ export interface SetupInput {
 }
 
 export interface SetupRow {
-  kind: WriteKind;
+  kind: DraftKind;
   label: string;
   include: boolean;
   /** The story frame in use, or undefined (the blog never has one; a format may have none that fits). */
@@ -106,14 +106,14 @@ export interface SetupRow {
   changed: boolean;
 }
 
-function usableFrame(frames: readonly SetupFrame[], key: string | undefined, kind: WriteKind): SetupFrame | undefined {
+function usableFrame(frames: readonly SetupFrame[], key: string | undefined, kind: DraftKind): SetupFrame | undefined {
   if (!key) return undefined;
   const frame = frames.find((f) => f.key === key);
   return frame && frame.isActive !== false && frameFitsKind(frame, kind) ? frame : undefined;
 }
 
 /** The saved default frame for a format, as Studio and the drafting action both resolve it. */
-export function defaultFrameOf(input: Pick<SetupInput, "defaults" | "legacyDefaultKey" | "frames">, kind: WriteKind): string | undefined {
+export function defaultFrameOf(input: Pick<SetupInput, "defaults" | "legacyDefaultKey" | "frames">, kind: DraftKind): string | undefined {
   return resolveFrameKey({ kind, defaults: input.defaults, legacyDefaultKey: input.legacyDefaultKey, frames: input.frames });
 }
 
@@ -222,7 +222,7 @@ export function setupSummary(rows: readonly SetupRow[]): string {
 }
 
 /** The kinds this run writes, in order. */
-export function includedKinds(rows: readonly SetupRow[]): WriteKind[] {
+export function includedKinds(rows: readonly SetupRow[]): DraftKind[] {
   return rows.filter((r) => r.include).map((r) => r.kind);
 }
 
@@ -276,7 +276,7 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
  * The setup for "Draft this" on an angle card: only that angle's format is ticked and its story frame is picked
  * (a frame that does not fit the format is ignored by the rows, so the saved default applies).
  */
-export function choicesForAngle(angle: { kind: WriteKind; frameKey?: string }): SetupChoices {
+export function choicesForAngle(angle: { kind: DraftKind; frameKey?: string }): SetupChoices {
   const out: SetupChoices = {};
   for (const kind of SETUP_ROWS) {
     out[kind] = kind === angle.kind ? { include: true, ...(angle.frameKey ? { frameKey: angle.frameKey } : {}) } : { include: false };

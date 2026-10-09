@@ -2,10 +2,7 @@
 
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from "react";
 import GenerateButton from "@/components/features/studio/GenerateButton";
-import MediaPanel from "@/components/features/studio/MediaPanel";
-import ThreadsCarouselView, { type ThreadsCarouselProps } from "@/components/features/studio/ThreadsCarouselView";
-import type { MediaActions } from "@/components/features/studio/useMediaActions";
-import SegmentedControl from "@/components/ui/SegmentedControl";
+import FirstPostMedia, { type FirstPostMediaProps } from "@/components/features/studio/FirstPostMedia";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
 import ManualThread from "@/components/features/studio/ManualThread";
 import { ThreadsAvatar } from "@/components/features/studio/glyphs";
@@ -22,7 +19,7 @@ import {
   trimToFit,
 } from "@/lib/draftText";
 import { addToThread, moveInThread, postsLabel, removeFromThread } from "@/lib/studioCompose";
-import { beatLabel, type Asset, type MediaState, type Readiness } from "@/lib/studioModel";
+import { beatLabel, type Readiness } from "@/lib/studioModel";
 
 /** Board 02 / 07c-07e: the ink Threads column. */
 export default function ThreadsColumn({
@@ -45,18 +42,10 @@ export default function ThreadsColumn({
   onGenerate,
   busy = false,
   queueToggle,
-  carousel,
-  threadMedia,
+  firstPostMedia,
 }: {
-  /** The carousel's Threads view; present when the topic has a carousel. The column then has a Thread / Carousel switch. */
-  carousel?: ThreadsCarouselProps;
-  /** The thread's optional photo or video (first post only). */
-  threadMedia?: {
-    asset: Asset | undefined;
-    state: MediaState;
-    media: MediaActions;
-    onAttach: () => void;
-  };
+  /** What the first post carries (nothing, a photo or video, or the topic's carousel); shown under a written thread. */
+  firstPostMedia?: FirstPostMediaProps;
   /** Write just the thread (Studio asks first when it would replace text). Omit to hide the button. */
   onGenerate?: () => void;
   /** Any generation is running: only one runs at a time. */
@@ -89,8 +78,6 @@ export default function ThreadsColumn({
   /** Phone only: the other platform needs the founder ("Instagram: 2 drafts need you"). */
   notice?: ReactNode;
 }) {
-  const [tab, setTab] = useState<"thread" | "carousel">("thread");
-  const showCarousel = tab === "carousel" && carousel !== undefined;
   const [localManual, setLocalManual] = useState(false);
   const manual = writing ?? localManual;
   const setManual = (open: boolean) => {
@@ -186,7 +173,12 @@ export default function ThreadsColumn({
     );
   } else if (!view && (gen.error || manual)) {
     body = manual ? (
-      <ManualThread onText={onManualText} onSave={onSaveManual} onRetry={gen.onRetry} retrying={gen.retrying} />
+      <ManualThread
+        onText={onManualText}
+        onSave={onSaveManual}
+        onRetry={gen.onRetry}
+        retrying={gen.retrying}
+      />
     ) : (
       <GenerationErrorCard
         title="Couldn't write the thread"
@@ -252,16 +244,7 @@ export default function ThreadsColumn({
             {atMax ? " · THE MOST ONE THREAD CAN HAVE" : ""}
           </span>
         </div>
-        {threadMedia && readiness.state !== "queued" && view && (
-          <MediaPanel
-            kind="threads"
-            draftId={view.draft._id}
-            asset={threadMedia.asset}
-            state={threadMedia.state}
-            media={threadMedia.media}
-            onAttach={threadMedia.onAttach}
-          />
-        )}
+        {firstPostMedia && readiness.state !== "queued" && <FirstPostMedia {...firstPostMedia} />}
       </div>
     );
   }
@@ -281,65 +264,32 @@ export default function ThreadsColumn({
         )}
       </div>
       {notice}
-      {carousel && (
-        <SegmentedControl
-          label="Threads post"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "thread", label: "Thread" },
-            { value: "carousel", label: "Carousel" },
-          ]}
-        />
-      )}
-      {showCarousel ? <ThreadsCarouselView {...carousel} /> : body}
+      {body}
       <div className="studio-colfoot">
-        {showCarousel ? (
+        {gen.writing ? (
           <>
-            <span className="t-mono studio-foot-hot">
-              {carousel.view ? "CAROUSEL ON THREADS" : "CAROUSEL: INSTAGRAM ONLY"}
-              <br />
-              {!carousel.view
-                ? "NOT GOING TO THREADS"
-                : carousel.readiness.state === "queued"
-                  ? `QUEUED${carousel.queuedWhen ? ` → ${carousel.queuedWhen}` : ""}`
-                  : carousel.readiness.state === "over"
-                    ? "TEXT OVER THE LIMIT"
-                    : carousel.target
-                      ? `→ ${carousel.target}`
-                      : "NO OPEN SLOT IN THE NEXT 2 WEEKS"}
+            <span className="t-mono studio-foot-hot">WRITING THE THREAD…</span>
+            <span className="t-meta studio-foot-dim">{gen.elapsed} ELAPSED</span>
+          </>
+        ) : view && readiness.state === "over" ? (
+          <>
+            <span className="t-mono studio-foot-bad">
+              {overCount} {overCount === 1 ? "POST" : "POSTS"} OVER THE LIMIT
             </span>
-            {carousel.view && carousel.readiness.state !== "queued" && carousel.queueToggle}
+            <span className="t-meta studio-foot-dim">QUEUE BLOCKED FOR THIS THREAD</span>
           </>
+        ) : view ? (
+          <span className="t-mono studio-foot-hot">
+            {posts.length}-POST THREAD
+            <br />
+            {readiness.state === "queued"
+              ? `QUEUED${queuedWhen ? ` → ${queuedWhen}` : ""}`
+              : target
+                ? `→ ${target}`
+                : "NO OPEN SLOT IN THE NEXT 2 WEEKS"}
+          </span>
         ) : null}
-        {!showCarousel && (
-          <>
-            {gen.writing ? (
-              <>
-                <span className="t-mono studio-foot-hot">WRITING THE THREAD…</span>
-                <span className="t-meta studio-foot-dim">{gen.elapsed} ELAPSED</span>
-              </>
-            ) : view && readiness.state === "over" ? (
-              <>
-                <span className="t-mono studio-foot-bad">
-                  {overCount} {overCount === 1 ? "POST" : "POSTS"} OVER THE LIMIT
-                </span>
-                <span className="t-meta studio-foot-dim">QUEUE BLOCKED FOR THIS THREAD</span>
-              </>
-            ) : view ? (
-              <span className="t-mono studio-foot-hot">
-                {posts.length}-POST THREAD
-                <br />
-                {readiness.state === "queued"
-                  ? `QUEUED${queuedWhen ? ` → ${queuedWhen}` : ""}`
-                  : target
-                    ? `→ ${target}`
-                    : "NO OPEN SLOT IN THE NEXT 2 WEEKS"}
-              </span>
-            ) : null}
-            {view && !gen.writing && readiness.state !== "queued" && queueToggle}
-          </>
-        )}
+        {view && !gen.writing && readiness.state !== "queued" && queueToggle}
       </div>
     </section>
   );

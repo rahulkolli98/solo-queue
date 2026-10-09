@@ -1,4 +1,3 @@
-import { postText } from "./lib/postText";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import type { MutationCtx } from "./_generated/server";
@@ -182,14 +181,19 @@ export const getForPublish = internalQuery({
     const draft = await ctx.db.get(slot.draftId);
     if (!draft) return null;
     const topic = await ctx.db.get(draft.topicId);
-    const storedAsset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
+    // A carousel is its own draft (Instagram); a thread whose first post carries one points at it and takes its images.
+    const linked = draft.carouselDraftId ? await ctx.db.get(draft.carouselDraftId) : null;
+    const carousel = draft.slides ? draft : linked && linked.slides ? linked : null;
+    const carouselGone = Boolean(draft.carouselDraftId) && carousel === null;
+    // A carousel of two or more slides posts every slide image, in order; one slide posts as a single image.
+    const slideCount = carousel?.slides?.length;
+    const mediaAssetId = draft.mediaAssetId ?? (draft.carouselDraftId && slideCount === 1 ? carousel?.mediaAssetId : undefined);
+    const storedAsset = mediaAssetId ? await ctx.db.get(mediaAssetId) : null;
     // A file the cleanup removed cannot be published: treat it like missing media.
     const asset = storedAsset && storedAsset.fileDeletedAt === undefined ? storedAsset : null;
-    // A carousel of two or more slides posts every slide image, in order; one slide posts as a single image.
-    const slideCount = draft.slides?.length;
     let slideAssets: { publicUrl: string; mimeType: string }[] | undefined;
-    if (slideCount !== undefined && slideCount > 1) {
-      const docs = await Promise.all((draft.mediaAssetIds ?? []).map((id) => ctx.db.get(id)));
+    if (carousel && slideCount !== undefined && slideCount > 1) {
+      const docs = await Promise.all((carousel.mediaAssetIds ?? []).map((id) => ctx.db.get(id)));
       slideAssets = docs
         .filter((d): d is NonNullable<typeof d> => d !== null && d.fileDeletedAt === undefined)
         .map((d) => ({ publicUrl: d.publicUrl, mimeType: d.mimeType }));
@@ -206,11 +210,12 @@ export const getForPublish = internalQuery({
         _id: draft._id,
         topicId: draft.topicId,
         platform: draft.platform,
-        body: postText(draft, slot.platform),
+        body: draft.body,
         templateKey: draft.templateKey,
-        mediaAssetId: draft.mediaAssetId ?? undefined,
+        mediaAssetId: mediaAssetId ?? undefined,
         slideCount,
         slideAssets,
+        carouselGone,
       },
       asset: asset
         ? {
@@ -318,9 +323,7 @@ async function doEnqueue(
   ctx: MutationCtx,
   draftId: Id<"drafts">,
   scheduledAt?: number,
-  tz?: string,
-  /** Where to post it, when that is not the draft's own platform: a carousel can also go to Threads. */
-  onPlatform?: "threads" | "instagram"
+  tz?: string
 ): Promise<{
   slotId: Id<"slots">;
   scheduledAt: number;
@@ -330,21 +333,13 @@ async function doEnqueue(
     const draft = await ctx.db.get(draftId);
     if (!draft)
       throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been deleted.");
-    const platform = onPlatform ?? draft.platform;
+    const platform = draft.platform;
     if (platform === "blog")
       throw refusal(
         "UNSUPPORTED_PLATFORM",
         "Blog drafts don't queue — publishing runs per platform."
       );
-    if (platform !== draft.platform) {
-      // The one draft that goes to two platforms is a carousel: Instagram's caption and a Threads text of its own.
-      if (!(platform === "threads" && draft.platform === "instagram" && draft.slides))
-        throw refusal("PLATFORM_MISMATCH", "Only a carousel can be posted to a platform other than its own.");
-      if (draft.threadsText === undefined)
-        throw refusal("NO_THREADS_TEXT", "This carousel is not set up for Threads yet. Add it to Threads in Studio first.");
-    }
-    // The text this post carries (a carousel's Threads text is not its Instagram caption).
-    const text = postText(draft, platform);
+    const text = draft.body;
 
     if (platform === "threads" && splitPosts(text).length > MAX_THREAD_POSTS) {
       throw refusal(
@@ -383,6 +378,13 @@ async function doEnqueue(
           "IG drafts need a photo or video — attach media in the Library first."
         );
       mediaUrl = (await assertUsableMedia(ctx, draft.mediaAssetId)).publicUrl;
+    } else if (platform === "threads" && draft.carouselDraftId) {
+      // The first post carries a carousel: it needs the same fresh, reachable image for every slide.
+      const carousel = await ctx.db.get(draft.carouselDraftId);
+      if (!carousel || !carousel.slides)
+        throw refusal("CAROUSEL_GONE", "The carousel on this thread's first post is gone. Pick another, or take it off the first post.");
+      const assets = await loadCarouselAssets(ctx, carousel);
+      mediaUrl = assets[0].publicUrl;
     } else if (platform === "threads" && draft.mediaAssetId) {
       // Media on a thread is optional, but once attached it must be a file Threads can post.
       const asset = await assertUsableMedia(ctx, draft.mediaAssetId);
@@ -394,13 +396,10 @@ async function doEnqueue(
       mediaUrl = asset.publicUrl;
     }
 
-    // A carousel can have one post on each platform, so only this platform's earlier posts count.
-    const existing = (
-      await ctx.db
-        .query("slots")
-        .withIndex("by_draft", (q) => q.eq("draftId", draftId))
-        .take(100)
-    ).filter((s) => s.platform === platform);
+    const existing = await ctx.db
+      .query("slots")
+      .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+      .take(100);
     if (existing.some((s) => s.status === "scheduled" || s.status === "claimed"))
       throw refusal("ALREADY_QUEUED", "This draft is already queued.");
     if (existing.some((s) => s.status === "published"))
@@ -471,11 +470,9 @@ export const enqueue = operatorMutation({
     scheduledAt: v.optional(v.number()),
     /** IANA zone from the browser; used when the saved time zone is still "auto". */
     tz: v.optional(v.string()),
-    /** Post a carousel to Threads (its own Threads text) instead of Instagram. */
-    platform: v.optional(v.union(v.literal("threads"), v.literal("instagram"))),
   },
   handler: async (ctx, args) => {
-    const res = await doEnqueue(ctx, args.draftId, args.scheduledAt, args.tz, args.platform);
+    const res = await doEnqueue(ctx, args.draftId, args.scheduledAt, args.tz);
     return { slotId: res.slotId, scheduledAt: res.scheduledAt };
   },
 });
@@ -550,22 +547,13 @@ export const release = internalMutation({
 });
 
 /** Queueable formats for the one-gesture flow, in lane order. */
-type WeekFormat = { id: string; templateKey: string; label: string; platform: "threads" | "instagram" };
-
 const WEEK_FORMATS = [
   { templateKey: "threads-hook-story", label: "Threads", platform: "threads" },
   { templateKey: "ig-caption-beats", label: "IG caption", platform: "instagram" },
   { templateKey: "reel-script", label: "IG reel", platform: "instagram" },
 ] as const;
 
-const CAROUSEL_FORMAT = { id: "carousel-slides", templateKey: "carousel-slides", label: "IG carousel", platform: "instagram" } as const;
-
-/**
- * The same carousel, posted to Threads with its own Threads text. `id` is what a pick and a result call it, so the
- * two posts of one carousel can be told apart; the draft it posts is still the carousel's (`templateKey`).
- */
-export const THREADS_CAROUSEL_ID = "carousel-slides@threads";
-const THREADS_CAROUSEL_FORMAT = { id: THREADS_CAROUSEL_ID, templateKey: "carousel-slides", label: "Threads carousel", platform: "threads" } as const;
+const CAROUSEL_FORMAT = { templateKey: "carousel-slides", label: "IG carousel", platform: "instagram" } as const;
 
 /**
  * One-gesture "queue this week": assign every queueable draft of a topic to
@@ -617,22 +605,17 @@ export const queueTopic = operatorMutation({
     const reelDaysTaken = settings.rules.oneReelPerDay ? await reelDays(ctx, zone, now) : new Set<string>();
     const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
     const skipped: { format: string; templateKey: string; code: string; message: string }[] = [];
-    // A carousel is queued with the week only when the topic has one (most topics do not), and it also goes to
-    // Threads only when it has a Threads text (its Threads target was switched on).
-    const carouselDraft = latestByKey.get(CAROUSEL_FORMAT.templateKey);
-    const weekFormats: readonly WeekFormat[] = WEEK_FORMATS.map((f) => ({ ...f, id: f.templateKey }));
-    const allFormats: readonly WeekFormat[] = carouselDraft
-      ? [...weekFormats, CAROUSEL_FORMAT, ...(carouselDraft.threadsText !== undefined ? [THREADS_CAROUSEL_FORMAT] : [])]
-      : weekFormats;
+    // A carousel is queued with the week only when the topic has one (most topics do not).
+    const allFormats = latestByKey.has(CAROUSEL_FORMAT.templateKey) ? [...WEEK_FORMATS, CAROUSEL_FORMAT] : WEEK_FORMATS;
     // The founder can pick which drafts go out; the others are left alone (not reported as skipped).
     const picked = args.templateKeys;
-    const formats = picked ? allFormats.filter((f) => picked.includes(f.id)) : allFormats;
+    const formats = picked ? allFormats.filter((f) => picked.includes(f.templateKey)) : allFormats;
     for (const f of formats) {
       const draft = latestByKey.get(f.templateKey);
       if (!draft) {
         skipped.push({
           format: f.label,
-          templateKey: f.id,
+          templateKey: f.templateKey,
           code: "NO_DRAFT",
           message: "No draft yet — generate one first.",
         });
@@ -652,19 +635,19 @@ export const queueTopic = operatorMutation({
           if (!settings.rules.mixPillars) throw err;
           at = planSlot(settings, f.platform, taken[f.platform], zone, now, { rejectDays });
         }
-        await doEnqueue(ctx, draft._id, at, args.tz, f.platform);
+        await doEnqueue(ctx, draft._id, at, args.tz);
         taken[f.platform].push(at);
         queue[f.platform].push({ at, pillar });
         if (rejectDays) reelDaysTaken.add(dayKey(at, zone));
-        queued.push({ format: f.label, templateKey: f.id, scheduledAt: at });
+        queued.push({ format: f.label, templateKey: f.templateKey, scheduledAt: at });
       } catch (err) {
         const r = parseRefusal(err);
         if (r) {
-          skipped.push({ format: f.label, templateKey: f.id, code: r.code, message: r.message });
+          skipped.push({ format: f.label, templateKey: f.templateKey, code: r.code, message: r.message });
         } else if (err instanceof Error && err.message.startsWith("No free slot")) {
           skipped.push({
             format: f.label,
-            templateKey: f.id,
+            templateKey: f.templateKey,
             code: "NO_FREE_SLOT",
             message: "No free slot in the next year — clear some queue first.",
           });

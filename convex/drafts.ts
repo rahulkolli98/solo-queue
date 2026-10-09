@@ -129,14 +129,14 @@ export const attachMedia = operatorMutation({
       if (!asset) throw new Error("Media not found — it may have been deleted.");
       assertFileNotRemoved(asset);
     }
-    await ctx.db.patch(args.id, { mediaAssetId: args.mediaAssetId ?? undefined });
+    // A photo or video and a carousel are alternatives for a thread's first post: attaching one removes the other.
+    await ctx.db.patch(args.id, {
+      mediaAssetId: args.mediaAssetId ?? undefined,
+      ...(args.mediaAssetId !== null && draft.carouselDraftId ? { carouselDraftId: undefined } : {}),
+    });
     return null;
   },
 });
-
-function normalizeNewlines(text: string): string {
-  return text.replace(/\r\n?/g, "\n");
-}
 
 /** A carousel that already has a post (queued, published or failed) must be changed in the Queue first. */
 async function assertNotQueued(ctx: { db: import("./_generated/server").QueryCtx["db"] }, draftId: import("./_generated/dataModel").Id<"drafts">) {
@@ -146,6 +146,23 @@ async function assertNotQueued(ctx: { db: import("./_generated/server").QueryCtx
     .first();
   if (slot) {
     throw refusal("CAROUSEL_QUEUED", "This carousel already has a post in the Queue. Cancel that post first, then change the slides.");
+  }
+  // Its images may also be on the first post of a thread; that post must not change under it either.
+  const draft = await ctx.db.get(draftId);
+  if (!draft) return;
+  const threads = await ctx.db
+    .query("drafts")
+    .withIndex("by_topic_platform", (q) => q.eq("topicId", draft.topicId).eq("platform", "threads"))
+    .take(200);
+  for (const t of threads) {
+    if (t.carouselDraftId !== draftId) continue;
+    const threadSlot = await ctx.db.query("slots").withIndex("by_draft", (q) => q.eq("draftId", t._id)).first();
+    if (threadSlot) {
+      throw refusal(
+        "CAROUSEL_QUEUED",
+        "This carousel is on the first post of a thread that is already in the Queue. Cancel that post first, then change the slides."
+      );
+    }
   }
 }
 
@@ -221,13 +238,7 @@ export const attachCarouselMedia = operatorMutation({
  * is left alone and this one is added beside it. The files stay in the library either way.
  */
 export const createOwnCarousel = operatorMutation({
-  args: {
-    topicId: v.id("topics"),
-    caption: v.string(),
-    mediaAssetIds: v.array(v.id("mediaAssets")),
-    /** Also post it to Threads, with this text (may be empty). */
-    threadsText: v.optional(v.string()),
-  },
+  args: { topicId: v.id("topics"), caption: v.string(), mediaAssetIds: v.array(v.id("mediaAssets")) },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
     if (!topic) throw refusal("TOPIC_NOT_FOUND", "Topic not found. It may have been deleted.");
@@ -258,7 +269,6 @@ export const createOwnCarousel = operatorMutation({
       slideSource: "uploaded",
       mediaAssetIds: args.mediaAssetIds,
       mediaAssetId: args.mediaAssetIds[0],
-      threadsText: args.threadsText === undefined ? undefined : normalizeNewlines(args.threadsText),
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -331,6 +341,14 @@ export const remove = operatorMutation({
       );
     }
     await ctx.db.delete(args.id);
+    // A thread whose first post carried this carousel goes back to carrying nothing.
+    if (draft.slides) {
+      const threads = await ctx.db
+        .query("drafts")
+        .withIndex("by_topic_platform", (q) => q.eq("topicId", draft.topicId).eq("platform", "threads"))
+        .take(200);
+      for (const t of threads) if (t.carouselDraftId === args.id) await ctx.db.patch(t._id, { carouselDraftId: undefined });
+    }
     const rest = await ctx.db
       .query("drafts")
       .withIndex("by_topic_platform", (q) => q.eq("topicId", draft.topicId))
@@ -344,28 +362,30 @@ export const remove = operatorMutation({
 });
 
 /**
- * A carousel's Threads text: what is posted with its images when it also goes to Threads (500 characters; it may
- * be empty, since Threads allows a carousel with no text). `null` takes the carousel off Threads. It is refused while
- * the carousel has a Threads post in the Queue or already published, so a post never loses its text under it.
+ * Put a carousel on the first post of a thread, or take it off (`null`). The slide images stay on the carousel (one
+ * set, edited in the Carousel tab); the thread only points at it, and a photo or video it had is removed, since the
+ * first post carries one or the other. Refused once the thread has a post in the Queue or Published.
  */
-export const setThreadsText = operatorMutation({
-  args: { id: v.id("drafts"), text: v.union(v.string(), v.null()) },
+export const setCarousel = operatorMutation({
+  args: { id: v.id("drafts"), carouselDraftId: v.union(v.id("drafts"), v.null()) },
   handler: async (ctx, args) => {
     const draft = await ctx.db.get(args.id);
     if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
-    if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel can be posted to Threads with its images.");
-    if (draft.platform !== "instagram") throw refusal("NOT_A_CAROUSEL", "Only an Instagram carousel can also go to Threads.");
-    if (args.text === null) {
-      const slots = await ctx.db.query("slots").withIndex("by_draft", (q) => q.eq("draftId", args.id)).take(100);
-      if (slots.some((s) => s.platform === "threads")) {
-        throw refusal("THREADS_QUEUED", "This carousel already has a post on Threads. Cancel or remove that post first, then take it off Threads.");
-      }
-      if (draft.threadsText !== undefined) await ctx.db.patch(args.id, { threadsText: undefined });
+    if (draft.platform !== "threads") throw refusal("NOT_A_THREAD", "Only a thread can carry a carousel on its first post.");
+    const slot = await ctx.db.query("slots").withIndex("by_draft", (q) => q.eq("draftId", args.id)).first();
+    if (slot) {
+      throw refusal("THREAD_QUEUED", "This thread already has a post in the Queue or Published. Cancel that post first, then change its media.");
+    }
+    if (args.carouselDraftId === null) {
+      if (draft.carouselDraftId !== undefined) await ctx.db.patch(args.id, { carouselDraftId: undefined });
       return null;
     }
-    const text = args.text.replace(/\r\n?/g, "\n");
-    if (text.length > 5000) throw refusal("TOO_LONG", "That Threads text is far too long (the limit is 500 characters).");
-    await ctx.db.patch(args.id, { threadsText: text });
+    const carousel = await ctx.db.get(args.carouselDraftId);
+    if (!carousel || !carousel.slides || carousel.platform !== "instagram") {
+      throw refusal("NOT_A_CAROUSEL", "That is not a carousel. Write the carousel first, then put it on the first post.");
+    }
+    if (carousel.topicId !== draft.topicId) throw refusal("WRONG_TOPIC", "That carousel belongs to another topic.");
+    await ctx.db.patch(args.id, { carouselDraftId: args.carouselDraftId, mediaAssetId: undefined });
     return null;
   },
 });

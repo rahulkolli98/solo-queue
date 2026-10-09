@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { DraftKind } from "@/lib/studioModel";
 
-const KINDS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "threadsCarousel", "blog"];
+const KINDS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 const keyOf = (topicId: string) => `solo-queue:queue-pick:${topicId}`;
 
 /** The founder's explicit choices: true = in the queue, false = left out. A kind with no entry follows its default. */

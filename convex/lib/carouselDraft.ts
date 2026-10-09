@@ -54,8 +54,6 @@ export function carouselInstructions(input: {
   theme?: ThemeKey;
   /** The founder's saved look for this run: the plan for exactly `count` slides, a design document, reference images. */
   look?: { plan?: readonly PlanSlide[] | null; design?: string; references?: boolean };
-  /** The carousel also goes to Threads: the reply carries a Threads text as well as the Instagram caption. */
-  threads?: boolean;
 }): string {
   const lines = input.count === 1 ? singleSlideInstructions() : [
     `Write exactly ${input.count} slides, in order, plus one Instagram caption.`,
@@ -71,7 +69,6 @@ export function carouselInstructions(input: {
     "One idea per slide; the slides read as a story, not a list of tips. If the material is about something in the world rather than the founder's own build, tell it as an explainer (what it is, how it works, what could change); the story arc above is the order of the ideas, not a personal confession.",
     "caption: the Instagram caption in the founder's voice, under 2,200 characters, with the hashtag rule given above. It reads like a post a person wrote, not a summary of the notes: lead with the one idea, add a point or two the slides leave out, and do not list everything. It must stand alone and must not repeat the slides word for word.",
   ];
-  if (input.threads) lines.push(...threadsTextInstructions());
   if (input.theme && input.theme !== DEFAULT_THEME) lines.push(...themeInstructions(input.theme));
   if (input.arc === false && input.count !== 1) {
     lines.push("There is no story frame for this carousel: choose the order of ideas yourself, so the slides read clearly for this material and this request.");
@@ -88,15 +85,6 @@ export function carouselInstructions(input: {
     );
   }
   return lines.join("\n");
-}
-
-/** The extra field a carousel that also goes to Threads asks for: its own short text, not the Instagram caption. */
-export const THREADS_TEXT_MAX = 500;
-export function threadsTextInstructions(): string[] {
-  return [
-    `Also add "threadsText" to the same JSON object: the text of a Threads post that goes with these images, in the founder's voice, at most ${THREADS_TEXT_MAX} characters. Threads is conversational: lead with the one idea in plain words, add the point the images do not make, and end so a reader wants to swipe. No hashtags, and it must not be the Instagram caption cut short or repeated.`,
-    FACTS_ONLY,
-  ];
 }
 
 /** What a theme other than the default draws, so the model writes for that design and uses what it shows. */
@@ -153,7 +141,6 @@ function singleSlideInstructions(): string[] {
 
 const rawSchema = z.object({
   caption: z.string().optional(),
-  threadsText: z.string().optional(),
   slides: z.array(z.record(z.string(), z.unknown())),
 });
 
@@ -293,29 +280,9 @@ function compact<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/** The model's own Threads post text, tidied and cut to 500 characters at a sentence or word; "" when nothing usable is left. */
-export function cleanThreadsText(raw: string): string {
-  const unfenced = raw.replace(/^```[a-z]*\n?|```$/gim, "").trim();
-  const unquoted = unfenced.replace(/^["\u201c]+|["\u201d]+$/g, "");
-  return clip(unquoted, THREADS_TEXT_MAX) ?? "";
-}
-
-/** A few plain lines saying what each slide shows, so the model can write about the images it cannot see. */
-export function describeSlides(slides: readonly Slide[]): string {
-  return slides
-    .map((s, i) => {
-      const parts = [s.kicker, s.headline.replace(/\n/g, " "), s.sub, ...(s.cards ?? []).map((c) => [c.big, c.text].filter(Boolean).join(" ")), ...(s.items ?? []).map((it) => it.text)]
-        .filter((p): p is string => Boolean(p));
-      return `${i + 1}. ${parts.join(" — ")}`;
-    })
-    .join("\n");
-}
-
 export interface WrittenCarousel {
   caption: string;
   slides: Slide[];
-  /** The Threads text, cut to 500 characters at a sentence or word; missing when the reply had none. */
-  threadsText?: string;
 }
 
 /**
@@ -338,6 +305,5 @@ export function parseCarousel(text: string, count: number, opts: { planTones?: r
   if (slides.length < MIN_WRITTEN_SLIDES) return null;
   const caption = (parsed.data.caption ?? "").replace(/\r\n?/g, "\n").trim();
   if (!caption) return null;
-  const threads = clip(parsed.data.threadsText, THREADS_TEXT_MAX);
-  return threads ? { caption, slides, threadsText: threads } : { caption, slides };
+  return { caption, slides };
 }
