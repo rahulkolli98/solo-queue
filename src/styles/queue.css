@@ -239,7 +239,8 @@
 /* Instagram collage tile: paper note, tape, tilt, the one paper shadow */
 .sq-q-tile {
   position: relative;
-  flex: 1 1 0;
+  /* Never smaller than its content: two posts on one day make the day's row taller instead of squeezing a title out of its tile. */
+  flex: 1 0 auto;
   min-height: 112px;
   box-sizing: border-box;
   border: 0;
@@ -324,7 +325,7 @@
 }
 .sq-q-tile-title {
   font-family: var(--font-display), "Bricolage Grotesque", sans-serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.3px;
