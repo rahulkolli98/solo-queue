@@ -59,7 +59,6 @@ import {
   type Readiness,
 } from "@/lib/studioModel";
 
-const BOARD_CARD_KIND: Record<string, DraftKind> = { thread: "threads", caption: "caption", reel: "reel", carousel: "carousel" };
 const FALLBACK_BEATS = ["Hook", "Tension", "Turn", "Payoff"];
 
 /** Board 02 and states 07d-07f: one topic's three columns, bottom bar and blog view. */
@@ -120,7 +119,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   );
   const attached = useQuery(api.media.byIds, { ids: attachedIds });
   const existingIds = useMemo(() => (drafts ?? []).map((d) => d._id as string), [drafts]);
-  const generation = useGeneration({ topicId, latest, onDone: () => editor.discard() });
+  const generation = useGeneration({ topicId, latest, generation: topic?.generation, onDone: () => editor.discard() });
   const queueWeek = useQueueWeek({
     topicId,
     tz: browserTz,
@@ -296,10 +295,16 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     if (!d) return undefined;
     if (queueWeek.queuedAt[d._id] !== undefined) return queueWeek.queuedAt[d._id];
     if (generation.freshIds.has(d._id) || !board) return undefined;
-    const hits = board.days
-      .flatMap((day) => [...day.threads, ...day.instagram])
-      .filter((c) => c.topicTitle === topic.title && BOARD_CARD_KIND[c.format ?? ""] === kind && c.status !== "failed");
+    const hits = postsOf(d._id).filter((c) => c.status !== "failed");
     return hits.length ? Math.min(...hits.map((c) => c.scheduledAt)) : undefined;
+  };
+  // The posts on the Queue board that are THIS draft (a draft written again is a new draft, with no post of its own).
+  const postsOf = (draftId: string) =>
+    (board?.days ?? []).flatMap((day) => [...day.threads, ...day.instagram]).filter((c) => c.draftId === draftId);
+  /** This draft already went out. */
+  const postedOf = (kind: DraftKind): boolean => {
+    const d = latest[kind];
+    return d ? postsOf(d._id).some((c) => c.status === "published") : false;
   };
 
   // A thread whose first post carries the carousel needs that carousel's images, and uses their state.
@@ -593,6 +598,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           onGenerate={writeOne("threads")}
           busy={generation.running}
           queueToggle={queueToggle("threads", "thread")}
+          carouselNote={threadHasCarousel ? `${latest.carousel?.slides?.length ?? 0} SLIDES` : undefined}
+          posted={postedOf("threads")}
           firstPostMedia={
             latest.threads
               ? {

@@ -20,6 +20,8 @@ export const TIMELINE_DAYS = 21;
 
 export interface BoardCard {
   _id: string;
+  /** The draft this post is; present on cards from the board query. */
+  draftId?: string;
   platform: Platform;
   scheduledAt: number;
   time: string;

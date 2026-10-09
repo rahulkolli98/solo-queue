@@ -2497,3 +2497,27 @@ body:has(.studio-bar) {
 .studio-col-threads .sq-seg:focus-visible {
   outline-color: var(--color-on-chrome-strong);
 }
+
+/* The Threads column head: the carousel tag beside the version stamp, and the note on a thread that already went out */
+.studio-colhead-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-6) var(--space-8);
+  min-width: 0;
+}
+.studio-th-tag {
+  border: 1px solid color-mix(in srgb, var(--color-on-chrome-strong) 45%, transparent);
+  background: transparent;
+  color: var(--color-on-chrome-strong);
+}
+.studio-th-posted {
+  margin: 0;
+  color: var(--color-muted-on-chrome);
+}
+
+.studio-ig-hint {
+  margin: 0 0 var(--space-10);
+  color: var(--color-muted-on-surface);
+}

@@ -60,6 +60,21 @@ export default defineSchema({
       )
     ),
     archivedAt: v.optional(v.number()),
+    /**
+     * Drafts are being written for this topic (or the last run failed), so a screen opened later, on this device or
+     * another, can still show it (added 2026-10-09). Set when a run starts and cleared when it ends; a run that never
+     * ended (the server stopped) is treated as over after a while.
+     */
+    generation: v.optional(
+      v.object({
+        /** The formats being written, by their generate names ("threads", "instagram-carousel", ...). */
+        kinds: v.array(v.string()),
+        startedAt: v.number(),
+        status: v.union(v.literal("running"), v.literal("failed")),
+        error: v.optional(v.string()),
+        errorCode: v.optional(v.string()),
+      })
+    ),
     status: v.union(
       v.literal("drafting"),
       v.literal("ready"),

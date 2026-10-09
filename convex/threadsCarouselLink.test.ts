@@ -178,3 +178,82 @@ describe("a carousel set to go to Threads goes on its thread's first post", () =
   });
 });
 
+
+describe("writing only the thread again", () => {
+  async function postedThreadAndCarousel(t: TestConvex, topic: Id<"topics">) {
+    const car = await t.run(async (ctx) =>
+      ctx.db.insert("drafts", {
+        topicId: topic,
+        platform: "instagram",
+        body: "Caption",
+        templateKey: "carousel-slides",
+        templateVersion: 1,
+        format: "carousel",
+        slides: [{ layout: "cover", tone: "cream", headline: "A" }, { layout: "close", tone: "ink", headline: "B" }],
+        charCount: 7,
+        constraintOk: true,
+        createdAt: Date.now(),
+      })
+    );
+    const posted = await insertDraft(t, topic, "threads", "Old one.\n---\nOld two.", "threads-hook-story");
+    await t.mutation(api.drafts.setCarousel, { id: posted, carouselDraftId: car });
+    await insertSlot(t, posted, Date.now() - 3600_000, { platform: "threads", status: "published" });
+    return { car, posted };
+  }
+  const threadRun = (t: TestConvex, topic: Id<"topics">) => t.action(api.drafting.generate, { topicId: topic, formats: ["threads"] });
+  const newestThread = (t: TestConvex) =>
+    t.run(async (ctx) => (await ctx.db.query("drafts").collect()).filter((d) => d.templateKey === "threads-hook-story").sort((a, b) => a.createdAt - b.createdAt).at(-1));
+
+  it("the new version starts with the carousel on its first post when the saved default says Threads, and the posted one is kept", async () => {
+    fakeModel("A new thread.\n---\nSecond post.");
+    const { t, topic } = await seeded();
+    const { car, posted } = await postedThreadAndCarousel(t, topic);
+    const { voice } = await t.query(api.settings.get, {});
+    await t.mutation(api.settings.update, { patch: { voice: { ...voice, formatDefaults: { carousel: { targets: ["instagram", "threads"] } } } } });
+    await threadRun(t, topic);
+    const next = await newestThread(t);
+    expect(next?._id).not.toBe(posted);
+    expect(next?.carouselDraftId).toBe(car);
+    // The one that already went out is still there, untouched.
+    expect(await t.run((ctx) => ctx.db.get(posted))).not.toBeNull();
+  });
+
+  it("starts as text only when the saved default is Instagram only", async () => {
+    fakeModel("A new thread.\n---\nSecond post.");
+    const { t, topic } = await seeded();
+    await postedThreadAndCarousel(t, topic);
+    await threadRun(t, topic);
+    expect((await newestThread(t))?.carouselDraftId).toBeUndefined();
+  });
+});
+
+describe("a run is marked on the topic, so a screen opened later still shows it", () => {
+  it("clears the mark when the run succeeds", async () => {
+    fakeModel(REPLY);
+    const { t, topic } = await seeded();
+    await carouselRun(t, topic);
+    expect((await t.run((ctx) => ctx.db.get(topic)))?.generation).toBeUndefined();
+  });
+
+  it("keeps the reason when the run fails, and the next run clears it", async () => {
+    vi.stubEnv("LLM_API_KEY", "test-key");
+    vi.stubEnv("LLM_MODEL", "test-model");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "bad key" } }), { status: 401 })));
+    const { t, topic } = await seeded();
+    await expect(carouselRun(t, topic)).rejects.toThrow();
+    const failed = (await t.run((ctx) => ctx.db.get(topic)))?.generation;
+    expect(failed).toMatchObject({ status: "failed", kinds: ["instagram-carousel"] });
+    expect(failed?.error?.length).toBeGreaterThan(0);
+
+    fakeModel(REPLY);
+    await carouselRun(t, topic);
+    expect((await t.run((ctx) => ctx.db.get(topic)))?.generation).toBeUndefined();
+  });
+
+  it("a refused run (a bad slide count) is recorded too, with its code", async () => {
+    fakeModel(REPLY);
+    const { t, topic } = await seeded();
+    await expect(t.action(api.drafting.generate, { topicId: topic, formats: ["instagram-carousel"], setup: { carousel: { count: 12 } } })).rejects.toThrow(/BAD_SLIDE_COUNT/);
+    expect((await t.run((ctx) => ctx.db.get(topic)))?.generation).toMatchObject({ status: "failed", errorCode: "BAD_SLIDE_COUNT" });
+  });
+});

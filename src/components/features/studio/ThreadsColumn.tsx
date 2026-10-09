@@ -43,7 +43,13 @@ export default function ThreadsColumn({
   busy = false,
   queueToggle,
   firstPostMedia,
+  carouselNote,
+  posted = false,
 }: {
+  /** "6 SLIDES" when the first post carries the carousel: a small tag in the column's head. */
+  carouselNote?: string;
+  /** This thread already went out; Regenerate then writes a new version that can be queued again. */
+  posted?: boolean;
   /** What the first post carries (nothing, a photo or video, or the topic's carousel); shown under a written thread. */
   firstPostMedia?: FirstPostMediaProps;
   /** Write just the thread (Studio asks first when it would replace text). Omit to hide the button. */
@@ -245,6 +251,12 @@ export default function ThreadsColumn({
           </span>
         </div>
         {firstPostMedia && readiness.state !== "queued" && <FirstPostMedia {...firstPostMedia} />}
+        {posted && (
+          <p className="t-meta studio-muted studio-th-posted">
+            THIS THREAD ALREADY WENT OUT. REGENERATE WRITES A NEW VERSION YOU CAN QUEUE AGAIN; THE POSTED ONE STAYS IN
+            PUBLISHED.
+          </p>
+        )}
       </div>
     );
   }
@@ -257,9 +269,16 @@ export default function ThreadsColumn({
           <h2 className="t-title">Threads</h2>
         </div>
         {view && !gen.writing && (
-          <span className="t-meta studio-stamp">
-            V{view.draft.templateVersion}
-            {frameName ? ` · ${frameName.toUpperCase()}` : ""}
+          <span className="studio-colhead-meta">
+            {carouselNote && (
+              <span className="sq-pill studio-th-tag" title="The first post carries the carousel">
+                + CAROUSEL · {carouselNote}
+              </span>
+            )}
+            <span className="t-meta studio-stamp">
+              V{view.draft.templateVersion}
+              {frameName ? ` · ${frameName.toUpperCase()}` : ""}
+            </span>
           </span>
         )}
       </div>
@@ -283,7 +302,7 @@ export default function ThreadsColumn({
             {posts.length}-POST THREAD
             <br />
             {readiness.state === "queued"
-              ? `QUEUED${queuedWhen ? ` → ${queuedWhen}` : ""}`
+              ? `${posted ? "POSTED" : "QUEUED"}${queuedWhen ? ` → ${queuedWhen}` : ""}`
               : target
                 ? `→ ${target}`
                 : "NO OPEN SLOT IN THE NEXT 2 WEEKS"}

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("convex/react", () => ({ useMutation: () => vi.fn(), useQuery: () => undefined, useAction: () => vi.fn() }));
 
 import FirstPostMedia, { type FirstPostMediaProps } from "@/components/features/studio/FirstPostMedia";
+import InstagramColumn from "@/components/features/studio/InstagramColumn";
 import ThreadsColumn from "@/components/features/studio/ThreadsColumn";
 import type { DraftView, GenState } from "@/components/features/studio/types";
 import type { MediaActions } from "@/components/features/studio/useMediaActions";
@@ -100,5 +101,47 @@ describe("ThreadsColumn with the first post's media", () => {
 
   it("is absent when the page does not pass it", () => {
     expect(column({ firstPostMedia: undefined })).not.toContain("FIRST POST CARRIES");
+  });
+});
+
+describe("the carousel tag and the posted note on the Threads column", () => {
+  const column = (over: Partial<Parameters<typeof ThreadsColumn>[0]> = {}) =>
+    html(<ThreadsColumn view={view("One.\n---\nTwo.")} readiness={ready} gen={idle} placeholders={[]} emptyCopy="x" {...over} />);
+
+  it("shows a small tag in the head when the first post carries the carousel, and none otherwise", () => {
+    expect(column({ carouselNote: "6 SLIDES" })).toContain("+ CAROUSEL · 6 SLIDES");
+    expect(column()).not.toContain("+ CAROUSEL");
+    expect(html(<ThreadsColumn readiness={ready} gen={idle} placeholders={[]} emptyCopy="x" carouselNote="6 SLIDES" />)).not.toContain("+ CAROUSEL");
+  });
+
+  it("says POSTED for a thread that went out, with what Regenerate does, and QUEUED for one that is only queued", () => {
+    const queued: Readiness = { state: "queued", overBy: 0, reason: "" };
+    const posted = column({ readiness: queued, posted: true, queuedWhen: "FRI 9 OCT · 09:30" });
+    expect(posted).toContain("POSTED → FRI 9 OCT · 09:30");
+    expect(posted).toContain("THIS THREAD ALREADY WENT OUT");
+    expect(posted).toContain("WRITES A NEW VERSION YOU CAN QUEUE AGAIN");
+    const waiting = column({ readiness: queued, queuedWhen: "FRI 9 OCT · 09:30" });
+    expect(waiting).toContain("QUEUED → FRI 9 OCT · 09:30");
+    expect(waiting).not.toContain("ALREADY WENT OUT");
+  });
+});
+
+describe("the Instagram tabs say what each one is", () => {
+  const panel = { readiness: ready, mediaState: "none" as const, asset: undefined, media, onAttach: vi.fn(), gen: idle };
+  const column = (tab: "reel" | "caption" | "carousel") =>
+    html(
+      <InstagramColumn
+        tab={tab}
+        onTab={vi.fn()}
+        draftCount={0}
+        panels={{ reel: { kind: "reel", ...panel }, caption: { kind: "caption", ...panel } }}
+        carousel={<div>carousel editor</div>}
+      />
+    );
+
+  it("a reel has its script and its caption, a caption is a photo or video post, a carousel is drawn here", () => {
+    expect(column("reel")).toContain("A REEL: YOUR VIDEO, WITH THIS SCRIPT AND ITS CAPTION");
+    expect(column("caption")).toContain("A PHOTO OR VIDEO POST: ONE IMAGE OR VIDEO, WITH THIS CAPTION.");
+    expect(column("carousel")).toContain("THE IMAGES ARE DRAWN HERE, NOT ATTACHED.");
   });
 });

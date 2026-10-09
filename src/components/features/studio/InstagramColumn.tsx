@@ -8,6 +8,13 @@ import { instagramFooter } from "@/lib/studioModel";
 
 export type IgTab = "reel" | "caption" | "carousel";
 
+/** What each tab is: three different ways to post on Instagram, each with its own caption. */
+const TAB_HINT: Record<IgTab, string> = {
+  reel: "A REEL: YOUR VIDEO, WITH THIS SCRIPT AND ITS CAPTION (THE CAPTION IS THE LAST LINE OF THE SCRIPT).",
+  caption: "A PHOTO OR VIDEO POST: ONE IMAGE OR VIDEO, WITH THIS CAPTION.",
+  carousel: "A CAROUSEL: THE SLIDES BELOW, WITH THIS CAPTION. THE IMAGES ARE DRAWN HERE, NOT ATTACHED.",
+};
+
 /** Board 02 / 07c-07e: the cream Instagram column with its Reel script / Caption / Carousel tabs. */
 export default function InstagramColumn({
   tab,
@@ -60,6 +67,7 @@ export default function InstagramColumn({
         aria-labelledby={tabId(tab)}
         tabIndex={-1}
       >
+        <p className="t-meta studio-ig-hint">{TAB_HINT[tab]}</p>
         {tab === "carousel" ? carousel : <IgPanel key={tab} {...panels[tab]} />}
       </div>
       {needCount > 0 && (
