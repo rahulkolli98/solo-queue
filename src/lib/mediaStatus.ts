@@ -96,12 +96,18 @@ const GENERIC_REASON =
   "That link is a web page, not an image or video file. Instagram needs a direct link to the file itself (ends in .jpg, .png, .mp4 ...).";
 
 /** Describe an asset's state for a given kind (the Studio panel derives the kind from its own state). */
-export function describeMediaStatus(kind: MediaStatusKind, asset: MediaLike, now: number): MediaStatus {
+export function describeMediaStatus(
+  kind: MediaStatusKind,
+  asset: MediaLike,
+  now: number,
+  /** Which platform the file is for; only the "ready" label names it. Default Instagram. */
+  platform: "instagram" | "threads" = "instagram"
+): MediaStatus {
   switch (kind) {
     case "ready":
       return {
         kind,
-        label: "READY FOR INSTAGRAM",
+        label: platform === "threads" ? "READY FOR THREADS" : "READY FOR INSTAGRAM",
         tone: "ok",
         checked: asset.verifiedAt ? `checked ${agoLabel(asset.verifiedAt, now)}` : null,
         reason: null,

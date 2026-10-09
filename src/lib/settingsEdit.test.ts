@@ -6,6 +6,7 @@ import {
   STYLE_GUIDE_MAX,
   addBannedWord,
   addPillarLink,
+  carouselTargetsChange,
   checkStyleGuideFile,
   clampShare,
   formatDefaultChange,
@@ -324,5 +325,28 @@ describe("about you and style guide", () => {
     expect(schema.safeParse({ ...base, aboutMe: "x".repeat(ABOUT_ME_MAX), styleGuide: "x".repeat(STYLE_GUIDE_MAX) }).success).toBe(true);
     expect(schema.safeParse({ ...base, aboutMe: "x".repeat(ABOUT_ME_MAX + 1) }).success).toBe(false);
     expect(schema.safeParse({ ...base, styleGuide: "x".repeat(STYLE_GUIDE_MAX + 1) }).success).toBe(false);
+  });
+});
+
+describe("carouselTargetsChange", () => {
+  const voiceWith = (targets?: ("instagram" | "threads")[]) =>
+    ({ ...DEFAULT_SETTINGS.voice, formatDefaults: targets ? { carousel: { targets } } : undefined }) as Parameters<typeof carouselTargetsChange>[0];
+
+  it("adds Threads to the default Instagram, and removes the saved choice when Instagram alone is left", () => {
+    expect(carouselTargetsChange(voiceWith(), "threads", true)).toEqual({ targets: ["instagram", "threads"] });
+    expect(carouselTargetsChange(voiceWith(["instagram", "threads"]), "threads", false)).toEqual({ targets: null });
+  });
+
+  it("allows Threads alone, but never leaves the carousel with nowhere to go", () => {
+    expect(carouselTargetsChange(voiceWith(["instagram", "threads"]), "instagram", false)).toEqual({ targets: ["threads"] });
+    expect(carouselTargetsChange(voiceWith(["threads"]), "threads", false)).toBeNull();
+    expect(carouselTargetsChange(voiceWith(), "instagram", false)).toBeNull();
+  });
+
+  it("the table row shows what a run would use", () => {
+    const rows = formatDefaultRows(voiceWith(["threads"]), []);
+    expect(rows.find((r) => r.kind === "carousel")?.targets).toEqual(["threads"]);
+    expect(rows.find((r) => r.kind === "threads")?.targets).toEqual([]);
+    expect(formatDefaultRows(voiceWith(), []).find((r) => r.kind === "carousel")?.targets).toEqual(["instagram"]);
   });
 });

@@ -2403,3 +2403,104 @@ body:has(.studio-bar) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---------- Threads: a carousel's Threads text, and a thread's optional media ---------- */
+.studio-setup-targets {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-16);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.studio-setup-targets legend {
+  padding: 0;
+  margin-bottom: var(--space-4);
+}
+.studio-setup-target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.studio-setup-target input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.studio-setup-targets .studio-setup-brief-hint {
+  flex: 1 1 100%;
+}
+.studio-th-cr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.studio-th-cr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  color: var(--color-muted-on-chrome);
+}
+.studio-th-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.studio-th-strip img {
+  display: block;
+  width: 48px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: var(--rounded-sharp);
+  border: 1px solid color-mix(in srgb, var(--color-on-chrome-strong) 25%, transparent);
+}
+.studio-col-threads .studio-th-cr .studio-muted,
+.studio-col-threads .studio-media-opt .t-meta {
+  color: var(--color-muted-on-chrome);
+}
+.studio-media-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-14);
+  border: 1.5px dashed color-mix(in srgb, var(--color-on-chrome-strong) 30%, transparent);
+  border-radius: var(--rounded-lg);
+}
+.studio-col-threads .studio-media-ok,
+.studio-col-threads .studio-media-bad {
+  color: var(--color-on-surface);
+}
+@media (max-width: 767px) {
+  .studio-setup-target {
+    min-height: 44px;
+  }
+}
+
+/* The Thread / Carousel switch on the dark Threads column */
+.studio-col-threads .sq-segs {
+  border-color: color-mix(in srgb, var(--color-on-chrome-strong) 35%, transparent);
+}
+.studio-col-threads .sq-seg {
+  color: var(--color-on-chrome-strong);
+}
+.studio-col-threads .sq-seg-on {
+  background: var(--color-on-chrome-strong);
+  color: var(--color-chrome);
+}
+.studio-col-threads .sq-seg:focus-visible {
+  outline-color: var(--color-on-chrome-strong);
+}

@@ -138,3 +138,78 @@ describe("generating a carousel for Threads", () => {
     ).rejects.toThrow(/INVALID_SETTINGS/);
   });
 });
+
+describe("writing just the Threads text", () => {
+  async function storedCarousel(t: TestConvex, topic: Awaited<ReturnType<typeof insertTopic>>, extra: Record<string, unknown> = {}) {
+    return await t.run(async (ctx) =>
+      ctx.db.insert("drafts", {
+        topicId: topic,
+        platform: "instagram",
+        body: "The Instagram caption.",
+        templateKey: "carousel-slides",
+        templateVersion: 1,
+        format: "carousel",
+        slides: [
+          { layout: "cover", tone: "cream", headline: "Price on positioning", sub: "Not on math." },
+          { layout: "cards", tone: "ink", headline: "The receipt", cards: [{ big: "10-20%", text: "Share of value.", tone: "cream" }] },
+        ],
+        mediaAssetIds: [await ctx.db.insert("mediaAssets", { storageId: "external:a", publicUrl: "https://x.test/a.png", mimeType: "image/png", createdAt: Date.now() })],
+        charCount: 22,
+        constraintOk: true,
+        createdAt: Date.now(),
+        ...extra,
+      })
+    );
+  }
+
+  it("writes the text from the slides and the caption, saves it on the carousel, and leaves the slides and images alone", async () => {
+    const model = fakeModel('"Most SaaS is underpriced. Price on the value, not the cost."');
+    const { t, topic } = await seeded();
+    const id = await storedCarousel(t, topic);
+    const before = await t.run((ctx) => ctx.db.get(id));
+    const out = await t.action(api.drafting.writeThreadsText, { draftId: id });
+    expect(out).toBe("Most SaaS is underpriced. Price on the value, not the cost.");
+    const after = await t.run((ctx) => ctx.db.get(id));
+    expect(after?.threadsText).toBe(out);
+    expect(after?.slides).toEqual(before?.slides);
+    expect(after?.mediaAssetIds).toEqual(before?.mediaAssetIds);
+    expect(after?.body).toBe("The Instagram caption.");
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("Price on positioning");
+    expect(sent).toContain("10-20% Share of value.");
+    expect(sent).toContain("The Instagram caption.");
+    expect(sent).toContain("500 characters");
+  });
+
+  it("cuts a reply that is too long to 500 characters, and refuses one with nothing in it", async () => {
+    const { t, topic } = await seeded();
+    const id = await storedCarousel(t, topic);
+    fakeModel("A sentence that goes on. ".repeat(60));
+    const long = await t.action(api.drafting.writeThreadsText, { draftId: id });
+    expect(long.length).toBeLessThanOrEqual(500);
+    fakeModel("   ");
+    await expect(t.action(api.drafting.writeThreadsText, { draftId: id })).rejects.toThrow(/BAD_THREADS_TEXT/);
+  });
+
+  it("refuses a draft that is not a carousel or is gone", async () => {
+    fakeModel("x");
+    const { t, topic } = await seeded();
+    const caption = await t.run(async (ctx) =>
+      ctx.db.insert("drafts", { topicId: topic, platform: "instagram", body: "c", templateKey: "ig-caption-beats", templateVersion: 1, charCount: 1, constraintOk: true, createdAt: Date.now() })
+    );
+    await expect(t.action(api.drafting.writeThreadsText, { draftId: caption })).rejects.toThrow(/NOT_A_CAROUSEL/);
+    const id = await storedCarousel(t, topic);
+    await t.run((ctx) => ctx.db.delete(id));
+    await expect(t.action(api.drafting.writeThreadsText, { draftId: id })).rejects.toThrow(/DRAFT_NOT_FOUND/);
+  });
+
+  it("writes from the caption alone for a carousel made of the founder's own images", async () => {
+    const model = fakeModel("Words for Threads.");
+    const { t, topic } = await seeded();
+    const id = await storedCarousel(t, topic, { slideSource: "uploaded" });
+    await t.action(api.drafting.writeThreadsText, { draftId: id });
+    const sent = model.bodies.join("\n");
+    expect(sent).toContain("founder's own images");
+    expect(sent).not.toContain("Price on positioning");
+  });
+});

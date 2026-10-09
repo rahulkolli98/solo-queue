@@ -1,11 +1,14 @@
 import type { AppSettings, Pillar } from "../../convex/lib/settingsModel";
 import {
+  CAROUSEL_TARGETS,
   KIND_LABEL,
   defaultInclude,
   frameFitsKind,
   resolveCount,
   resolveFrameKey,
+  resolveTargets,
   withFormatDefault,
+  type CarouselTarget,
   type FormatDefaults,
   type SetupKind,
 } from "../../convex/lib/formatSetup";
@@ -122,6 +125,8 @@ export interface FormatRow {
   takesCount: boolean;
   /** Posts in the thread, or 0 to follow the story frame. */
   count: number;
+  /** Carousel only: the platforms it is posted to (Instagram alone unless Threads is added). Other formats: []. */
+  targets: CarouselTarget[];
 }
 
 /**
@@ -156,8 +161,24 @@ export function formatDefaultRows(voice: Voice, frames: readonly FormatFrameLike
         kind === "threads" || kind === "carousel"
           ? (resolveCount({ kind, defaults: voice.formatDefaults, legacyPostCount: voice.defaultPostCount }) ?? 0)
           : 0,
+      targets: kind === "carousel" ? resolveTargets({ defaults: voice.formatDefaults }) : [],
     };
   });
+}
+
+/**
+ * The change that turns one platform on or off for the carousel. A carousel has to go somewhere, so turning off the
+ * last platform does nothing; ending up with Instagram alone removes the saved choice (that is the default).
+ */
+export function carouselTargetsChange(
+  current: Voice,
+  platform: CarouselTarget,
+  on: boolean
+): { targets: CarouselTarget[] | null } | null {
+  const now = resolveTargets({ defaults: current.formatDefaults });
+  const next = CAROUSEL_TARGETS.filter((t) => (t === platform ? on : now.includes(t)));
+  if (next.length === 0) return null;
+  return { targets: next.length === 1 && next[0] === "instagram" ? null : next };
 }
 
 /**
@@ -167,7 +188,7 @@ export function formatDefaultRows(voice: Voice, frames: readonly FormatFrameLike
 export function formatDefaultChange(
   current: Voice,
   kind: SetupKind,
-  change: { include?: boolean | null; frameKey?: string | null; count?: number | null }
+  change: { include?: boolean | null; frameKey?: string | null; count?: number | null; targets?: CarouselTarget[] | null }
 ): Partial<Voice> {
   const out: Partial<Voice> = { formatDefaults: withFormatDefault(current.formatDefaults, kind, change) };
   if (kind === "threads" && change.count === null) out.defaultPostCount = 0;

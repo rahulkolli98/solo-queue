@@ -5,24 +5,27 @@
  * Pure, so each rule is unit tested. The defaults rules themselves live in convex/lib/formatSetup.ts.
  */
 import {
+  CAROUSEL_TARGETS,
   FIT_OF,
   defaultInclude,
   frameFitsKind,
   resolveCount,
   resolveFrameKey,
+  resolveTargets,
+  type CarouselTarget,
   type FormatDefaults,
 } from "../../convex/lib/formatSetup";
 import { DEFAULT_SLIDE_COUNT, clampSlideCount } from "../../convex/lib/carouselDraft";
 import { DEFAULT_THEME, THEMES, isThemeKey, themeName } from "../../convex/lib/themes";
 import type { FrameFit } from "../../convex/lib/framesModel";
 import { POSTS_FALLBACK, clampPosts } from "@/lib/studioCompose";
-import { KIND_META, type DraftKind } from "@/lib/studioModel";
+import { KIND_META, type WriteKind } from "@/lib/studioModel";
 
 /** The carousel frame select's value for "no story frame: I will describe it". */
 export const NO_FRAME = "__none__";
 
 /** The formats Studio can write, in display order. */
-export const SETUP_ROWS: readonly DraftKind[] = ["threads", "caption", "reel", "carousel", "blog"];
+export const SETUP_ROWS: readonly WriteKind[] = ["threads", "caption", "reel", "carousel", "blog"];
 
 export interface SetupFrame {
   key: string;
@@ -45,8 +48,10 @@ export interface SetupChoice {
   lookKey?: string;
   /** Carousel: the design (theme) to draw it in, a key from convex/lib/themes.ts. */
   theme?: string;
+  /** Carousel: the platforms to write and post it for. */
+  targets?: CarouselTarget[];
 }
-export type SetupChoices = Partial<Record<DraftKind, SetupChoice>>;
+export type SetupChoices = Partial<Record<WriteKind, SetupChoice>>;
 
 export interface SetupInput {
   choices: SetupChoices;
@@ -55,19 +60,21 @@ export interface SetupInput {
   legacyPostCount: number | undefined;
   frames: readonly SetupFrame[];
   /** The story frame each existing draft used, so Regenerate keeps it unless it is changed. */
-  usedFrame?: Partial<Record<DraftKind, string | undefined>>;
+  usedFrame?: Partial<Record<WriteKind, string | undefined>>;
   /** Kinds that already have a draft (the blog is written again when it exists, unless unticked). */
-  hasDraft?: Partial<Record<DraftKind, boolean>>;
+  hasDraft?: Partial<Record<WriteKind, boolean>>;
   /** The saved carousel looks, for the select. */
   looks?: readonly { key: string; name: string; theme?: string }[];
   /** The look the existing carousel was written with, so Regenerate keeps it unless it is changed. */
   usedLook?: string;
   /** The theme the existing carousel is drawn in, so Regenerate keeps it unless it is changed. */
   usedTheme?: string;
+  /** The existing carousel also goes to Threads (it has a Threads text), so Regenerate keeps that unless it is changed. */
+  usedThreads?: boolean;
 }
 
 export interface SetupRow {
-  kind: DraftKind;
+  kind: WriteKind;
   label: string;
   include: boolean;
   /** The story frame in use, or undefined (the blog never has one; a format may have none that fits). */
@@ -93,19 +100,26 @@ export interface SetupRow {
   themeOptions: { key: string; name: string }[];
   /** Carousel: the theme to send with the run, or undefined (the drafting action then follows the look, else Solo Queue). */
   themeToSend: string | undefined;
+  /** Carousel: where it is written for and posted: picked now, else the existing carousel's, else the saved default. Other formats: []. */
+  targets: CarouselTarget[];
   /** Differs from what is saved, so "Make default" has something to save. */
   changed: boolean;
 }
 
-function usableFrame(frames: readonly SetupFrame[], key: string | undefined, kind: DraftKind): SetupFrame | undefined {
+function usableFrame(frames: readonly SetupFrame[], key: string | undefined, kind: WriteKind): SetupFrame | undefined {
   if (!key) return undefined;
   const frame = frames.find((f) => f.key === key);
   return frame && frame.isActive !== false && frameFitsKind(frame, kind) ? frame : undefined;
 }
 
 /** The saved default frame for a format, as Studio and the drafting action both resolve it. */
-export function defaultFrameOf(input: Pick<SetupInput, "defaults" | "legacyDefaultKey" | "frames">, kind: DraftKind): string | undefined {
+export function defaultFrameOf(input: Pick<SetupInput, "defaults" | "legacyDefaultKey" | "frames">, kind: WriteKind): string | undefined {
   return resolveFrameKey({ kind, defaults: input.defaults, legacyDefaultKey: input.legacyDefaultKey, frames: input.frames });
+}
+
+/** The same set of platforms, whatever the order. */
+export function sameTargets(a: readonly CarouselTarget[], b: readonly CarouselTarget[]): boolean {
+  return CAROUSEL_TARGETS.every((t) => a.includes(t) === b.includes(t));
 }
 
 export function buildSetupRows(input: SetupInput): SetupRow[] {
@@ -134,6 +148,14 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
       : undefined;
     const frame = frameKey ? input.frames.find((f) => f.key === frameKey) : undefined;
 
+    const savedTargets = resolveTargets({ defaults: input.defaults });
+    const targets =
+      kind === "carousel"
+        ? resolveTargets({
+            defaults: input.defaults,
+            picked: choice.targets ?? (input.usedThreads ? (["instagram", "threads"] as const) : undefined),
+          })
+        : [];
     const savedCount = resolveCount({ kind, defaults: input.defaults, legacyPostCount: input.legacyPostCount });
     const frameSteps = frame ? frame.beats.length : undefined;
     const count =
@@ -158,7 +180,8 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
     const changed =
       (choice.include !== undefined && choice.include !== savedInclude) ||
       (hasFrame && frameKey !== undefined && frameKey !== savedFrameKey) ||
-      ((kind === "threads" || kind === "carousel") && count !== undefined && count !== savedBaseline);
+      ((kind === "threads" || kind === "carousel") && count !== undefined && count !== savedBaseline) ||
+      (kind === "carousel" && !sameTargets(targets, savedTargets));
     return {
       kind,
       label: KIND_META[kind].label,
@@ -174,6 +197,7 @@ export function buildSetupRows(input: SetupInput): SetupRow[] {
       theme: kind === "carousel" ? theme : "",
       themeOptions: kind === "carousel" ? THEMES.map((t) => ({ key: t.key, name: t.name })) : [],
       themeToSend: kind === "carousel" ? explicitTheme : undefined,
+      targets,
       changed,
     };
   });
@@ -191,13 +215,14 @@ export function setupSummary(rows: readonly SetupRow[]): string {
       if (r.look && r.lookName) bits.push(`Look: ${r.lookName}`);
       if (r.kind === "threads" && r.count !== undefined) bits.push(`${r.count} posts`);
       if (r.kind === "carousel" && r.count !== undefined) bits.push(r.count === 1 ? "1 slide" : `${r.count} slides`);
+      if (r.kind === "carousel" && r.targets.includes("threads")) bits.push(r.targets.includes("instagram") ? "Instagram + Threads" : "Threads only");
       return bits.join(" · ");
     });
   return parts.length === 0 ? "Nothing is ticked to write." : parts.join("   ");
 }
 
 /** The kinds this run writes, in order. */
-export function includedKinds(rows: readonly SetupRow[]): DraftKind[] {
+export function includedKinds(rows: readonly SetupRow[]): WriteKind[] {
   return rows.filter((r) => r.include).map((r) => r.kind);
 }
 
@@ -206,7 +231,7 @@ export interface GenerateSetup {
   threads?: { frameKey?: string; count?: number };
   caption?: { frameKey?: string };
   reel?: { frameKey?: string };
-  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean; lookKey?: string; theme?: string };
+  carousel?: { frameKey?: string; count?: number; brief?: string; noFrame?: boolean; lookKey?: string; theme?: string; targets?: CarouselTarget[] };
 }
 
 /**
@@ -239,6 +264,8 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
       if (row.look) entry.lookKey = row.look;
       // Only a theme the founder picked, or the one the existing carousel has: otherwise the look's theme applies.
       if (row.themeToSend) entry.theme = row.themeToSend;
+      // Only when it differs from the saved default (an untouched run sends no platform).
+      if (!sameTargets(row.targets, resolveTargets({ defaults: input.defaults }))) entry.targets = row.targets;
       if (Object.keys(entry).length) out.carousel = entry;
     }
   }
@@ -249,7 +276,7 @@ export function setupToSend(rows: readonly SetupRow[], input: Pick<SetupInput, "
  * The setup for "Draft this" on an angle card: only that angle's format is ticked and its story frame is picked
  * (a frame that does not fit the format is ignored by the rows, so the saved default applies).
  */
-export function choicesForAngle(angle: { kind: DraftKind; frameKey?: string }): SetupChoices {
+export function choicesForAngle(angle: { kind: WriteKind; frameKey?: string }): SetupChoices {
   const out: SetupChoices = {};
   for (const kind of SETUP_ROWS) {
     out[kind] = kind === angle.kind ? { include: true, ...(angle.frameKey ? { frameKey: angle.frameKey } : {}) } : { include: false };

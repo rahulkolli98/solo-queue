@@ -293,6 +293,24 @@ function compact<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+/** The model's own Threads post text, tidied and cut to 500 characters at a sentence or word; "" when nothing usable is left. */
+export function cleanThreadsText(raw: string): string {
+  const unfenced = raw.replace(/^```[a-z]*\n?|```$/gim, "").trim();
+  const unquoted = unfenced.replace(/^["\u201c]+|["\u201d]+$/g, "");
+  return clip(unquoted, THREADS_TEXT_MAX) ?? "";
+}
+
+/** A few plain lines saying what each slide shows, so the model can write about the images it cannot see. */
+export function describeSlides(slides: readonly Slide[]): string {
+  return slides
+    .map((s, i) => {
+      const parts = [s.kicker, s.headline.replace(/\n/g, " "), s.sub, ...(s.cards ?? []).map((c) => [c.big, c.text].filter(Boolean).join(" ")), ...(s.items ?? []).map((it) => it.text)]
+        .filter((p): p is string => Boolean(p));
+      return `${i + 1}. ${parts.join(" — ")}`;
+    })
+    .join("\n");
+}
+
 export interface WrittenCarousel {
   caption: string;
   slides: Slide[];
