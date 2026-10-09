@@ -155,21 +155,6 @@
   background: var(--color-chrome);
   color: var(--color-on-chrome-strong);
 }
-/* Side by side: the Threads column stays in view while a tall Instagram column scrolls past, and
-   its footer buttons stay inside the column (its own scroll, not the page's). */
-@media (min-width: 768px) {
-  .studio-col-threads {
-    position: sticky;
-    top: var(--space-16);
-    max-height: calc(100dvh - 200px);
-    overflow-y: auto;
-  }
-  .studio-col-threads .studio-colfoot {
-    position: sticky;
-    bottom: 0;
-    background: var(--color-chrome);
-  }
-}
 .studio-col-ig,
 .studio-col-blog {
   background: var(--color-surface-raised);

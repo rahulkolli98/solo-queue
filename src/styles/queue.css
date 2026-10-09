@@ -201,6 +201,9 @@
 .sq-q-chip {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   height: 18px;
   padding: 0 6px;
   border-radius: 9px;
@@ -291,9 +294,14 @@
 }
 .sq-q-tile-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-6);
+  gap: var(--space-4) var(--space-6);
+  min-width: 0;
+  /* Bounded by the tile in every engine, so the pills wrap or shrink instead of running past its edge. */
+  width: 100%;
+  box-sizing: border-box;
 }
 .sq-q-tile-bottom {
   display: flex;

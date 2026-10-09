@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   barSummary,
   draftsNeedingFix,
+  needsMediaKinds,
   queueKindsOf,
   studioGuide,
   type ReadyState,
@@ -65,5 +66,22 @@ describe("choosing what goes to the queue", () => {
     });
     expect(g.text).toMatch(/switch/i);
     expect(g.tone).toBe("info");
+  });
+});
+
+describe("a draft that needs media starts left out of the queue", () => {
+  it("lists a caption or reel with no media attached, and only that", () => {
+    expect(needsMediaKinds({ threads: r("ready"), caption: r("ready"), reel: r("media_required") })).toEqual(["reel"]);
+    expect(needsMediaKinds({ threads: r("media_required"), caption: r("media_required"), reel: r("media_required") })).toEqual(["caption", "reel"]);
+    // Media that is attached but needs a check, or has gone, is a fix to make, not a draft to leave out.
+    expect(needsMediaKinds({ caption: r("media_unverified"), reel: r("media_stale") })).toEqual([]);
+    expect(needsMediaKinds({ caption: r("missing"), reel: r("over") })).toEqual([]);
+    expect(needsMediaKinds({})).toEqual([]);
+  });
+
+  it("with it left out, the reel without a video blocks nothing and the bar queues the rest", () => {
+    const states = { threads: r("ready"), caption: r("ready"), reel: r("media_required") };
+    const bar = barSummary({ states, generating: false, emptySub: "", excluded: needsMediaKinds(states) });
+    expect(bar).toMatchObject({ readyCount: 2, needFixing: 0, canQueue: true, buttonLabel: "Queue 2 posts" });
   });
 });
