@@ -94,9 +94,11 @@ export function replaceQuestion(existing: DraftKind[]): string {
 export function kindsAtRisk(
   requested: DraftKind[],
   have: Partial<Record<DraftKind, unknown>>,
-  typingThread: boolean
+  typingThread: boolean,
+  /** Other kinds with text typed in their "Write it myself" box that is not saved yet. */
+  typing: Partial<Record<DraftKind, boolean>> = {}
 ): DraftKind[] {
-  return requested.filter((k) => Boolean(have[k]) || (k === "threads" && typingThread));
+  return requested.filter((k) => Boolean(have[k]) || (k === "threads" && typingThread) || Boolean(typing[k]));
 }
 
 /** The stored thread text with an empty post added at the end (unchanged at the 25-post limit). */

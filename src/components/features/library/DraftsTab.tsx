@@ -17,6 +17,7 @@ import {
 } from "@/lib/libraryBoard";
 import { copyText } from "@/lib/clipboard";
 import { refusalText } from "@/lib/refusalText";
+import { useTwoTap } from "@/lib/useTwoTap";
 import { api } from "../../../../convex/_generated/api";
 import { AttachDrawer, TrimDrawer } from "./DraftDrawers";
 import LibraryRail from "./LibraryRail";
@@ -43,9 +44,12 @@ function DraftPostcard({
   onAttach: () => void;
 }) {
   const enqueue = useMutation(api.slots.enqueue);
+  const removeDraft = useMutation(api.drafts.remove);
   const convex = useConvex();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const del = useTwoTap();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const status = DRAFT_STATUS[card.status];
   const isIg = card.platform === "instagram";
   const color = pillarColorVar(pillars, pillarKey);
@@ -63,6 +67,18 @@ function DraftPostcard({
     } catch (err) {
       toast({ title: "Not queued", detail: refusalText(err, "Could not queue this draft. Try again."), tone: "bad" });
       setBusy(false);
+    }
+  }
+
+  async function onDelete() {
+    setDeleteError(null);
+    try {
+      await removeDraft({ id: card.draftId });
+      toast({ title: "Draft deleted" });
+    } catch (err) {
+      const why = refusalText(err, "Try again.");
+      setDeleteError(why);
+      toast({ title: "Could not delete the draft", detail: why, tone: "bad" });
     }
   }
 
@@ -107,12 +123,26 @@ function DraftPostcard({
         <span className="lb-dot" style={{ background: color }} aria-hidden="true" />
         <span className="t-meta">{pillarName.toUpperCase()}</span>
       </div>
+      {deleteError && (
+        <p className="lb-reason lb-reason-plain" role="alert">
+          {deleteError}
+        </p>
+      )}
       <div className="lb-actions">
         <Link href={`/studio/${card.topicId}`} className="lb-act">
           <span className="lb-lead">Open in&nbsp;</span>Studio
         </Link>
         <button type="button" className="lb-act lb-act-dark" disabled={busy} onClick={onFix} aria-label={status.action}>
           {shortAction(status.action)}
+        </button>
+        <button
+          type="button"
+          className="lb-act"
+          aria-pressed={del.armed}
+          aria-label={del.armed ? "Tap again to delete this draft" : "Delete this draft"}
+          onClick={() => del.tap(() => void onDelete())}
+        >
+          {del.armed ? "Tap again" : "Delete"}
         </button>
       </div>
     </article>

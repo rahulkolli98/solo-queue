@@ -88,3 +88,76 @@ describe("frames functions", () => {
     );
   });
 });
+
+describe("frames.remove", () => {
+  async function seeded() {
+    const t = newTest();
+    await t.mutation(api.frames.ensureDefaults, {});
+    // Settings are stored the first time they are saved.
+    const { voice } = await t.query(api.settings.get, {});
+    await t.mutation(api.settings.update, { patch: { voice } });
+    return t;
+  }
+  const mine = {
+    key: "my-frame",
+    name: "My frame",
+    beats: [
+      { label: "One", hint: "first" },
+      { label: "Two", hint: "second" },
+    ],
+    fits: ["thread" as const],
+    color: "pillar-build",
+  };
+
+  it("deletes a frame the founder made", async () => {
+    const t = await seeded();
+    await t.mutation(api.frames.save, mine);
+    const out = await t.mutation(api.frames.remove, { key: "my-frame" });
+    expect(out).toEqual({ key: "my-frame", hidden: false });
+    expect(await t.query(api.frames.getByKey, { key: "my-frame" })).toBeNull();
+    expect((await t.query(api.frames.list, {})).map((f) => f.key)).not.toContain("my-frame");
+  });
+
+  it("hides a starter frame, which ensureDefaults does not bring back, and saving it again does", async () => {
+    const t = await seeded();
+    const out = await t.mutation(api.frames.remove, { key: "ig-reel" });
+    expect(out).toEqual({ key: "ig-reel", hidden: true });
+    expect((await t.query(api.frames.list, {})).map((f) => f.key)).not.toContain("ig-reel");
+    expect((await t.mutation(api.frames.ensureDefaults, {})).inserted).toBe(0);
+    expect((await t.query(api.frames.list, {})).map((f) => f.key)).not.toContain("ig-reel");
+    const reel = DEFAULT_FRAMES.find((f) => f.key === "ig-reel")!;
+    await t.mutation(api.frames.save, reel);
+    expect((await t.query(api.frames.list, {})).map((f) => f.key)).toContain("ig-reel");
+  });
+
+  it("clears the format defaults that pointed at it, and keeps the others", async () => {
+    const t = await seeded();
+    await t.mutation(api.frames.save, mine);
+    const { voice } = await t.query(api.settings.get, {});
+    await t.mutation(api.settings.update, {
+      patch: { voice: { ...voice, formatDefaults: { threads: { frameKey: "my-frame", count: 5 }, reel: { frameKey: "ig-reel" }, carousel: { frameKey: "my-frame" } } } },
+    });
+    await t.mutation(api.frames.remove, { key: "my-frame" });
+    const after = (await t.query(api.settings.get, {})).voice.formatDefaults;
+    expect(after).toEqual({ threads: { count: 5 }, reel: { frameKey: "ig-reel" } });
+  });
+
+  it("moves the old single default frame to another thread frame", async () => {
+    const t = await seeded();
+    const before = (await t.query(api.settings.get, {})).voice.defaultFrameKey;
+    await t.mutation(api.frames.remove, { key: before });
+    const after = (await t.query(api.settings.get, {})).voice.defaultFrameKey;
+    expect(after).not.toBe(before);
+    const heir = await t.query(api.frames.getByKey, { key: after });
+    expect(heir?.isActive).toBe(true);
+    expect(heir?.fits).toContain("thread");
+  });
+
+  it("refuses to remove the last frame, and does nothing for an unknown key", async () => {
+    const t = newTest();
+    await t.mutation(api.frames.save, mine);
+    await expect(t.mutation(api.frames.remove, { key: "my-frame" })).rejects.toThrow(/LAST_FRAME/);
+    expect(await t.query(api.frames.getByKey, { key: "my-frame" })).not.toBeNull();
+    expect(await t.mutation(api.frames.remove, { key: "never-existed" })).toBeNull();
+  });
+});

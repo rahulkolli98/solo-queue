@@ -12,6 +12,7 @@ import CarouselPanel from "@/components/features/studio/CarouselPanel";
 import FormatSetup from "@/components/features/studio/FormatSetup";
 import InstagramColumn, { type IgTab } from "@/components/features/studio/InstagramColumn";
 import PlatformNotice from "@/components/features/studio/PlatformNotice";
+import QueueToggle from "@/components/features/studio/QueueToggle";
 import ReplaceConfirm from "@/components/features/studio/ReplaceConfirm";
 import { GenerateControls, StudioToolbar, type Pane } from "@/components/features/studio/StudioActions";
 import StudioBottomBar from "@/components/features/studio/StudioBottomBar";
@@ -22,6 +23,7 @@ import type { DraftView } from "@/components/features/studio/types";
 import { useGeneration } from "@/components/features/studio/useGeneration";
 import { useMediaActions } from "@/components/features/studio/useMediaActions";
 import { useOpenSlots } from "@/components/features/studio/useOpenSlots";
+import { useQueueSelection } from "@/components/features/studio/useQueueSelection";
 import { useQueueWeek } from "@/components/features/studio/useQueueWeek";
 import StudioSkeleton from "@/components/skeletons/StudioSkeleton";
 import Banner from "@/components/ui/Banner";
@@ -46,6 +48,7 @@ import {
   latestByKind,
   mediaState,
   openSlots,
+  queueKindsOf,
   readiness,
   saveLabel,
   studioGuide,
@@ -82,6 +85,8 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     (e) => studioErrorText(e, "Couldn't save edits. Press Retry.")
   );
   const media = useMediaActions();
+  // Which drafts the founder switched off for the queue (all on until switched off).
+  const queueSel = useQueueSelection(topicId);
 
   // What the founder changed for this run, per format; anything not here follows the saved defaults.
   // "Draft this" on a Research angle opens Studio with only that format ticked and its frame picked.
@@ -194,7 +199,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
 
   /** Run now, or first ask once when it would replace text the founder already has. */
   function askThenRun(kinds: DraftKind[], run: () => void) {
-    const atRisk = kindsAtRisk(kinds, latest, Boolean(manualText.threads));
+    const atRisk = kindsAtRisk(kinds, latest, Boolean(manualText.threads), manualText);
     if (atRisk.length === 0) {
       run();
       return;
@@ -218,6 +223,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       legacyPostCount: settings?.voice.defaultPostCount,
       frames: frames ?? [],
     });
+  /** A panel's own Generate / Regenerate: writes just that draft, even if it is not ticked in the setup line. */
+  const writeOne = (kind: DraftKind) => () =>
+    askThenRun([kind], () => void generation.start([kind], kind === "blog" ? undefined : setupArgs([kind]), existingIds));
   const generateAll = () => {
     const kinds = kindsToWrite;
     askThenRun(kinds, () => {
@@ -329,17 +337,26 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
   // A failed regenerate leaves the old drafts on screen, so say so; missing ones get their own error card.
   const staleKinds = generation.failedKinds.filter((k) => latest[k]);
   const gen = (kind: DraftKind) => generation.genState(kind, existingIds);
+  // Left out of the queue: what the founder switched off, and formats that were never written and are not ticked
+  // in the setup line (nobody asked for them, so they are not "missing").
+  const unwanted = QUEUE_KINDS.filter((k) => !latest[k] && rows.find((r) => r.kind === k)?.include === false);
+  const excluded = [...new Set([...queueSel.off, ...unwanted])];
   const summary = barSummary({
     states,
     generating: generation.running,
     progress: generation.progress ? { done: generation.progress.done, total: generation.progress.total } : undefined,
     emptySub: "GENERATE TO START",
+    excluded,
   });
   // Drafts that block queueing: over the limit, media, or a failed write. They drive the headline,
   // the Instagram footer and, on a phone, the other pane's switch ring and notice.
   const needFix = draftsNeedingFix(
     states,
-    QUEUE_KINDS.filter((k) => !latest[k] && gen(k).error)
+    QUEUE_KINDS.filter((k) => !latest[k] && gen(k).error),
+    excluded
+  );
+  const queueToggle = (kind: DraftKind, what: string) => (
+    <QueueToggle included={!queueSel.off.includes(kind)} onChange={(on) => queueSel.setIncluded(kind, on)} what={what} />
   );
   const threadsNeed = needFix.filter((k) => k === "threads").length;
   const igNeed = needFix.length - threadsNeed;
@@ -361,6 +378,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
     hasOpenSlot: board === undefined || slotsAll.length > 0,
     writerOpen,
     fromResearch: arrivedFromResearch,
+    excluded,
   });
   const fromResearch = arrivedFromResearch && !researchDismissed;
   const research = angle ? angleBanner(KIND_META[angle.kind].noun) : researchBanner(hasDrafts, Boolean(topic?.brief));
@@ -397,6 +415,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
       onManualText: (has: boolean) => setManualText((m) => ({ ...m, [kind]: has })),
       onSaveManual: (text: string) => saveManual(kind, text),
       bannedWords: settings?.voice.bannedWords,
+      onGenerate: writeOne(kind),
+      busy: generation.running,
+      queueToggle: queueToggle(kind, kind === "reel" ? "reel script" : "caption"),
     };
   }
 
@@ -536,6 +557,9 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           onWriting={setWriterOpen}
           expectedPosts={generation.running ? generation.postCount : undefined}
           bannedWords={settings?.voice.bannedWords}
+          onGenerate={writeOne("threads")}
+          busy={generation.running}
+          queueToggle={queueToggle("threads", "thread")}
           notice={
             pane === "threads" && igNeed > 0 ? (
               <PlatformNotice platform="Instagram" count={igNeed} onOpen={() => setPane("instagram")} />
@@ -558,10 +582,10 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
               topicId={topicId}
               draft={latest.carousel}
               gen={gen("carousel")}
-              onWrite={() =>
-                askThenRun(["carousel"], () => void generation.start(["carousel"], setupArgs(["carousel"]), existingIds))
-              }
+              onWrite={writeOne("carousel")}
               bannedWords={settings?.voice.bannedWords}
+              busy={generation.running}
+              queueToggle={states.carousel?.state === "queued" ? undefined : queueToggle("carousel", "carousel")}
             />
           }
         />
@@ -578,7 +602,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
           }}
           gen={gen("blog")}
           writing={generation.running}
-          onWrite={() => void generation.start(["blog"], undefined, existingIds)}
+          onWrite={writeOne("blog")}
           onSaveManual={(text) => saveManual("blog", text)}
         />
       </div>
@@ -590,7 +614,7 @@ export default function StudioWorkspace({ topicId }: { topicId: string }) {
         blogChecked={blogRow?.include ?? false}
         blogLocked={false}
         onBlog={(on) => choose("blog", { include: on })}
-        onQueue={() => void queueWeek.queue(latest)}
+        onQueue={() => void queueWeek.queue(latest, queueKindsOf(states, excluded))}
         queuing={queueWeek.queuing}
         nextStep={guide.text}
         nextTone={guide.tone}

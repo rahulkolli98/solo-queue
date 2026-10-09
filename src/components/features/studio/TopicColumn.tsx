@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import AddSourceForm from "@/components/features/studio/AddSourceForm";
+import ClampedText from "@/components/ui/ClampedText";
 import { ChevronDownIcon } from "@/components/features/studio/glyphs";
 
 const TONES = ["yellow", "pink", "cream"] as const;
@@ -63,7 +64,9 @@ export default function TopicColumn({
           <div className="studio-note" data-tone={TONES[i % TONES.length]} data-i={i} key={s._id}>
             <span className="sq-tape" aria-hidden="true" />
             <span className="t-meta">SOURCE · {sourceLabel(s)}</span>
-            <span className="studio-note-text">{sourceBody(s)}</span>
+            <ClampedText text={sourceBody(s)}>
+              {(shown) => <span className="studio-note-text">{shown}</span>}
+            </ClampedText>
           </div>
         ))}
         {more > 0 && (
@@ -74,13 +77,17 @@ export default function TopicColumn({
         {topic.brief && (
           <div className="studio-note" data-tone="cream" data-i="8">
             <span className="t-meta">YOUR BRIEF · SENT TO THE MODEL WHEN YOU GENERATE</span>
-            <span className="studio-note-text">{topic.brief}</span>
+            <ClampedText text={topic.brief}>
+              {(shown) => <span className="studio-note-text">{shown}</span>}
+            </ClampedText>
           </div>
         )}
         {topic.notes && (
           <div className="studio-note" data-tone="cream" data-i="9">
             <span className="t-meta">YOUR NOTE</span>
-            <span className="t-aside studio-note-aside">{topic.notes}</span>
+            <ClampedText text={topic.notes}>
+              {(shown) => <span className="t-aside studio-note-aside">{shown}</span>}
+            </ClampedText>
           </div>
         )}
 

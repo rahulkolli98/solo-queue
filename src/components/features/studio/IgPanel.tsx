@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import AutoTextarea from "@/components/features/studio/AutoTextarea";
+import GenerateButton from "@/components/features/studio/GenerateButton";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
 import ManualDraft from "@/components/features/studio/ManualDraft";
 import MediaPanel from "@/components/features/studio/MediaPanel";
@@ -31,6 +32,12 @@ export interface IgPanelProps {
   onSaveManual?: (text: string) => Promise<void>;
   /** The founder's never-use words (Settings, Voice): a caption that uses one is flagged. */
   bannedWords?: readonly string[];
+  /** Write just this draft (Studio asks first when it would replace text). Omit to hide the button. */
+  onGenerate?: () => void;
+  /** Any generation is running: only one runs at a time. */
+  busy?: boolean;
+  /** The "In this queue" switch, shown in the footer once there is a draft that is not queued. */
+  queueToggle?: ReactNode;
 }
 
 function SceneSkeleton() {
@@ -166,6 +173,9 @@ export default function IgPanel({
   onManualText,
   onSaveManual,
   bannedWords,
+  onGenerate,
+  busy = false,
+  queueToggle,
 }: IgPanelProps) {
   const [manual, setManual] = useState(false);
   const label = kind === "reel" ? "reel script" : "caption";
@@ -174,7 +184,7 @@ export default function IgPanel({
     return kind === "reel" ? (
       <>
         <SceneSkeleton />
-        <p className="studio-empty-copy">The {label} starts once the thread is done.</p>
+        <p className="studio-empty-copy">The {label} is being written.</p>
         <span className="t-mono studio-foot-hot">WRITING THE {label.toUpperCase()}… {gen.elapsed}</span>
       </>
     ) : (
@@ -215,9 +225,12 @@ export default function IgPanel({
           labels={kind === "reel" ? REEL_GHOSTS : CAPTION_GHOSTS}
           copy={`Generate and the ${label} lands here.`}
         />
-        <button type="button" className="sq-btn sq-btn-sm studio-write-myself" onClick={() => setManual(true)}>
-          Write it myself
-        </button>
+        <div className="studio-actions-row studio-write-myself">
+          {onGenerate && <GenerateButton has={false} busy={busy} onClick={onGenerate} what={label} tone="dark" />}
+          <button type="button" className="sq-btn sq-btn-sm" onClick={() => setManual(true)}>
+            Write it myself
+          </button>
+        </div>
       </>
     );
   }
@@ -247,8 +260,12 @@ export default function IgPanel({
         ) : (
           <span className="t-mono studio-foot-rust">NO OPEN SLOT IN THE NEXT 2 WEEKS</span>
         )}
-        <span className="t-meta">V{view.draft.templateVersion}</span>
+        <span className="studio-ig-foot-end">
+          {onGenerate && <GenerateButton has busy={busy} onClick={onGenerate} what={label} />}
+          <span className="t-meta">V{view.draft.templateVersion}</span>
+        </span>
       </div>
+      {!queued && queueToggle}
     </>
   );
 }

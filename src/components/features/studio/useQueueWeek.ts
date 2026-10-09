@@ -31,11 +31,16 @@ export function useQueueWeek({
   /** Draft id -> the time it was queued for, for this page session. */
   const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
 
-  async function queue(latest: Partial<Record<DraftKind, Draft>>): Promise<void> {
+  /** `kinds`: the drafts to queue (the founder's picks). Omitted: everything the topic has. */
+  async function queue(latest: Partial<Record<DraftKind, Draft>>, kinds?: readonly DraftKind[]): Promise<void> {
     setQueuing(true);
     try {
       await prepare();
-      const result = await queueTopic({ topicId: topicId as Id<"topics">, tz });
+      const result = await queueTopic({
+        topicId: topicId as Id<"topics">,
+        tz,
+        ...(kinds ? { templateKeys: kinds.map((k) => KIND_META[k].templateKey) } : {}),
+      });
       const marks: Record<string, number> = {};
       for (const q of result.queued) {
         const kind = (Object.keys(KIND_META) as DraftKind[]).find((k) => KIND_META[k].templateKey === q.templateKey);

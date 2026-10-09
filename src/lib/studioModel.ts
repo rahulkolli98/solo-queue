@@ -19,9 +19,16 @@ export type DraftKind = "threads" | "caption" | "reel" | "carousel" | "blog";
 /** The three formats `slots.queueTopic` can queue, in lane order. */
 export const QUEUE_KINDS: readonly DraftKind[] = ["threads", "caption", "reel"];
 
-/** The kinds this topic is queued with: the usual three, plus the carousel when the topic has one (most do not). */
-export function queueKindsOf(states: Partial<Record<DraftKind, unknown>>): readonly DraftKind[] {
-  return states.carousel ? [...QUEUE_KINDS, "carousel"] : QUEUE_KINDS;
+/**
+ * The kinds this topic is queued with: the usual three, plus the carousel when the topic has one (most do not),
+ * less any the founder switched off for this queue (an unfinished reel must not hold back the rest).
+ */
+export function queueKindsOf(
+  states: Partial<Record<DraftKind, unknown>>,
+  excluded: readonly DraftKind[] = []
+): readonly DraftKind[] {
+  const all: readonly DraftKind[] = states.carousel ? [...QUEUE_KINDS, "carousel"] : QUEUE_KINDS;
+  return excluded.length === 0 ? all : all.filter((k) => !excluded.includes(k));
 }
 
 export const KIND_META: Record<
@@ -207,8 +214,10 @@ export function barSummary(input: {
   progress?: { done: number; total: number };
   /** Copy for the "nothing yet" state. */
   emptySub: string;
+  /** Kinds switched off for this queue: they count for nothing here. */
+  excluded?: readonly DraftKind[];
 }): BarSummary {
-  const kinds = queueKindsOf(input.states);
+  const kinds = queueKindsOf(input.states, input.excluded);
   const entries = kinds.map((k) => input.states[k]).filter((r): r is Readiness => Boolean(r));
   const written = entries.filter((r) => r.state !== "missing");
   const ready = entries.filter((r) => r.state === "ready").length;
@@ -225,6 +234,17 @@ export function barSummary(input: {
       readyCount: ready,
       needFixing: 0,
       buttonLabel,
+      canQueue: false,
+    };
+  }
+  if (written.length === 0 && Object.values(input.states).some((r) => r && r.state !== "missing")) {
+    // Drafts exist but every one is switched off for this queue.
+    return {
+      headline: "Nothing picked",
+      sub: "SWITCH ON WHAT TO QUEUE",
+      readyCount: 0,
+      needFixing: 0,
+      buttonLabel: "Pick what to queue",
       canQueue: false,
     };
   }
@@ -292,9 +312,10 @@ const BLOCKING: readonly ReadyState[] = [
  */
 export function draftsNeedingFix(
   states: Partial<Record<DraftKind, Readiness>>,
-  errored: readonly DraftKind[] = []
+  errored: readonly DraftKind[] = [],
+  excluded: readonly DraftKind[] = []
 ): DraftKind[] {
-  return queueKindsOf(states).filter((kind) => {
+  return queueKindsOf(states, excluded).filter((kind) => {
     const state = states[kind]?.state;
     if (state && BLOCKING.includes(state)) return true;
     return errored.includes(kind) && (state === undefined || state === "missing");
@@ -588,6 +609,8 @@ export interface GuideInput {
   writerOpen?: boolean;
   /** The founder arrived from Research (`?from=research`), where the thread may already be written. */
   fromResearch?: boolean;
+  /** Kinds switched off for this queue: the sentence ignores them. */
+  excluded?: readonly DraftKind[];
 }
 
 const IG_KINDS = ["reel", "caption"] as const;
@@ -605,8 +628,9 @@ function listNames(names: string[]): string {
  */
 export function studioGuide(input: GuideInput): StudioGuide {
   const { states } = input;
-  const at = (k: DraftKind): ReadyState => states[k]?.state ?? "missing";
-  const kinds = queueKindsOf(states);
+  const off = input.excluded ?? [];
+  const at = (k: DraftKind): ReadyState => (off.includes(k) ? "missing" : (states[k]?.state ?? "missing"));
+  const kinds = queueKindsOf(states, off);
   const written = kinds.filter((k) => at(k) !== "missing");
   const queued = written.filter((k) => at(k) === "queued");
   const ready = kinds.filter((k) => at(k) === "ready");
@@ -639,6 +663,9 @@ export function studioGuide(input: GuideInput): StudioGuide {
 
   if (input.generating) {
     return made("Writing your drafts. Stay on this page: each one appears as soon as it is written.", "wait");
+  }
+  if (written.length === 0 && Object.values(states).some((r) => r && r.state !== "missing")) {
+    return made("Every draft is switched off for the queue. Switch one on in its panel, then press Queue posts.", "info");
   }
   if (written.length === 0) {
     if (input.manualText) {

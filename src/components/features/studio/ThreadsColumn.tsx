@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from "react";
+import GenerateButton from "@/components/features/studio/GenerateButton";
 import GenerationErrorCard from "@/components/features/studio/GenerationErrorCard";
 import ManualThread from "@/components/features/studio/ManualThread";
 import { ThreadsAvatar } from "@/components/features/studio/glyphs";
@@ -37,7 +38,16 @@ export default function ThreadsColumn({
   expectedPosts,
   bannedWords,
   notice,
+  onGenerate,
+  busy = false,
+  queueToggle,
 }: {
+  /** Write just the thread (Studio asks first when it would replace text). Omit to hide the button. */
+  onGenerate?: () => void;
+  /** Any generation is running: only one runs at a time. */
+  busy?: boolean;
+  /** The "In this queue" switch, shown in the footer once there is a thread that is not queued. */
+  queueToggle?: ReactNode;
   view?: DraftView;
   beats?: { label: string }[];
   frameName?: string;
@@ -186,9 +196,12 @@ export default function ThreadsColumn({
           </div>
         ))}
         <p className="studio-empty-copy">{emptyCopy}</p>
-        <button type="button" className="sq-btn sq-btn-sm studio-write-myself" onClick={() => setManual(true)}>
-          Write it myself
-        </button>
+        <div className="studio-actions-row studio-write-myself">
+          {onGenerate && <GenerateButton has={false} busy={busy} onClick={onGenerate} what="thread" tone="light" />}
+          <button type="button" className="sq-btn sq-btn-sm sq-btn-light" onClick={() => setManual(true)}>
+            Write it myself
+          </button>
+        </div>
       </>
     );
   } else {
@@ -221,6 +234,7 @@ export default function ThreadsColumn({
           >
             + Add post
           </button>
+          {onGenerate && <GenerateButton has busy={busy} onClick={onGenerate} what="thread" tone="light" />}
           <span className="t-meta studio-post-count" id="studio-post-count" data-full={atMax || undefined}>
             {postsLabel(posts.length)}
             {atMax ? " · THE MOST ONE THREAD CAN HAVE" : ""}
@@ -270,6 +284,7 @@ export default function ThreadsColumn({
                 : "NO OPEN SLOT IN THE NEXT 2 WEEKS"}
           </span>
         ) : null}
+        {view && !gen.writing && readiness.state !== "queued" && queueToggle}
       </div>
     </section>
   );

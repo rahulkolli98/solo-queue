@@ -137,3 +137,56 @@ export const recordUse = internalMutation({
     return null;
   },
 });
+
+/**
+ * Take a frame out of the founder's list. A starter frame is hidden rather than erased (the starter set is
+ * re-created when missing, and saving it again by key brings it back); a frame the founder made is deleted.
+ * Posts already written keep the key they used (a soft reference). Any format default that pointed at it is
+ * cleared, and the old single default frame moves to another frame, so nothing is left pointing at a frame that
+ * no longer shows. The last frame cannot be removed.
+ */
+export const remove = operatorMutation({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("frames")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+    if (!row) return null;
+    const active = (await ctx.db.query("frames").take(100))
+      .filter((f) => f.isActive && f.key !== args.key)
+      .sort((a, b) => a.createdAt - b.createdAt || a.key.localeCompare(b.key));
+    if (active.length === 0) {
+      throw refusal("LAST_FRAME", "This is your only frame. Make another one first, then remove this one.");
+    }
+
+    const settings = await ctx.db.query("appSettings").first();
+    if (settings) {
+      const voice = settings.voice;
+      let next = voice;
+      const defaults = voice.formatDefaults;
+      if (defaults && Object.values(defaults).some((d) => d?.frameKey === args.key)) {
+        const cleaned: Record<string, unknown> = {};
+        for (const [kind, d] of Object.entries(defaults)) {
+          if (!d) continue;
+          const { frameKey, ...rest } = d;
+          const kept = frameKey === args.key ? rest : d;
+          if (Object.keys(kept).length > 0) cleaned[kind] = kept;
+        }
+        const { formatDefaults, ...others } = voice;
+        void formatDefaults;
+        next = Object.keys(cleaned).length > 0 ? { ...others, formatDefaults: cleaned as typeof defaults } : others;
+      }
+      if (next.defaultFrameKey === args.key) {
+        // The old single default is required: move it to the oldest remaining thread frame (or any frame).
+        const heir = active.find((f) => f.fits.includes("thread")) ?? active[0];
+        next = { ...next, defaultFrameKey: heir.key };
+      }
+      if (next !== voice) await ctx.db.patch(settings._id, { voice: next });
+    }
+
+    if (DEFAULT_FRAMES.some((f) => f.key === args.key)) await ctx.db.patch(row._id, { isActive: false });
+    else await ctx.db.delete(row._id);
+    return { key: args.key, hidden: DEFAULT_FRAMES.some((f) => f.key === args.key) };
+  },
+});

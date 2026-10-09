@@ -541,7 +541,12 @@ const CAROUSEL_FORMAT = { templateKey: "carousel-slides", label: "IG carousel", 
  * with their VALIDATION code/message instead of failing the batch.
  */
 export const queueTopic = operatorMutation({
-  args: { topicId: v.id("topics"), tz: v.optional(v.string()) },
+  args: {
+    topicId: v.id("topics"),
+    tz: v.optional(v.string()),
+    // Queue only these drafts (by template key). Omitted: every draft the topic has, as before.
+    templateKeys: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
     if (!topic)
@@ -581,7 +586,10 @@ export const queueTopic = operatorMutation({
     const queued: { format: string; templateKey: string; scheduledAt: number }[] = [];
     const skipped: { format: string; templateKey: string; code: string; message: string }[] = [];
     // A carousel is queued with the week only when the topic has one (most topics do not).
-    const formats = latestByKey.has(CAROUSEL_FORMAT.templateKey) ? [...WEEK_FORMATS, CAROUSEL_FORMAT] : WEEK_FORMATS;
+    const allFormats = latestByKey.has(CAROUSEL_FORMAT.templateKey) ? [...WEEK_FORMATS, CAROUSEL_FORMAT] : WEEK_FORMATS;
+    // The founder can pick which drafts go out; the others are left alone (not reported as skipped).
+    const picked = args.templateKeys;
+    const formats = picked ? allFormats.filter((f) => picked.includes(f.templateKey)) : allFormats;
     for (const f of formats) {
       const draft = latestByKey.get(f.templateKey);
       if (!draft) {

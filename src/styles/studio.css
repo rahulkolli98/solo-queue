@@ -131,7 +131,9 @@
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-16);
-  align-items: stretch;
+  /* Each column is as tall as its own content: a long carousel editor or topic must not
+     stretch the others and push their footer buttons to the bottom of the page. */
+  align-items: start;
 }
 .studio-col {
   min-width: 0;
@@ -152,6 +154,21 @@
 .studio-col-threads {
   background: var(--color-chrome);
   color: var(--color-on-chrome-strong);
+}
+/* Side by side: the Threads column stays in view while a tall Instagram column scrolls past, and
+   its footer buttons stay inside the column (its own scroll, not the page's). */
+@media (min-width: 768px) {
+  .studio-col-threads {
+    position: sticky;
+    top: var(--space-16);
+    max-height: calc(100dvh - 200px);
+    overflow-y: auto;
+  }
+  .studio-col-threads .studio-colfoot {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-chrome);
+  }
 }
 .studio-col-ig,
 .studio-col-blog {
@@ -307,11 +324,8 @@
   left: var(--space-16);
   transform: rotate(5deg);
 }
+/* Long text is clamped to ~280 characters by ClampedText ("Show more"), not by CSS. */
 .studio-note-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
   overflow-wrap: anywhere;
 }
 .studio-note-aside {
@@ -704,6 +718,50 @@
 }
 .studio-ig-foot {
   margin-top: auto;
+}
+.studio-ig-foot-end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+/* "In this queue": include or leave out one draft when Queue is pressed */
+.studio-qtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 32px;
+  cursor: pointer;
+  color: var(--color-muted-on-surface);
+}
+.studio-col-threads .studio-qtoggle {
+  color: var(--color-muted-on-chrome);
+}
+.studio-qtoggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.studio-qtoggle input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.studio-cr-panelfoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-12);
+}
+@media (max-width: 767px) {
+  .studio-qtoggle {
+    min-height: 44px;
+  }
+  .studio-gen-btn {
+    min-height: 44px;
+  }
 }
 
 /* media */

@@ -297,3 +297,37 @@ export const setTheme = operatorMutation({
     return null;
   },
 });
+
+/**
+ * Delete one draft that was never queued. A draft with a post in the Queue, or one already published or failed,
+ * must not vanish (the Queue and Published list read it), so it is refused: cancel the post first. The topic goes
+ * back to "drafting" when this was its last draft. The attached media files stay in the library (usage is counted
+ * live). Deleting a draft that is already gone does nothing.
+ */
+export const remove = operatorMutation({
+  args: { id: v.id("drafts") },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) return null;
+    const slot = await ctx.db
+      .query("slots")
+      .withIndex("by_draft", (q) => q.eq("draftId", args.id))
+      .first();
+    if (slot) {
+      throw refusal(
+        "HAS_SLOT",
+        "This draft has a post in the Queue or Published. Cancel or remove that post first, then delete the draft."
+      );
+    }
+    await ctx.db.delete(args.id);
+    const rest = await ctx.db
+      .query("drafts")
+      .withIndex("by_topic_platform", (q) => q.eq("topicId", draft.topicId))
+      .first();
+    if (!rest) {
+      const topic = await ctx.db.get(draft.topicId);
+      if (topic?.status === "ready") await ctx.db.patch(draft.topicId, { status: "drafting" });
+    }
+    return null;
+  },
+});

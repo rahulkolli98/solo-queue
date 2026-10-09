@@ -431,3 +431,28 @@
   gap: var(--space-12);
 }
 
+
+/* ---------- long text with a "Show more" toggle ---------- */
+.sq-clamped {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.sq-showmore {
+  all: unset;
+  display: inline-block;
+  margin-top: var(--space-6);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sq-showmore:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .sq-showmore {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
