@@ -134,6 +134,10 @@ export const attachMedia = operatorMutation({
   },
 });
 
+function normalizeNewlines(text: string): string {
+  return text.replace(/\r\n?/g, "\n");
+}
+
 /** A carousel that already has a post (queued, published or failed) must be changed in the Queue first. */
 async function assertNotQueued(ctx: { db: import("./_generated/server").QueryCtx["db"] }, draftId: import("./_generated/dataModel").Id<"drafts">) {
   const slot = await ctx.db
@@ -217,7 +221,13 @@ export const attachCarouselMedia = operatorMutation({
  * is left alone and this one is added beside it. The files stay in the library either way.
  */
 export const createOwnCarousel = operatorMutation({
-  args: { topicId: v.id("topics"), caption: v.string(), mediaAssetIds: v.array(v.id("mediaAssets")) },
+  args: {
+    topicId: v.id("topics"),
+    caption: v.string(),
+    mediaAssetIds: v.array(v.id("mediaAssets")),
+    /** Also post it to Threads, with this text (may be empty). */
+    threadsText: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
     if (!topic) throw refusal("TOPIC_NOT_FOUND", "Topic not found. It may have been deleted.");
@@ -248,6 +258,7 @@ export const createOwnCarousel = operatorMutation({
       slideSource: "uploaded",
       mediaAssetIds: args.mediaAssetIds,
       mediaAssetId: args.mediaAssetIds[0],
+      threadsText: args.threadsText === undefined ? undefined : normalizeNewlines(args.threadsText),
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -294,6 +305,67 @@ export const setTheme = operatorMutation({
     const next = args.theme && args.theme !== DEFAULT_THEME ? args.theme : undefined;
     if (draft.theme === next) return null;
     await ctx.db.patch(args.id, { theme: next, mediaAssetIds: undefined, mediaAssetId: undefined });
+    return null;
+  },
+});
+
+/**
+ * Delete one draft that was never queued. A draft with a post in the Queue, or one already published or failed,
+ * must not vanish (the Queue and Published list read it), so it is refused: cancel the post first. The topic goes
+ * back to "drafting" when this was its last draft. The attached media files stay in the library (usage is counted
+ * live). Deleting a draft that is already gone does nothing.
+ */
+export const remove = operatorMutation({
+  args: { id: v.id("drafts") },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) return null;
+    const slot = await ctx.db
+      .query("slots")
+      .withIndex("by_draft", (q) => q.eq("draftId", args.id))
+      .first();
+    if (slot) {
+      throw refusal(
+        "HAS_SLOT",
+        "This draft has a post in the Queue or Published. Cancel or remove that post first, then delete the draft."
+      );
+    }
+    await ctx.db.delete(args.id);
+    const rest = await ctx.db
+      .query("drafts")
+      .withIndex("by_topic_platform", (q) => q.eq("topicId", draft.topicId))
+      .first();
+    if (!rest) {
+      const topic = await ctx.db.get(draft.topicId);
+      if (topic?.status === "ready") await ctx.db.patch(draft.topicId, { status: "drafting" });
+    }
+    return null;
+  },
+});
+
+/**
+ * A carousel's Threads text: what is posted with its images when it also goes to Threads (500 characters; it may
+ * be empty, since Threads allows a carousel with no text). `null` takes the carousel off Threads. It is refused while
+ * the carousel has a Threads post in the Queue or already published, so a post never loses its text under it.
+ */
+export const setThreadsText = operatorMutation({
+  args: { id: v.id("drafts"), text: v.union(v.string(), v.null()) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (!draft.slides) throw refusal("NOT_A_CAROUSEL", "Only a carousel can be posted to Threads with its images.");
+    if (draft.platform !== "instagram") throw refusal("NOT_A_CAROUSEL", "Only an Instagram carousel can also go to Threads.");
+    if (args.text === null) {
+      const slots = await ctx.db.query("slots").withIndex("by_draft", (q) => q.eq("draftId", args.id)).take(100);
+      if (slots.some((s) => s.platform === "threads")) {
+        throw refusal("THREADS_QUEUED", "This carousel already has a post on Threads. Cancel or remove that post first, then take it off Threads.");
+      }
+      if (draft.threadsText !== undefined) await ctx.db.patch(args.id, { threadsText: undefined });
+      return null;
+    }
+    const text = args.text.replace(/\r\n?/g, "\n");
+    if (text.length > 5000) throw refusal("TOO_LONG", "That Threads text is far too long (the limit is 500 characters).");
+    await ctx.db.patch(args.id, { threadsText: text });
     return null;
   },
 });

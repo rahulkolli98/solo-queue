@@ -11,7 +11,7 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }) }));
 
-const filters: LibraryFilters = { search: "", pillar: "", platform: "" };
+const filters: LibraryFilters = { search: "", pillar: "", platform: "", topicId: "", format: "", sort: "newest" };
 const frame = {
   _id: "f1",
   _creationTime: 0,

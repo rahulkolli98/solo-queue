@@ -30,11 +30,17 @@ export const KIND_LABEL: Record<SetupKind, string> = {
   blog: "Blog",
 };
 
+/** Where a carousel is posted. */
+export type CarouselTarget = "instagram" | "threads";
+export const CAROUSEL_TARGETS: readonly CarouselTarget[] = ["instagram", "threads"];
+
 export interface FormatDefault {
   include?: boolean;
   frameKey?: string;
   /** Threads: posts in the thread. Carousel: slides. */
   count?: number;
+  /** Carousel: the platforms it is written for and posted to. Unset means Instagram only. */
+  targets?: CarouselTarget[];
 }
 
 export type FormatDefaults = Partial<Record<SetupKind, FormatDefault>>;
@@ -108,16 +114,28 @@ export function resolveCount(input: {
 }
 
 /**
+ * Where a carousel is posted: this run's pick, else the saved default, else Instagram only. Always at least one
+ * platform, in a fixed order, so an empty or unknown pick never leaves the carousel with nowhere to go.
+ */
+export function resolveTargets(input: { defaults?: FormatDefaults; picked?: readonly CarouselTarget[] }): CarouselTarget[] {
+  const chosen = (list: readonly CarouselTarget[] | undefined) => {
+    const known = CAROUSEL_TARGETS.filter((t) => list?.includes(t));
+    return known.length > 0 ? known : undefined;
+  };
+  return chosen(input.picked) ?? chosen(input.defaults?.carousel?.targets) ?? ["instagram"];
+}
+
+/**
  * The saved defaults with one format's default replaced. `null` removes a field, so "no default" goes back
  * to following the frame. A format left with nothing is dropped, and so is an empty record.
  */
 export function withFormatDefault(
   defaults: FormatDefaults | undefined,
   kind: SetupKind,
-  change: { include?: boolean | null; frameKey?: string | null; count?: number | null }
+  change: { include?: boolean | null; frameKey?: string | null; count?: number | null; targets?: CarouselTarget[] | null }
 ): FormatDefaults | undefined {
   const next: FormatDefault = { ...(defaults?.[kind] ?? {}) };
-  for (const field of ["include", "frameKey", "count"] as const) {
+  for (const field of ["include", "frameKey", "count", "targets"] as const) {
     const value = change[field];
     if (value === undefined) continue;
     if (value === null) delete next[field];

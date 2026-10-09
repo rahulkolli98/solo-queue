@@ -27,6 +27,7 @@ export default function AttachMediaDialog({
   draftId,
   currentAssetId,
   forLabel,
+  platform = "Instagram",
   now,
   media,
 }: {
@@ -37,6 +38,8 @@ export default function AttachMediaDialog({
   draftId: string | null;
   currentAssetId: string | undefined;
   forLabel: string;
+  /** Which platform the media is for (the drawer's heading). */
+  platform?: "Instagram" | "Threads";
   now: number;
   media: MediaActions;
 }) {
@@ -50,7 +53,7 @@ export default function AttachMediaDialog({
       open={open}
       onClose={onClose}
       title="Attach media"
-      eyebrow={`Instagram · ${forLabel}`}
+      eyebrow={`${platform} · ${forLabel}`}
       footer={
         <Link href="/library/media" className="sq-btn">
           Manage all files in Library
@@ -76,7 +79,7 @@ export default function AttachMediaDialog({
             const current = asset._id === currentAssetId;
             const kind: MediaStatusKind =
               state === "ok" || state === "stale" ? KIND_BY_STATE[state] : asset.lastVerifyError ? "not_media" : "unchecked";
-            const status = describeMediaStatus(kind, asset, now);
+            const status = describeMediaStatus(kind, asset, now, platform === "Threads" ? "threads" : "instagram");
             const name = asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image");
             return (
               <li key={asset._id} className="studio-pick" data-current={current || undefined}>

@@ -451,6 +451,10 @@
 .rs-link .t-meta {
   color: var(--color-muted-on-chrome);
 }
+/* The Show more toggle sits under the link (not inside it), lined up with the text. */
+.rs-link .sq-showmore {
+  margin: 0 0 var(--space-12) var(--space-16);
+}
 .rs-note {
   display: flex;
   flex-direction: column;

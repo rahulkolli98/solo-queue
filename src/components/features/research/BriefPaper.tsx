@@ -2,6 +2,7 @@
 
 import { useAction, useMutation } from "convex/react";
 import { useState } from "react";
+import ClampedText from "@/components/ui/ClampedText";
 import FormField from "@/components/ui/FormField";
 import { refusalCode, refusalText } from "@/lib/refusalText";
 import { researchFailure, type ResearchFailure } from "@/lib/researchErrors";
@@ -94,11 +95,15 @@ export default function BriefPaper({
           />
         </FormField>
       ) : hasBrief ? (
-        <div className="rs-brief-text">
-          {briefParagraphs(brief ?? "").map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
+        <ClampedText text={brief ?? ""}>
+          {(shown) => (
+            <div className="rs-brief-text">
+              {briefParagraphs(shown).map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </div>
+          )}
+        </ClampedText>
       ) : (
         <p className="rs-brief-hint">
           No brief yet. Write one from your sources, or type your own.

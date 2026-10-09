@@ -1271,3 +1271,21 @@
     flex: 0 0 auto;
   }
 }
+
+/* Where the carousel is posted (Instagram, Threads) */
+.st-fmt-targets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-16);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.st-fmt-targets legend {
+  float: left;
+  padding: 0;
+  margin-right: var(--space-12);
+  font-size: 14px;
+}

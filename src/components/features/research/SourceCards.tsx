@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
+import ClampedText from "@/components/ui/ClampedText";
 import { CloseIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { hostOf, linkTitle } from "@/lib/researchBoard";
@@ -41,12 +42,16 @@ function SourceCard({ source, imageUrl }: { source: Source; imageUrl: string | u
   if (source.kind === "link") {
     return (
       <div className="rs-src rs-link">
-        <a href={source.url} target="_blank" rel="noopener noreferrer">
-          <span className="t-meta">
-            LINK · {source.url ? hostOf(source.url).toUpperCase() : source.label.toUpperCase()}
-          </span>
-          <b>{source.text ?? (source.url ? linkTitle(source.url) : source.label)}</b>
-        </a>
+        <ClampedText text={source.text ?? (source.url ? linkTitle(source.url) : source.label)}>
+          {(shown) => (
+            <a href={source.url} target="_blank" rel="noopener noreferrer">
+              <span className="t-meta">
+                LINK · {source.url ? hostOf(source.url).toUpperCase() : source.label.toUpperCase()}
+              </span>
+              <b>{shown}</b>
+            </a>
+          )}
+        </ClampedText>
         {x}
       </div>
     );
@@ -56,7 +61,9 @@ function SourceCard({ source, imageUrl }: { source: Source; imageUrl: string | u
       <div className="rs-src rs-note rs-note-quote">
         <span className="rs-tape rs-tape-cream" aria-hidden="true" />
         <span className="t-meta">QUOTE · {source.label.toUpperCase()}</span>
-        <span className="rs-note-text">&ldquo;{source.text}&rdquo;</span>
+        <ClampedText text={source.text ?? ""}>
+          {(shown) => <span className="rs-note-text">&ldquo;{shown}&rdquo;</span>}
+        </ClampedText>
         {x}
       </div>
     );
@@ -77,7 +84,9 @@ function SourceCard({ source, imageUrl }: { source: Source; imageUrl: string | u
   return (
     <div className="rs-src rs-note rs-note-own">
       <span className="t-meta">{source.label.toUpperCase()}</span>
-      <span className="rs-note-text">{source.text}</span>
+      <ClampedText text={source.text ?? ""}>
+        {(shown) => <span className="rs-note-text">{shown}</span>}
+      </ClampedText>
       {x}
     </div>
   );

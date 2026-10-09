@@ -25,7 +25,7 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn(), dis
 const pillars: Pillar[] = [
   { key: "build", name: "Build in public", color: "pillar-build", description: "", targetShare: 40, links: [] },
 ];
-const filters: LibraryFilters = { search: "", pillar: "", platform: "" };
+const filters: LibraryFilters = { search: "", pillar: "", platform: "", topicId: "", format: "", sort: "newest" };
 
 function frame(over: Partial<Frame>): Frame {
   return {
@@ -461,6 +461,18 @@ describe("new frame: choose the format first", () => {
       expect(out).toContain("Short bold headlines.");
       expect(out).toContain("21 / 2,000");
       expect(out).not.toContain("The style notes can be up to");
+    });
+
+    it("a saved frame can be deleted, a starter frame is hidden instead, and a new frame has neither button", () => {
+      const custom = editor(["thread"], "my-own-frame");
+      expect(custom).toContain(">Delete<");
+      expect(custom).not.toContain("Starter frames are hidden");
+      const starter = editor(["thread"], "confession");
+      expect(starter).toContain(">Hide<");
+      expect(starter).toContain("Starter frames are hidden, not erased");
+      const fresh = editor(["thread"]);
+      expect(fresh).not.toContain(">Delete<");
+      expect(fresh).not.toContain(">Hide<");
     });
 
     it("keeps working for a saved frame that has no style", () => {

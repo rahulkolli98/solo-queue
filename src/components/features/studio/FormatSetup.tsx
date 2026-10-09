@@ -1,11 +1,17 @@
 "use client";
 
 import { useId } from "react";
-import { FRAME_EXPLAINER, type DraftKind } from "@/lib/studioModel";
+import { FRAME_EXPLAINER, type WriteKind } from "@/lib/studioModel";
 import { POSTS_MAX, POSTS_MIN } from "@/lib/studioCompose";
 import { BRIEF_MAX } from "../../../../convex/lib/carouselDraft";
 import { THEMES, themeOf } from "../../../../convex/lib/themes";
 import { NO_FRAME, setupSummary, type SetupRow } from "@/lib/studioSetup";
+import type { CarouselTarget } from "../../../../convex/lib/formatSetup";
+
+const CAROUSEL_TARGET_OPTIONS: { key: CarouselTarget; label: string }[] = [
+  { key: "instagram", label: "Instagram" },
+  { key: "threads", label: "Threads" },
+];
 
 const POST_COUNTS = Array.from({ length: POSTS_MAX - POSTS_MIN + 1 }, (_, i) => POSTS_MIN + i);
 const SLIDE_COUNTS = Array.from({ length: 10 }, (_, i) => 1 + i);
@@ -26,6 +32,7 @@ export default function FormatSetup({
   onBrief,
   onLook,
   onTheme,
+  onTargets,
   onMakeDefault,
 }: {
   rows: SetupRow[];
@@ -33,16 +40,18 @@ export default function FormatSetup({
   onToggle: () => void;
   /** Generation is running: the setup cannot change under it. */
   disabled: boolean;
-  onInclude: (kind: DraftKind, on: boolean) => void;
-  onFrame: (kind: DraftKind, key: string) => void;
-  onCount: (kind: DraftKind, count: number) => void;
+  onInclude: (kind: WriteKind, on: boolean) => void;
+  onFrame: (kind: WriteKind, key: string) => void;
+  onCount: (kind: WriteKind, count: number) => void;
   /** The carousel's own description of how it should read and look. */
-  onBrief: (kind: DraftKind, text: string) => void;
+  onBrief: (kind: WriteKind, text: string) => void;
   /** The carousel's saved look ("" for none). */
-  onLook: (kind: DraftKind, key: string) => void;
+  onLook: (kind: WriteKind, key: string) => void;
   /** The carousel's design (theme key). */
-  onTheme: (kind: DraftKind, key: string) => void;
-  onMakeDefault: (kind: DraftKind) => void;
+  onTheme: (kind: WriteKind, key: string) => void;
+  /** The platforms the carousel is written for and posted to (at least one). */
+  onTargets: (kind: WriteKind, targets: CarouselTarget[]) => void;
+  onMakeDefault: (kind: WriteKind) => void;
 }) {
   const id = useId();
   return (
@@ -123,6 +132,34 @@ export default function FormatSetup({
               >
                 Make default
               </button>
+              {row.kind === "carousel" && (
+                <fieldset className="studio-setup-targets" disabled={disabled || !row.include}>
+                  <legend className="t-meta">POST TO</legend>
+                  {CAROUSEL_TARGET_OPTIONS.map((o) => {
+                    const on = row.targets.includes(o.key);
+                    return (
+                      <label key={o.key} className="studio-setup-target">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          // The last platform stays on: a carousel has to go somewhere.
+                          disabled={on && row.targets.length === 1}
+                          onChange={(e) =>
+                            onTargets(
+                              row.kind,
+                              CAROUSEL_TARGET_OPTIONS.map((x) => x.key).filter((k) => (k === o.key ? e.target.checked : row.targets.includes(k)))
+                            )
+                          }
+                        />
+                        <span>{o.label}</span>
+                      </label>
+                    );
+                  })}
+                  <span className="studio-setup-brief-hint sq-muted">
+                    The same images go to each. Threads gets its own short text, written with the carousel.
+                  </span>
+                </fieldset>
+              )}
               {row.kind === "carousel" && (
                 <label className="studio-setup-look">
                   <span className="t-meta">DESIGN</span>

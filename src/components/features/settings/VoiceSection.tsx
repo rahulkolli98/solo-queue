@@ -14,6 +14,7 @@ import {
   CAROUSEL_SLIDE_CHOICES,
   THREAD_POST_CHOICES,
   checkStyleGuideFile,
+  carouselTargetsChange,
   formatDefaultChange,
   formatDefaultRows,
   igHashtagOptions,
@@ -420,6 +421,35 @@ export default function VoiceSection() {
                     </option>
                   ))}
                 </select>
+              )}
+              {row.kind === "carousel" && (
+                <fieldset className="st-fmt-targets">
+                  <legend className="sq-muted">Post to</legend>
+                  {(
+                    [
+                      { key: "instagram", label: "Instagram" },
+                      { key: "threads", label: "Threads" },
+                    ] as const
+                  ).map((o) => {
+                    const on = row.targets.includes(o.key);
+                    return (
+                      <label key={o.key} className="st-fmt-check" htmlFor={`fmt-carousel-${o.key}`}>
+                        <input
+                          id={`fmt-carousel-${o.key}`}
+                          type="checkbox"
+                          checked={on}
+                          // The last platform stays on: a carousel has to go somewhere.
+                          disabled={on && row.targets.length === 1}
+                          onChange={(e) => {
+                            const change = carouselTargetsChange(voice, o.key, e.target.checked);
+                            if (change) changeFormat("carousel", change);
+                          }}
+                        />
+                        <span>{o.label}</span>
+                      </label>
+                    );
+                  })}
+                </fieldset>
               )}
               {row.takesCount && row.kind === "threads" && (
                 <select

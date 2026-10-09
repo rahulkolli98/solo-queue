@@ -147,4 +147,10 @@ describe("the replace question", () => {
     ]);
     expect(kindsAtRisk(["caption"], { threads: {} }, false)).toEqual([]);
   });
+
+  it("also counts text typed in the caption or reel box that is not saved, so a panel Generate cannot drop it", () => {
+    expect(kindsAtRisk(["caption"], {}, false, { caption: true })).toEqual(["caption"]);
+    expect(kindsAtRisk(["reel"], {}, false, { caption: true })).toEqual([]);
+    expect(kindsAtRisk(["caption", "reel"], {}, false, { caption: false, reel: true })).toEqual(["reel"]);
+  });
 });

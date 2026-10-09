@@ -1,5 +1,5 @@
 import type { Id } from "./_generated/dataModel";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { operatorAction } from "./lib/operator";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -15,11 +15,11 @@ import {
   stripBeatHeaders,
   threadsConstraint,
 } from "./lib/drafting";
-import { BRIEF_MAX, carouselInstructions, clampSlideCount, parseCarousel } from "./lib/carouselDraft";
+import { BRIEF_MAX, THREADS_TEXT_MAX, carouselInstructions, cleanThreadsText, clampSlideCount, describeSlides, parseCarousel } from "./lib/carouselDraft";
 import { REFERENCE_MAX_BYTES, isReferenceType, planForCount } from "./lib/looks";
 import { DEFAULT_THEME, isThemeKey, type ThemeKey } from "./lib/themes";
 import { slideValidator } from "./lib/carouselValidators";
-import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, type SetupKind } from "./lib/formatSetup";
+import { frameFitsKind, KIND_LABEL, resolveCount, resolveFrameKey, resolveTargets, type SetupKind } from "./lib/formatSetup";
 import { frameToPrompt, type FrameFit } from "./lib/framesModel";
 import { llmModel, withLlmErrors } from "./lib/llm";
 import { refusal } from "./lib/slots";
@@ -58,6 +58,8 @@ const carouselSetupArg = v.object({
   lookKey: v.optional(v.string()),
   /** The design to draw in for this run (themes.ts). It wins over the look's theme; missing means the look's, else Solo Queue. */
   theme: v.optional(v.string()),
+  /** Where the carousel is going. Missing: the saved default for the carousel, else Instagram only. Threads adds a Threads text. */
+  targets: v.optional(v.array(v.union(v.literal("instagram"), v.literal("threads")))),
 });
 
 const formatArg = v.union(
@@ -131,6 +133,8 @@ export const storeDraft = internalMutation({
     lookKey: v.optional(v.string()),
     /** The theme it is drawn in (missing: the default). */
     theme: v.optional(v.string()),
+    /** A carousel that also goes to Threads: its Threads text. */
+    threadsText: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string> => {
     const existing = await ctx.db
@@ -175,6 +179,7 @@ export const storeDraft = internalMutation({
       slides: args.slides,
       lookKey: args.lookKey,
       theme: args.theme,
+      threadsText: args.threadsText,
       charCount: check.charCount,
       constraintOk: check.constraintOk,
       createdAt: Date.now(),
@@ -317,6 +322,11 @@ export const generate = operatorAction({
     if (themeArg && !isThemeKey(themeArg)) throw refusal("THEME_NOT_FOUND", "That theme is not available. Pick another.");
     const theme: ThemeKey = themeArg && isThemeKey(themeArg) ? themeArg : look?.theme && isThemeKey(look.theme) ? look.theme : DEFAULT_THEME;
 
+    // The carousel also goes to Threads when this run, or the saved default, says so: it then gets a Threads text too.
+    const carouselToThreads =
+      formats.includes("instagram-carousel") &&
+      resolveTargets({ defaults: settings.voice.formatDefaults, picked: args.setup?.carousel?.targets }).includes("threads");
+
     const model = await withLlmErrors(async () => llmModel());
     // The research brief and the topic's sources are the model's main material when they exist.
     const sources = await ctx.runQuery(api.sources.listByTopic, { topicId: args.topicId });
@@ -370,7 +380,7 @@ export const generate = operatorAction({
       // A carousel is written as JSON (caption and slides); the frame's beats are its story arc and its style note guides the look.
       const prompt =
         format === "instagram-carousel"
-          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, theme, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined })}`
+          ? `${withHashtags}${useFrame ? "\n\nThe beats above are the arc of the story: spread them across the slides." : ""}\n\n${carouselInstructions({ count: slideCount, style: frame?.style, brief, arc: useFrame, theme, look: look ? { plan: lookPlan, design: look.design, references: references.length > 0 } : undefined, threads: carouselToThreads })}`
           : withHashtags;
 
       if (format === "instagram-carousel") {
@@ -410,6 +420,8 @@ export const generate = operatorAction({
           slides: written.slides,
           lookKey: look?.key,
           theme: theme === DEFAULT_THEME ? undefined : theme,
+          // The Threads text, when the carousel goes to Threads (an empty text still marks it as going there).
+          threadsText: carouselToThreads ? (written.threadsText ?? "") : undefined,
         });
         if (useFrame) await ctx.runMutation(internal.frames.recordUse, { key: frame.key });
         if (look) await ctx.runMutation(internal.looks.recordUse, { key: look.key });
@@ -491,5 +503,71 @@ export const generate = operatorAction({
       status: "ready",
     });
     return { topicId: args.topicId, drafts: results };
+  },
+});
+
+/** What the Threads-text writer needs to know about a carousel. */
+export const draftForThreadsText = internalQuery({
+  args: { id: v.id("drafts") },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) return null;
+    return {
+      topicId: draft.topicId,
+      platform: draft.platform,
+      caption: draft.body,
+      slides: draft.slides,
+      slideSource: draft.slideSource,
+    };
+  },
+});
+
+/**
+ * Write (or rewrite) just the Threads text of a carousel, from its slides, its Instagram caption and the topic,
+ * without touching the slides or their images. This is also how a carousel is added to Threads after it was written:
+ * the text it returns is saved on the carousel, which is what marks it as going to Threads.
+ */
+export const writeThreadsText = operatorAction({
+  args: { draftId: v.id("drafts") },
+  handler: async (ctx, args): Promise<string> => {
+    const draft = await ctx.runQuery(internal.drafting.draftForThreadsText, { id: args.draftId });
+    if (!draft) throw refusal("DRAFT_NOT_FOUND", "Draft not found — it may have been replaced.");
+    if (!draft.slides || draft.platform !== "instagram") {
+      throw refusal("NOT_A_CAROUSEL", "Only a carousel can be posted to Threads with its images.");
+    }
+    const topic = await ctx.runQuery(api.topics.get, { id: draft.topicId });
+    if (!topic) throw new Error("Topic not found — it may have been deleted.");
+    const settings = await ctx.runQuery(api.settings.get, {});
+    const sources = await ctx.runQuery(api.sources.listByTopic, { topicId: draft.topicId });
+    const model = await withLlmErrors(async () => llmModel());
+    const system = [
+      CAROUSEL_SYSTEM,
+      settings.voice.description ? `Voice: ${settings.voice.description}` : "",
+      ...voiceContextBlocks(settings.voice),
+      settings.voice.bannedWords.length ? `Never use these words or phrases: ${settings.voice.bannedWords.join(", ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const material = [
+      `Topic: ${topic.title}`,
+      topic.brief ? `Research brief:\n${topic.brief}` : "",
+      topic.notes ? `The founder's notes:\n${topic.notes}` : "",
+      ...sources.slice(0, 6).map((x) => `Source (${x.kind}): ${(x.text ?? x.url ?? "").slice(0, 1500)}`),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const slidesText = draft.slideSource === "uploaded" ? "" : describeSlides(draft.slides as Parameters<typeof describeSlides>[0]);
+    const prompt = [
+      "Write the text of a Threads post that goes with a carousel of images. Reply with the post text only, nothing else.",
+      `At most ${THREADS_TEXT_MAX} characters, in the founder's voice. Threads is conversational: lead with the one idea in plain words, add the point the images do not make, and end so a reader wants to swipe. No hashtags. It must not be the Instagram caption cut short or repeated.`,
+      "Use only facts, numbers, names and quotes that appear in the material below or on the slides; never invent them.",
+      slidesText ? `The slides, in order:\n${slidesText}` : "The carousel is the founder's own images; you cannot see them, so write from the caption and the material.",
+      `The Instagram caption (do not repeat it):\n${draft.caption}`,
+      material,
+    ].join("\n\n");
+    const text = cleanThreadsText(await withLlmErrors(async () => (await generateText({ model, system, prompt })).text));
+    if (!text) throw refusal("BAD_THREADS_TEXT", "The AI model did not send back a usable Threads text. Try again.");
+    await ctx.runMutation(api.drafts.setThreadsText, { id: args.draftId, text });
+    return text;
   },
 });

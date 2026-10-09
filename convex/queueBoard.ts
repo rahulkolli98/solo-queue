@@ -1,3 +1,4 @@
+import { postText } from "./lib/postText";
 import type { Id } from "./_generated/dataModel";
 import { operatorMutation, operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
@@ -90,7 +91,7 @@ export const dayColumns = operatorQuery({
           time: hhmm(slot.scheduledAt, tz),
           status: slot.status,
           topicTitle: topic?.title ?? "(deleted topic)",
-          snippet: (draft?.body ?? "").split(/^\s*---\s*$/m)[0].trim().slice(0, 140),
+          snippet: (draft ? postText(draft, slot.platform) : "").split(/^\s*---\s*$/m)[0].trim().slice(0, 140),
           constraintOk: draft?.constraintOk ?? false,
           pillarColor: pillarColor.get(topic?.pillar ?? "build") ?? "pillar-build",
           format: draft?.format ?? null,
@@ -176,7 +177,7 @@ export const detail = operatorQuery({
         ? {
             _id: draft._id,
             platform: draft.platform,
-            body: draft.body,
+            body: postText(draft, slot.platform),
             format: draft.format ?? null,
             slideCount: draft.slides?.length ?? null,
             constraintOk: draft.constraintOk,
@@ -292,9 +293,9 @@ export const requeue = operatorMutation({
     if (await hasOpenSlot(ctx, slot.draftId)) {
       throw refusal("ALREADY_QUEUED", "This post is already queued again.");
     }
-    if (slot.platform === "instagram" && draft.slides) {
+    if (draft.slides) {
       await loadCarouselAssets(ctx, draft, { fresh: false });
-    } else if (slot.platform === "instagram") {
+    } else if (slot.platform === "instagram" || (slot.platform === "threads" && draft.mediaAssetId)) {
       const asset = draft.mediaAssetId ? await ctx.db.get(draft.mediaAssetId) : null;
       if (!asset) throw refusal("MEDIA_MISSING", "Attached media is gone — pick another in the Library.");
       assertFileNotRemoved(asset);

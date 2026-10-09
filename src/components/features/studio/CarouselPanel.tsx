@@ -55,6 +55,10 @@ export interface CarouselPanelProps {
   onWrite: () => void;
   /** The founder's never-use words (Settings, Voice): a caption that uses one is flagged. */
   bannedWords?: string[];
+  /** Any generation is running: only one runs at a time (disables Regenerate). */
+  busy?: boolean;
+  /** The "In this queue" switch, shown under a written carousel. */
+  queueToggle?: ReactNode;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -955,7 +959,7 @@ function CarouselEditor({
 }
 
 /** The Instagram carousel: its slides (a filmstrip, a large preview and a form), its caption and the drawn images. */
-export default function CarouselPanel({ topicId, draft, gen, onWrite, bannedWords }: CarouselPanelProps) {
+export default function CarouselPanel({ topicId, draft, gen, onWrite, bannedWords, busy = false, queueToggle }: CarouselPanelProps) {
   const [own, setOwn] = useState(false);
   if (own && !gen.writing) {
     return (
@@ -969,9 +973,30 @@ export default function CarouselPanel({ topicId, draft, gen, onWrite, bannedWord
   }
   if (draft?.slides && draft.slides.length > 0 && !gen.writing) {
     // The founder's own images have no slides to edit or draw: they get their own editor.
-    if (draft.slideSource === "uploaded") return <OwnCarouselEditor key={draft._id} draft={draft} bannedWords={bannedWords} />;
+    const editor =
+      draft.slideSource === "uploaded" ? (
+        <OwnCarouselEditor key={draft._id} draft={draft} bannedWords={bannedWords} />
+      ) : (
+        <CarouselEditor key={draft._id} draft={draft} serverSlides={draft.slides as Slide[]} gen={gen} bannedWords={bannedWords} onUseOwn={() => setOwn(true)} />
+      );
     return (
-      <CarouselEditor key={draft._id} draft={draft} serverSlides={draft.slides as Slide[]} gen={gen} bannedWords={bannedWords} onUseOwn={() => setOwn(true)} />
+      <>
+        {editor}
+        <div className="studio-cr-panelfoot">
+          {draft.slideSource !== "uploaded" && (
+            <button
+              type="button"
+              className="sq-btn sq-btn-sm studio-gen-btn"
+              disabled={busy}
+              aria-label="Regenerate the carousel"
+              onClick={onWrite}
+            >
+              Regenerate
+            </button>
+          )}
+          {queueToggle}
+        </div>
+      </>
     );
   }
   if (draft && gen.writing) return <Skeleton elapsed={gen.elapsed} />;

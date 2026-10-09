@@ -8,6 +8,11 @@ import { useToast } from "@/components/ui/Toast";
 import { studioErrorText } from "@/lib/studioErrors";
 import { KIND_META, weekToast, type Draft, type DraftKind } from "@/lib/studioModel";
 
+/** The key a queued time is kept under: a carousel's Threads post shares its draft id with the carousel. */
+export function queuedKey(kind: DraftKind, draftId: string): string {
+  return kind === "threadsCarousel" ? `${draftId}:threads` : draftId;
+}
+
 /**
  * The one-gesture "queue this week": `slots.queueTopic` assigns each ready
  * draft to its next free slot; the result becomes the board's toast with
@@ -31,16 +36,22 @@ export function useQueueWeek({
   /** Draft id -> the time it was queued for, for this page session. */
   const [queuedAt, setQueuedAt] = useState<Record<string, number>>({});
 
-  async function queue(latest: Partial<Record<DraftKind, Draft>>): Promise<void> {
+  /** `kinds`: the drafts to queue (the founder's picks). Omitted: everything the topic has. */
+  async function queue(latest: Partial<Record<DraftKind, Draft>>, kinds?: readonly DraftKind[]): Promise<void> {
     setQueuing(true);
     try {
       await prepare();
-      const result = await queueTopic({ topicId: topicId as Id<"topics">, tz });
+      const result = await queueTopic({
+        topicId: topicId as Id<"topics">,
+        tz,
+        ...(kinds ? { templateKeys: kinds.map((k) => KIND_META[k].templateKey) } : {}),
+      });
       const marks: Record<string, number> = {};
       for (const q of result.queued) {
         const kind = (Object.keys(KIND_META) as DraftKind[]).find((k) => KIND_META[k].templateKey === q.templateKey);
         const draft = kind ? latest[kind] : undefined;
-        if (draft) marks[draft._id] = q.scheduledAt;
+        // The carousel and its Threads post are one draft; the Threads post is marked under its own key.
+        if (draft && kind) marks[queuedKey(kind, draft._id)] = q.scheduledAt;
       }
       setQueuedAt((prev) => ({ ...prev, ...marks }));
       const t = weekToast(result);

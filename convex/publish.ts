@@ -18,6 +18,7 @@ import {
 import {
   publishThreadsPost,
   resumeThreadsContainer,
+  type ThreadsMediaType,
 } from "./providers/threads";
 
 const DAY_MS = 86400000;
@@ -366,25 +367,39 @@ async function publishOne(ctx: ActionCtx, slot: PublishItem["slot"], draft: Publ
   if (slot.platform === "threads") {
     const conn = await ctx.runQuery(internal.connections.getOne, { platform: "threads" });
     if (!conn) return markPermanent(ctx, slot._id, now, "No Threads connection — reconnect in Settings.");
-    // The first post publishes as the slot; the rest follow as replies to it.
-    const posts = splitPosts(stripBeatHeaders(draft.body));
+    // A carousel of two or more slides posts every slide image with its one text (no replies); a one-slide
+    // carousel is an ordinary image post. A thread posts its first post as the slot, the rest as replies to it.
+    const carousel = draft.slideCount !== undefined && draft.slideCount > 1;
+    if (carousel && (draft.slideAssets?.length ?? 0) !== draft.slideCount) {
+      return markPermanent(ctx, slot._id, now, "A slide image is gone — draw the slides again, then queue the carousel again.");
+    }
+    // Media the founder attached to a thread goes on its first post only. A file that is gone is a permanent failure.
+    if (!carousel && draft.mediaAssetId && !asset) {
+      return markPermanent(ctx, slot._id, now, "Attached media is gone — pick another in the Library, or remove it from the thread.");
+    }
+    const posts = carousel ? [draft.body.trim()] : splitPosts(stripBeatHeaders(draft.body));
     const text = (posts.length > 0 ? posts[0] : draft.body).trim();
-    if (!text) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts. Write the post, then retry.");
+    // A carousel's text is optional on Threads; a thread's first post is not.
+    if (!text && !carousel) return markPermanent(ctx, slot._id, now, "Threads draft is empty after splitting posts. Write the post, then retry.");
     if (text.length > THREADS_POST_LIMIT) {
       return markPermanent(ctx, slot._id, now, `Post 1 is ${text.length - THREADS_POST_LIMIT} characters over the ${THREADS_POST_LIMIT} cap — shorten it, then retry.`);
     }
+    const mediaType: ThreadsMediaType = carousel ? "CAROUSEL" : asset ? (asset.mimeType.toLowerCase().startsWith("video/") ? "VIDEO" : "IMAGE") : "TEXT";
     const out = slot.containerId
       ? await resumeThreadsContainer({
           userId: conn.platformUserId,
           accessToken: conn.accessToken,
           containerId: slot.containerId,
-          mediaType: "TEXT",
+          mediaType,
         })
       : await publishThreadsPost({
           userId: conn.platformUserId,
           accessToken: conn.accessToken,
           text,
-          mediaType: "TEXT",
+          mediaType,
+          mediaUrl: mediaType === "IMAGE" || mediaType === "VIDEO" ? asset!.publicUrl : undefined,
+          mimeType: mediaType === "IMAGE" || mediaType === "VIDEO" ? asset!.mimeType : undefined,
+          mediaItems: carousel ? draft.slideAssets!.map((a) => ({ url: a.publicUrl, mimeType: a.mimeType })) : undefined,
         });
     if (!out.ok && out.containerId) {
       await ctx.runMutation(internal.slotRecovery.setContainer, { id: slot._id, containerId: out.containerId });

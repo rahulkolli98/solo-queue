@@ -77,9 +77,16 @@ export function postcardMeta(
   tz: string
 ): string {
   const word = post.format ? (FORMAT_WORD[post.format] ?? post.format.toUpperCase()) : null;
+  // A carousel posted to Threads says so (the same draft also goes to Instagram), with its slide count.
+  const threadsLead =
+    post.format === "carousel"
+      ? post.slideCount
+        ? `THREADS · CAROUSEL · ${post.slideCount} ${post.slideCount === 1 ? "SLIDE" : "SLIDES"}`
+        : "THREADS · CAROUSEL"
+      : "THREADS";
   const lead =
     post.platform === "threads"
-      ? "THREADS"
+      ? threadsLead
       : word
         ? post.format === "carousel" && post.slideCount
           ? `${word} · ${post.slideCount} ${post.slideCount === 1 ? "SLIDE" : "SLIDES"}`

@@ -25,7 +25,8 @@ export default function MediaPanel({
   media,
   onAttach,
 }: {
-  kind: Extract<DraftKind, "caption" | "reel">;
+  /** "threads" is a thread's own photo or video: optional, and posted with its first post only. */
+  kind: Extract<DraftKind, "caption" | "reel" | "threads">;
   draftId: string;
   asset: Asset | undefined;
   state: MediaState;
@@ -33,6 +34,20 @@ export default function MediaPanel({
   onAttach: () => void;
 }) {
   const now = useNow();
+  const platform = kind === "threads" ? "threads" : "instagram";
+  if (state === "none" && kind === "threads") {
+    return (
+      <div className="studio-media studio-media-opt">
+        <div className="studio-media-head">
+          <b>Photo or video</b>
+          <span className="t-meta">OPTIONAL · FIRST POST ONLY</span>
+        </div>
+        <button type="button" className="sq-btn sq-btn-sm sq-btn-light" onClick={onAttach}>
+          Add media
+        </button>
+      </div>
+    );
+  }
   if (state === "none") {
     return (
       <div className="studio-media studio-media-need">
@@ -40,7 +55,7 @@ export default function MediaPanel({
           <b>{kind === "reel" ? "Reel script" : "Caption"}</b>
           <span className="studio-flag">MEDIA REQUIRED</span>
         </div>
-        <p>{NEED[kind]}</p>
+        <p>{NEED[kind === "reel" ? "reel" : "caption"]}</p>
         <button type="button" className="sq-btn sq-btn-sm sq-btn-dark" onClick={onAttach}>
           Attach media
         </button>
@@ -54,7 +69,11 @@ export default function MediaPanel({
           <b>Attached media is gone</b>
           <span className="sq-pill sq-pill-bad">MEDIA MISSING</span>
         </div>
-        <p>The file was deleted from the library. Pick another to queue this draft.</p>
+        <p>
+          {kind === "threads"
+            ? "The file was deleted from the library. Pick another, or detach it to post the thread as text."
+            : "The file was deleted from the library. Pick another to queue this draft."}
+        </p>
         <div className="studio-actions-row">
           <button type="button" className="sq-btn sq-btn-sm sq-btn-dark" onClick={onAttach}>
             Pick media
@@ -73,7 +92,7 @@ export default function MediaPanel({
   }
   const mkind: MediaStatusKind =
     state === "ok" ? "ready" : state === "stale" ? "recheck" : asset.lastVerifyError ? "not_media" : "unchecked";
-  const status = describeMediaStatus(mkind, asset, now);
+  const status = describeMediaStatus(mkind, asset, now, platform);
   const name = asset.filename ?? (asset.mimeType.startsWith("video/") ? "Video" : "Image");
   return (
     <div className="studio-media studio-media-ok">

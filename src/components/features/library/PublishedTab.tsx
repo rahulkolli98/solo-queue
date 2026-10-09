@@ -5,9 +5,11 @@ import { useState } from "react";
 import Skeleton from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { blobFor, postcardMeta, restLabel, tiltFor, whenLabel } from "@/lib/libraryBoard";
+import { narrowBy, sortItems, topicOptions, type ViewFilters } from "@/lib/libraryView";
 import { refusalText } from "@/lib/refusalText";
 import { useNow } from "@/lib/useNow";
 import { api } from "../../../../convex/_generated/api";
+import LibraryControls from "./LibraryControls";
 import LibraryRail, { FramesStrip } from "./LibraryRail";
 import { pillarColorVar, type Frame, type LibraryFilters, type Pillar, type PublishedPost } from "./types";
 
@@ -103,6 +105,8 @@ function Postcard({
 /** Library › Published: tilted postcards of what went out, with Requeue and the evergreen mark. */
 export default function PublishedTab({
   filters,
+  onView,
+  onClear,
   pillars,
   tz,
   frames,
@@ -110,6 +114,8 @@ export default function PublishedTab({
   learnedFrom,
 }: {
   filters: LibraryFilters;
+  onView: (change: Partial<ViewFilters>) => void;
+  onClear: () => void;
   pillars: Pillar[];
   tz: string;
   frames: Frame[] | undefined;
@@ -123,16 +129,33 @@ export default function PublishedTab({
     platform: filters.platform || undefined,
     search: filters.search.trim() || undefined,
   });
-  const filtered = Boolean(filters.pillar || filters.platform || filters.search.trim());
+  // The server narrows by search, pillar and platform; topic, format and the order are applied here.
+  const shown = sortItems(
+    narrowBy(posts ?? [], filters),
+    filters.sort,
+    (p) => p.publishedAt
+  );
+  const filtered = Boolean(filters.pillar || filters.platform || filters.search.trim() || filters.topicId || filters.format);
 
   return (
     <div className="lb-grid">
       <div className="lb-main">
         <FramesStrip frames={frames} />
+        <LibraryControls
+          filters={filters}
+          onView={onView}
+          dateWord="published"
+          topics={topicOptions(posts ?? [])}
+          shown={shown.length}
+          total={posts?.length ?? 0}
+          noun="post"
+          narrowed={filtered}
+          onClear={onClear}
+        />
         <div className="lb-cards">
           {posts === undefined ? (
             <PostcardSkeletons />
-          ) : posts.length === 0 ? (
+          ) : shown.length === 0 ? (
             <div className="lb-empty">
               <b>{filtered ? "Nothing matches" : "Nothing published yet"}</b>
               <span>
@@ -142,7 +165,7 @@ export default function PublishedTab({
               </span>
             </div>
           ) : (
-            posts.map((p, i) => <Postcard key={p.slotId} post={p} index={i} pillars={pillars} tz={tz} />)
+            shown.map((p, i) => <Postcard key={p.slotId} post={p} index={i} pillars={pillars} tz={tz} />)
           )}
         </div>
       </div>

@@ -29,10 +29,14 @@ import {
   type FrameFormat,
 } from "@/lib/frameDefaults";
 import { refusalText } from "@/lib/refusalText";
+import { useTwoTap } from "@/lib/useTwoTap";
 import { api } from "../../../../convex/_generated/api";
+import { DEFAULT_FRAMES } from "../../../../convex/lib/framesModel";
 import { FrameDefaultToggles, FrameFormatChoice } from "./FrameDefaultToggles";
 import type { Frame, Voice } from "./types";
 import { useFrameDefaultSave } from "./useFrames";
+
+const STARTER_KEYS = new Set(DEFAULT_FRAMES.map((d) => d.key));
 
 /**
  * The frame editor rail (board 07o): name, two to five beats with a hint
@@ -50,6 +54,7 @@ export default function FrameEditor({
   voice,
   onSaved,
   onDuplicate,
+  onRemoved,
 }: {
   initial: FrameDraft;
   usedCount: number;
@@ -61,8 +66,12 @@ export default function FrameEditor({
   voice?: Voice;
   onSaved: (key: string) => void;
   onDuplicate: (draft: FrameDraft) => void;
+  /** The frame was deleted (or a starter frame hidden): show another one. */
+  onRemoved?: () => void;
 }) {
   const save = useMutation(api.frames.save);
+  const removeFrame = useMutation(api.frames.remove);
+  const del = useTwoTap();
   const { toast } = useToast();
   const [draft, setDraft] = useState<FrameDraft>(initial);
   const [errors, setErrors] = useState<FrameFormErrors>({});
@@ -71,6 +80,7 @@ export default function FrameEditor({
   const [format, setFormat] = useState<FrameFormat>(() => formatOfFits(initial.fits));
   const defaults = useFrameDefaultSave();
   const isNew = draft.key === null;
+  const isStarter = draft.key !== null && STARTER_KEYS.has(draft.key);
   const styleLength = (draft.style ?? "").length;
   // Defaults count only what is saved: a format counts once the saved frame fits it.
   const savedFits = frames.find((f) => f.key === draft.key)?.fits ?? initial.fits;
@@ -118,6 +128,21 @@ export default function FrameEditor({
       setServerError(refusalText(err, "Could not save the frame. Try again."));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onRemove() {
+    if (draft.key === null) return;
+    setServerError(null);
+    try {
+      const res = await removeFrame({ key: draft.key });
+      toast({
+        title: res?.hidden ? "Starter frame hidden" : "Frame deleted",
+        detail: res?.hidden ? "Saving it again brings it back." : "Posts already written keep the frame they used.",
+      });
+      onRemoved?.();
+    } catch (err) {
+      setServerError(refusalText(err, "Could not remove the frame. Try again."));
     }
   }
 
@@ -292,9 +317,23 @@ export default function FrameEditor({
         <button type="button" className="sq-btn sq-btn-light" disabled={busy} onClick={() => onDuplicate(draft)}>
           Duplicate
         </button>
+        {!isNew && (
+          <button
+            type="button"
+            className="sq-btn sq-btn-light"
+            disabled={busy}
+            aria-pressed={del.armed}
+            onClick={() => del.tap(() => void onRemove())}
+          >
+            {del.armed ? "Tap again" : isStarter ? "Hide" : "Delete"}
+          </button>
+        )}
       </div>
       {!isNew && (
-        <p className="lb-hint">Edits version the frame. Posts already written keep the frame they used.</p>
+        <p className="lb-hint">
+          Edits version the frame. Posts already written keep the frame they used.
+          {isStarter ? " Starter frames are hidden, not erased: save one again to bring it back." : ""}
+        </p>
       )}
     </aside>
   );

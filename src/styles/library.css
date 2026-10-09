@@ -2119,3 +2119,41 @@
   width: 100%;
   max-width: 360px;
 }
+
+/* ---------- sort and filter above a list ---------- */
+.lb-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-10);
+}
+.lb-controls .lb-select {
+  max-width: min(100%, 320px);
+}
+.lb-count {
+  color: var(--color-muted-on-surface);
+}
+.lb-clear {
+  all: unset;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lb-clear:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .lb-controls .lb-select {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .lb-clear {
+    min-height: 44px;
+  }
+}

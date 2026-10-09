@@ -15,7 +15,7 @@ const rows = (choices = {}) =>
 const noop = vi.fn();
 const render = (over: Partial<Parameters<typeof FormatSetup>[0]> = {}) =>
   renderToStaticMarkup(
-    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onLook={noop} onTheme={noop} onMakeDefault={noop} {...over} />
+    <FormatSetup rows={rows()} open={false} onToggle={noop} disabled={false} onInclude={noop} onFrame={noop} onCount={noop} onBrief={noop} onLook={noop} onTheme={noop} onTargets={noop} onMakeDefault={noop} {...over} />
   );
 const disabledDefaults = (out: string) => (out.match(/<button[^>]*studio-setup-default[^>]*disabled/g) ?? []).length;
 
@@ -33,7 +33,8 @@ describe("FormatSetup", () => {
   it("open: a row per format with a tick, a frame list that fits it, and Posts for threads only", () => {
     const out = render({ open: true });
     expect(out).toContain('aria-expanded="true"');
-    expect(out.match(/type="checkbox"/g)).toHaveLength(5);
+    // Five formats, plus the carousel's two platforms.
+    expect(out.match(/type="checkbox"/g)).toHaveLength(7);
     expect(out).toContain('aria-label="Threads story frame"');
     expect(out).toContain('aria-label="Caption story frame"');
     expect(out).toContain("Confession (default)");
@@ -123,7 +124,28 @@ describe("FormatSetup", () => {
     const off = render({ open: true, rows: rows({ caption: { include: false } }) });
     expect(off).toMatch(/aria-label="Caption story frame"[^>]*disabled/);
     const busy = render({ open: true, disabled: true });
-    expect((busy.match(/<input[^>]*checkbox[^>]*disabled/g) ?? []).length).toBe(5);
+    // Five formats, and the only platform that is on (a carousel has to go somewhere).
+    expect((busy.match(/<input[^>]*checkbox[^>]*disabled/g) ?? []).length).toBe(6);
+  });
+
+  it("the carousel row says where it is posted: Instagram by default, Threads as a second box", () => {
+    const out = render({ open: true });
+    expect(out).toContain("POST TO");
+    const boxes = (html: string) => [...html.slice(html.indexOf("POST TO")).matchAll(/<input([^>]*)\/><span>(Instagram|Threads)<\/span>/g)].map((m) => ({ name: m[2], attrs: m[1] }));
+    const solo = boxes(out);
+    expect(solo.map((b) => b.name)).toEqual(["Instagram", "Threads"]);
+    expect(solo[0].attrs).toContain('checked=""');
+    expect(solo[0].attrs).toContain('disabled=""');
+    expect(solo[1].attrs).not.toContain('checked=""');
+    expect(out).not.toContain("Instagram + Threads");
+
+    const both = render({ open: true, rows: rows({ carousel: { include: true, targets: ["instagram", "threads"] } }) });
+    expect(both).toContain("Instagram + Threads");
+    const two = boxes(both);
+    expect(two.every((b) => b.attrs.includes('checked=""') && !b.attrs.includes('disabled=""'))).toBe(true);
+
+    const threadsOnly = render({ rows: rows({ carousel: { include: true, targets: ["threads"] } }) });
+    expect(threadsOnly).toContain("Threads only");
   });
 
   it("with nothing ticked the line says so", () => {

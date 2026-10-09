@@ -152,7 +152,7 @@ export default function FramesTab({
             <PostcardSkeletons />
           ) : frames.length === 0 ? (
             <p className="lb-note" role="status">
-              Setting up your six starter frames…
+              Setting up your starter frames…
             </p>
           ) : (
             <>
@@ -211,6 +211,10 @@ export default function FramesTab({
           frames={frames ?? []}
           voice={voice}
           onSaved={(key) => select(key)}
+          onRemoved={() => {
+            setSeed(null);
+            window.history.replaceState(null, "", window.location.pathname);
+          }}
           onDuplicate={(draft) => {
             setSeed({ id: Date.now(), draft: duplicateFrame(draft) });
             window.history.replaceState(null, "", "?frame=new");

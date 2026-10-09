@@ -1,3 +1,4 @@
+import { postText } from "./lib/postText";
 import type { Doc } from "./_generated/dataModel";
 import { operatorQuery } from "./lib/operator";
 import { v } from "convex/values";
@@ -6,7 +7,8 @@ import { readSettings } from "./lib/settingsDb";
 /** What the Library shows: published history and drafts that were never queued. */
 
 const DAY_MS = 86400000;
-const PAGE = 200;
+// The newest this many rows are read before the Library narrows them, so a long history is not cut short too early.
+const PAGE = 500;
 
 function firstPost(body: string): string {
   return body.split(/^\s*---\s*$/m)[0].trim();
@@ -44,13 +46,15 @@ export const published = operatorQuery({
       const topic = await ctx.db.get(draft.topicId);
       const pillarKey = topic?.pillar && pillars.has(topic.pillar) ? topic.pillar : "build";
       if (args.pillar && pillarKey !== args.pillar) continue;
-      const body = firstPost(draft.body);
+      const body = firstPost(postText(draft, slot.platform));
       if (needle && !`${body} ${topic?.title ?? ""}`.toLowerCase().includes(needle)) continue;
       const publishedAt = slot.publishedAt ?? slot.scheduledAt;
       const restLeftMs = Math.max(0, publishedAt + restMs - args.now);
       const pillar = pillars.get(pillarKey);
       out.push({
         slotId: slot._id,
+        draftId: draft._id,
+        topicId: draft.topicId,
         platform: slot.platform,
         publishedAt,
         topicTitle: topic?.title ?? "(deleted topic)",

@@ -83,3 +83,15 @@ describe("draftStatus", () => {
     expect(draftStatus({ platform: "threads", constraintOk: true, mediaAssetId: undefined })).toBe("SAVED");
   });
 });
+
+describe("library.published carries the topic and the draft", () => {
+  it("returns topicId and draftId so the list can be filtered by topic", async () => {
+    const t = newTest();
+    const topic = await insertTopic(t, "A topic");
+    const draft = await insertDraft(t, topic, "threads", "Body", "k1");
+    await publish(t, draft, 3);
+    const [post] = await t.query(api.library.published, { now: NOW });
+    expect(post.topicId).toBe(topic);
+    expect(post.draftId).toBe(draft);
+  });
+});

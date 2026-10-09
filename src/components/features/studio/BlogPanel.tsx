@@ -156,6 +156,17 @@ export default function BlogPanel({
           ]}
         />
         <div className="studio-actions-row">
+          {view && (
+            <button
+              type="button"
+              className="sq-btn sq-btn-sm"
+              disabled={writing}
+              aria-label="Regenerate the blog draft"
+              onClick={onWrite}
+            >
+              Regenerate
+            </button>
+          )}
           <button type="button" className="sq-btn sq-btn-sm" onClick={() => void copy()} disabled={!view}>
             Copy markdown
           </button>

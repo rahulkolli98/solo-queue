@@ -166,7 +166,26 @@ describe("VoiceSection", () => {
     expect(slides).toContain('<option value="10">10 slides</option>');
     expect(slides).not.toContain('value="0"></option>');
     expect(slides).not.toContain('value="11"');
-    expect(row).not.toMatch(/type="checkbox"[^>]*checked=""/);
+    // The "Include by default" box is off (the Instagram platform box beside it is on).
+    expect(row).toMatch(/id="fmt-carousel-include" type="checkbox"\/>/);
+  });
+
+  it("says where the carousel is posted: Instagram by default, with Threads as a second box, and the last one stays on", () => {
+    const out = render();
+    const row = rowOf(out, "Carousel");
+    expect(row).toContain("Post to");
+    expect(row).toMatch(/id="fmt-carousel-instagram" type="checkbox" disabled="" checked=""/);
+    expect(row).toMatch(/id="fmt-carousel-threads" type="checkbox"\/>/);
+
+    voice = { ...voice, formatDefaults: { carousel: { targets: ["instagram", "threads"] } } };
+    const both = rowOf(render(), "Carousel");
+    expect(both).toMatch(/id="fmt-carousel-instagram" type="checkbox" checked=""\/>/);
+    expect(both).toMatch(/id="fmt-carousel-threads" type="checkbox" checked=""\/>/);
+
+    voice = { ...voice, formatDefaults: { carousel: { targets: ["threads"] } } };
+    const threadsOnly = rowOf(render(), "Carousel");
+    expect(threadsOnly).toMatch(/id="fmt-carousel-threads" type="checkbox" disabled="" checked=""/);
+    expect(threadsOnly).toMatch(/id="fmt-carousel-instagram" type="checkbox"\/>/);
   });
 
   it("offers Follow the story frame plus 2 to 12 posts, selected from the saved count", () => {

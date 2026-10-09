@@ -17,8 +17,11 @@ import {
 } from "@/lib/libraryBoard";
 import { copyText } from "@/lib/clipboard";
 import { refusalText } from "@/lib/refusalText";
+import { narrowBy, sortItems, topicOptions, type ViewFilters } from "@/lib/libraryView";
+import { useTwoTap } from "@/lib/useTwoTap";
 import { api } from "../../../../convex/_generated/api";
 import { AttachDrawer, TrimDrawer } from "./DraftDrawers";
+import LibraryControls from "./LibraryControls";
 import LibraryRail from "./LibraryRail";
 import { PostcardSkeletons } from "./PublishedTab";
 import { pillarColorVar, type DraftCard, type Frame, type LibraryFilters, type Pillar } from "./types";
@@ -43,9 +46,12 @@ function DraftPostcard({
   onAttach: () => void;
 }) {
   const enqueue = useMutation(api.slots.enqueue);
+  const removeDraft = useMutation(api.drafts.remove);
   const convex = useConvex();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const del = useTwoTap();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const status = DRAFT_STATUS[card.status];
   const isIg = card.platform === "instagram";
   const color = pillarColorVar(pillars, pillarKey);
@@ -63,6 +69,18 @@ function DraftPostcard({
     } catch (err) {
       toast({ title: "Not queued", detail: refusalText(err, "Could not queue this draft. Try again."), tone: "bad" });
       setBusy(false);
+    }
+  }
+
+  async function onDelete() {
+    setDeleteError(null);
+    try {
+      await removeDraft({ id: card.draftId });
+      toast({ title: "Draft deleted" });
+    } catch (err) {
+      const why = refusalText(err, "Try again.");
+      setDeleteError(why);
+      toast({ title: "Could not delete the draft", detail: why, tone: "bad" });
     }
   }
 
@@ -107,12 +125,26 @@ function DraftPostcard({
         <span className="lb-dot" style={{ background: color }} aria-hidden="true" />
         <span className="t-meta">{pillarName.toUpperCase()}</span>
       </div>
+      {deleteError && (
+        <p className="lb-reason lb-reason-plain" role="alert">
+          {deleteError}
+        </p>
+      )}
       <div className="lb-actions">
         <Link href={`/studio/${card.topicId}`} className="lb-act">
           <span className="lb-lead">Open in&nbsp;</span>Studio
         </Link>
         <button type="button" className="lb-act lb-act-dark" disabled={busy} onClick={onFix} aria-label={status.action}>
           {shortAction(status.action)}
+        </button>
+        <button
+          type="button"
+          className="lb-act"
+          aria-pressed={del.armed}
+          aria-label={del.armed ? "Tap again to delete this draft" : "Delete this draft"}
+          onClick={() => del.tap(() => void onDelete())}
+        >
+          {del.armed ? "Tap again" : "Delete"}
         </button>
       </div>
     </article>
@@ -135,6 +167,8 @@ function shortAction(action: string) {
 /** Library › Drafts: everything written that never got a slot, with the fix that matches why. */
 export default function DraftsTab({
   filters,
+  onView,
+  onClear,
   pillars,
   tz,
   frames,
@@ -142,6 +176,8 @@ export default function DraftsTab({
   learnedFrom,
 }: {
   filters: LibraryFilters;
+  onView: (change: Partial<ViewFilters>) => void;
+  onClear: () => void;
   pillars: Pillar[];
   tz: string;
   frames: Frame[] | undefined;
@@ -159,15 +195,23 @@ export default function DraftsTab({
     return key && pillars.some((p) => p.key === key) ? key : "build";
   };
 
-  const cards = (data?.cards ?? []).filter(
+  const everyCard = data?.cards ?? [];
+  const matching = everyCard.filter(
     (c) =>
       matchesDraftFilter(c.status, filter) &&
       (!filters.platform || c.platform === filters.platform) &&
       (!filters.pillar || pillarOfCard(c) === filters.pillar) &&
       matchesSearch([c.topicTitle, c.body], filters.search)
   );
+  const cards = sortItems(narrowBy(matching, filters), filters.sort, (c) => c.createdAt);
   const counts = data?.counts;
-  const narrowed = Boolean(filters.search.trim() || filters.pillar || filters.platform || filter !== "all");
+  const narrowed = Boolean(
+    filters.search.trim() || filters.pillar || filters.platform || filters.topicId || filters.format || filter !== "all"
+  );
+  const clearAll = () => {
+    setFilter("all");
+    onClear();
+  };
 
   return (
     <div className="lb-grid">
@@ -183,6 +227,17 @@ export default function DraftsTab({
             Saved{counts ? ` · ${counts.saved}` : ""}
           </FilterChip>
         </div>
+        <LibraryControls
+          filters={filters}
+          onView={onView}
+          dateWord="added"
+          topics={topicOptions(everyCard)}
+          shown={cards.length}
+          total={everyCard.length}
+          noun="draft"
+          narrowed={narrowed}
+          onClear={clearAll}
+        />
         <div className="lb-cards">
           {data === undefined ? (
             <PostcardSkeletons />
