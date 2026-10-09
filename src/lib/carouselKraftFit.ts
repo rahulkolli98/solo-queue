@@ -126,6 +126,26 @@ export function headlineRows(slide: Slide, s: KraftSizes): number {
   return rows;
 }
 
+/** An italic serif letter at the end of a word (a comma, a y) reaches a little past its advance; this much of the accent size. */
+const ACCENT_OVERHANG = 0.05;
+
+/**
+ * The widest single headline word at these sizes. A word is never split, so one wider than the row runs off the
+ * slide whatever the wrapping does (a long accent word in the big serif on a cover): the fit has to shrink until it fits.
+ */
+export function widestHeadlineWord(slide: Slide, s: KraftSizes): number {
+  let widest = 0;
+  for (const words of splitHeadline(slide.headline, slide.accent)) {
+    for (const w of words) {
+      const width = w.accent
+        ? textWidth("playfairBoldItalic", w.text, s.accent, 0) + s.accent * ACCENT_OVERHANG
+        : textWidth("anton", w.text, s.headline, 0);
+      if (width > widest) widest = width;
+    }
+  }
+  return widest;
+}
+
 /** A card is drawn as a terminal window when its tone is ink, otherwise as a paper card. */
 export const isTerminal = (card: { tone: string }) => card.tone === "ink";
 
@@ -209,7 +229,7 @@ export interface KraftFit {
   fits: boolean;
 }
 
-/** The sizes to draw `slide` with: the largest scale that fits, from 1.3 (a slide with room to spare) down to half size. */
+/** The sizes to draw `slide` with: the largest scale where the height fits and no headline word is wider than the row, from 1.3 (a slide with room to spare) down to half size. */
 export function fitKraft(slide: Slide, isLast = false): KraftFit {
   const budget = INNER_H - SAFETY;
   const top = slide.layout === "cover" || slide.layout === "statement" ? MAX_SCALE_FRONT : MAX_SCALE;
@@ -218,8 +238,8 @@ export function fitKraft(slide: Slide, isLast = false): KraftFit {
     const k = Math.round((top - i * STEP) * 100) / 100;
     const sizes = kraftSizes(slide, k);
     const height = kraftContentHeight(slide, sizes, isLast);
-    if (height <= budget) return { k, sizes, height, budget, fits: true };
+    if (height <= budget && widestHeadlineWord(slide, sizes) <= INNER_W) return { k, sizes, height, budget, fits: true };
   }
   const sizes = kraftSizes(slide, MIN_SCALE);
-  return { k: MIN_SCALE, sizes, height: kraftContentHeight(slide, sizes, isLast), budget, fits: false };
+  return { k: MIN_SCALE, sizes, height: kraftContentHeight(slide, sizes, isLast), budget, fits: widestHeadlineWord(slide, sizes) <= INNER_W && kraftContentHeight(slide, sizes, isLast) <= budget };
 }
