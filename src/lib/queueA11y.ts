@@ -85,6 +85,12 @@ export function viewAnnouncement(days: BoardDay[], range: Range, platform: Platf
   return `Showing ${RANGE_WORD[range]}, ${PLATFORM_WORD[platform]}. ${plural(c.threads + c.instagram, "post", "posts")}, ${plural(c.open, "open slot", "open slots")}.`;
 }
 
+/** The status line for a Past page: "Showing the past, 2 OCT → 8 OCT, Threads only. 3 posts." */
+export function pastAnnouncement(days: BoardDay[], platform: PlatformFilter, rangeLabel: string): string {
+  const c = countDays(days, platform, days.length);
+  return `Showing the past, ${rangeLabel}, ${PLATFORM_WORD[platform]}. ${plural(c.threads + c.instagram, "post", "posts")}.`;
+}
+
 /** How long the Cancel post button stays armed before it resets. */
 export const CANCEL_ARM_MS = 5000;
 

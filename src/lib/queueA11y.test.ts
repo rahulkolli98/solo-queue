@@ -3,6 +3,7 @@ import {
   CANCEL_ARM_MS,
   cancelStatus,
   dayGroupLabel,
+  pastAnnouncement,
   pickReturnFocus,
   slotCardLabel,
   viewAnnouncement,
@@ -114,5 +115,13 @@ describe("pickReturnFocus", () => {
     expect(pickReturnFocus(gone("opener"), null, live("fallback"))?.name).toBe("fallback");
     expect(pickReturnFocus(gone("opener"), undefined, gone("fallback"))).toBeNull();
     expect(pickReturnFocus<{ isConnected: boolean }>(null, null)).toBeNull();
+  });
+});
+
+describe("pastAnnouncement", () => {
+  it("names the days, the platform and the posts that went out", () => {
+    const days = [day(0, { threads: [card({ status: "published" })] }), day(1)];
+    expect(pastAnnouncement(days, "both", "2 OCT → 8 OCT")).toBe("Showing the past, 2 OCT → 8 OCT, Threads and Instagram. 1 post.");
+    expect(pastAnnouncement(days, "instagram", "2 OCT → 8 OCT")).toBe("Showing the past, 2 OCT → 8 OCT, Instagram only. 0 posts.");
   });
 });

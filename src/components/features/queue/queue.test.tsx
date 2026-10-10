@@ -182,3 +182,21 @@ describe("at-risk marks", () => {
     expect(html(<ThreadsCard card={card()} onOpen={noop} />)).not.toContain("AT RISK");
   });
 });
+
+describe("WeekGrid for days that went by", () => {
+  it("says NO POST (not NO SLOT) for an empty day, and counts what was posted", () => {
+    const days = [day(0, { threads: [card({ status: "published" })] }), day(1)];
+    const out = html(<WeekGrid days={days} platform="both" past onOpen={noop} />);
+    expect(out).toContain("NO POST");
+    expect(out).not.toContain("NO SLOT");
+    expect(out).toContain("1 POSTED");
+    expect(out).toContain("NONE");
+    expect(out).not.toContain("FILLED");
+  });
+
+  it("keeps the ahead wording for the coming week", () => {
+    const out = html(<WeekGrid days={[day(0), day(1)]} platform="both" onOpen={noop} />);
+    expect(out).toContain("NO SLOT");
+    expect(out).not.toContain("NO POST");
+  });
+});

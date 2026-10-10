@@ -10,7 +10,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { ArrowRightIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
 import { useNavCounts } from "@/components/useNavCounts";
-import { viewAnnouncement } from "@/lib/queueA11y";
+import { pastAnnouncement, viewAnnouncement } from "@/lib/queueA11y";
 import { useBrowserTz } from "@/lib/useBrowserTz";
 import { useNow } from "@/lib/useNow";
 import {
@@ -20,14 +20,19 @@ import {
   failedCards,
   firstGap,
   formatStamp,
+  PAST_DAYS,
+  PAST_MAX_PAGES,
   PLATFORM_NAME,
+  pastHeadline,
+  pastRangeLabel,
+  pastWindowStart,
   queueHeadline,
   shortDay,
   startOfToday,
   timelineModel,
   type BoardDay,
   type PlatformFilter,
-  type Range,
+  type View,
 } from "@/lib/queueBoard";
 import { api } from "../../../../convex/_generated/api";
 import Agenda from "./Agenda";
@@ -40,6 +45,7 @@ import WeekGrid from "./WeekGrid";
 import { useSheetFocus } from "./useSheetFocus";
 
 const RANGES = [
+  { value: "past", label: "Past" },
   { value: "week", label: "Week" },
   { value: "three", label: "3 weeks" },
   { value: "month", label: "Month" },
@@ -53,17 +59,26 @@ const PLATFORMS = [
 
 const SLOT_PARAM = /^[A-Za-z0-9]{10,64}$/;
 
-/** Queue screen (boards 03, 07g, 07h): week / 3 weeks / month, platform filter, timeline strip and the slot drawer. */
+/**
+ * Queue screen (boards 03, 07g, 07h): week / 3 weeks / month, platform filter, timeline strip and the slot drawer.
+ * "Past" looks back a week at a time at what already went out (and what failed), read-only.
+ */
 export default function QueueBoard() {
   const now = useNow();
   const tz = useBrowserTz();
   const router = useRouter();
   const params = useSearchParams();
-  const [range, setRange] = useState<Range>("week");
+  const [view, setView] = useState<View>("week");
+  const [pagesBack, setPagesBack] = useState(1);
   const [platform, setPlatform] = useState<PlatformFilter>("both");
+  const past = view === "past";
+  const range = past ? "week" : view;
 
   const from = useMemo(() => startOfToday(now, tz), [now, tz]);
   const data = useQuery(api.queueBoard.dayColumns, { from, days: QUERY_DAYS, tz });
+  // The Past page is its own read, only while it is shown (and it keeps the last page up while the next one loads).
+  const pastFrom = useMemo(() => pastWindowStart(now, tz, pagesBack), [now, tz, pagesBack]);
+  const pastData = useStableQuery(api.queueBoard.dayColumns, past ? { from: pastFrom, days: PAST_DAYS, tz } : "skip");
   const settings = useQuery(api.settings.get, {});
   const summary = useStableQuery(api.today.summary, { now, tz });
   const inbox = useNavCounts().research;
@@ -83,14 +98,17 @@ export default function QueueBoard() {
   if (data === undefined) return <QueueSkeleton />;
 
   const days: BoardDay[] = data.days;
-  const shown = days.slice(0, SHOWN_DAYS[range]);
+  const shown = past ? (pastData?.days ?? []) : days.slice(0, SHOWN_DAYS[range]);
+  const pastLabel = pastRangeLabel(shown);
+  const pastLine = pastHeadline(shown);
+  const pastFailed = shown.flatMap((d) => [...d.threads, ...d.instagram]).filter((c) => c.status === "failed").length;
   const model = timelineModel(days, platform);
   const gap = firstGap(days, platform);
   const all = countDays(days, "both", QUERY_DAYS);
   const empty = all.threads + all.instagram === 0;
   const window = countDays(days, platform, 21);
   const week = countDays(days, "both", 7);
-  const headline = queueHeadline(model.covered, window.threads + window.instagram);
+  const headline = past ? pastLine : queueHeadline(model.covered, window.threads + window.instagram);
   // Failures the columns cannot show (before today) come from the Today alerts, so none is missed.
   const failures: Failure[] = [
     ...(summary?.alerts ?? [])
@@ -122,12 +140,20 @@ export default function QueueBoard() {
 
       {/* Heard when the range or platform changes (and when posts are added or removed). */}
       <p className="sq-sr" role="status">
-        {viewAnnouncement(days, range, platform)}
+        {past ? pastAnnouncement(shown, platform, pastLabel) : viewAnnouncement(days, range, platform)}
       </p>
 
       <div className="sq-q-toolbar">
         <div className="sq-q-rangectl">
-          <SegmentedControl label="Range" options={[...RANGES]} value={range} onChange={setRange} />
+          <SegmentedControl
+            label="Range"
+            options={[...RANGES]}
+            value={view}
+            onChange={(next) => {
+              setView(next);
+              if (next === "past") setPagesBack(1);
+            }}
+          />
         </div>
         <div className="sq-q-toolbar-right">
           <SegmentedControl label="Platform" options={[...PLATFORMS]} value={platform} onChange={setPlatform} />
@@ -153,14 +179,16 @@ export default function QueueBoard() {
           </>
         }
         aside={
-          empty ? (
+          past ? (
+            "What already went out, a week at a time. Click a card for its text and receipts."
+          ) : empty ? (
             <span className="sq-q-aside">Drop a topic and I&apos;ll draft both platforms.</span>
           ) : (
             "Click any card for its text, receipts and reschedule. Open slots show in dashed rust; one click starts a draft in Studio."
           )
         }
         actions={
-          empty ? (
+          empty && !past ? (
             <>
               <Link href="/studio" className="sq-btn sq-btn-primary">
                 Open Studio
@@ -176,7 +204,28 @@ export default function QueueBoard() {
       <p className="sq-q-lead">{lead}</p>
 
       <div className="sq-q-desktop">
-        {range === "week" ? (
+        {past && (
+          <div className="sq-q-pastnav">
+            <button
+              type="button"
+              className="sq-btn"
+              disabled={pagesBack >= PAST_MAX_PAGES}
+              onClick={() => setPagesBack((n) => Math.min(PAST_MAX_PAGES, n + 1))}
+            >
+              ← Earlier
+            </button>
+            <span className="t-meta sq-q-pastlabel">
+              {pastLabel}
+              {pastFailed > 0 ? ` · ${pastFailed} FAILED` : ""}
+            </span>
+            <button type="button" className="sq-btn" disabled={pagesBack <= 1} onClick={() => setPagesBack((n) => Math.max(1, n - 1))}>
+              Later →
+            </button>
+          </div>
+        )}
+        {past ? (
+          <WeekGrid days={shown} platform={platform} past onOpen={open} />
+        ) : range === "week" ? (
           <WeekGrid days={shown} platform={platform} onOpen={open} />
         ) : (
           <RangeGrid days={shown} platform={platform} onOpen={open} />
@@ -185,7 +234,7 @@ export default function QueueBoard() {
       <Agenda days={days.slice(0, 7)} platform={platform} pillarNames={pillarNames} empty={empty} onOpen={open} />
 
       <div className="sq-q-foot">
-        <Timeline days={days} model={model} gap={gap} />
+        {!past && <Timeline days={days} model={model} gap={gap} />}
         <div className="sq-q-legendrow">
           <ul className="sq-q-legend">
             {pillars.map((p) => (
@@ -196,9 +245,11 @@ export default function QueueBoard() {
             ))}
           </ul>
           <span className="t-meta sq-q-totals">
-            {empty
-              ? `0 SCHEDULED · ${week.open} OPEN SLOTS THIS WEEK`
-              : `${window.threads} THREADS · ${window.instagram} INSTAGRAM · $0 PER-POST FEES`}
+            {past
+              ? `${countDays(shown, platform, PAST_DAYS).threads} THREADS · ${countDays(shown, platform, PAST_DAYS).instagram} INSTAGRAM`
+              : empty
+                ? `0 SCHEDULED · ${week.open} OPEN SLOTS THIS WEEK`
+                : `${window.threads} THREADS · ${window.instagram} INSTAGRAM · $0 PER-POST FEES`}
           </span>
         </div>
       </div>

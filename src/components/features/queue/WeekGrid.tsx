@@ -5,15 +5,16 @@ import OpenSlot, { OpenTile } from "./OpenSlot";
 import PlatformGlyph from "./PlatformGlyph";
 import ThreadsCard from "./ThreadsCard";
 
-/** "N THIS WEEK", or "0 OF M FILLED" while nothing is queued (board 07h). */
-function laneCount(days: BoardDay[], platform: Platform): string {
+/** "N THIS WEEK", or "0 OF M FILLED" while nothing is queued (board 07h); "N POSTED" / "NONE" for days that went by. */
+function laneCount(days: BoardDay[], platform: Platform, past: boolean): string {
   const posts = days.reduce((n, d) => n + d[platform].length, 0);
+  if (past) return posts > 0 ? `${posts} POSTED` : "NONE";
   if (posts > 0) return `${posts} THIS WEEK`;
   const open = days.reduce((n, d) => n + d.open[platform].length, 0);
   return `0 OF ${open} FILLED`;
 }
 
-function ThreadsCell({ day, onOpen }: { day: BoardDay; onOpen: (id: string) => void }) {
+function ThreadsCell({ day, past, onOpen }: { day: BoardDay; past: boolean; onOpen: (id: string) => void }) {
   const label = shortDay(day.key);
   const empty = day.threads.length === 0 && day.open.threads.length === 0;
   return (
@@ -24,12 +25,12 @@ function ThreadsCell({ day, onOpen }: { day: BoardDay; onOpen: (id: string) => v
       {day.open.threads.map((time) => (
         <OpenSlot key={time} platform="threads" time={time} dayLabel={label} dayKey={day.key} />
       ))}
-      {empty && <span className="sq-q-noslot t-tag-sm">NO SLOT</span>}
+      {empty && <span className="sq-q-noslot t-tag-sm">{past ? "NO POST" : "NO SLOT"}</span>}
     </div>
   );
 }
 
-function InstagramCell({ day, column, onOpen }: { day: BoardDay; column: number; onOpen: (id: string) => void }) {
+function InstagramCell({ day, column, past, onOpen }: { day: BoardDay; column: number; past: boolean; onOpen: (id: string) => void }) {
   const label = shortDay(day.key);
   const empty = day.instagram.length === 0 && day.open.instagram.length === 0;
   return (
@@ -44,7 +45,7 @@ function InstagramCell({ day, column, onOpen }: { day: BoardDay; column: number;
         day.open.instagram.map((time) => (
           <OpenSlot key={time} platform="instagram" time={time} dayLabel={label} dayKey={day.key} variant="chip" />
         ))}
-      {empty && <span className="sq-q-noslot t-tag-sm">NO SLOT</span>}
+      {empty && <span className="sq-q-noslot t-tag-sm">{past ? "NO POST" : "NO SLOT"}</span>}
     </div>
   );
 }
@@ -57,10 +58,13 @@ function InstagramCell({ day, column, onOpen }: { day: BoardDay; column: number;
 export default function WeekGrid({
   days,
   platform,
+  past = false,
   onOpen,
 }: {
   days: BoardDay[];
   platform: PlatformFilter;
+  /** Days that already went by: no open slots, and an empty day says NO POST. */
+  past?: boolean;
   onOpen: (id: string) => void;
 }) {
   const showThreads = platform !== "instagram";
@@ -73,14 +77,14 @@ export default function WeekGrid({
         <div className="sq-q-lane" style={{ gridColumn: 1, gridRow: threadsRow }}>
           <PlatformGlyph platform="threads" />
           <span>{PLATFORM_NAME.threads}</span>
-          <span className="t-meta sq-q-lane-count">{laneCount(days, "threads")}</span>
+          <span className="t-meta sq-q-lane-count">{laneCount(days, "threads", past)}</span>
         </div>
       )}
       {showIg && (
         <div className="sq-q-lane" style={{ gridColumn: 1, gridRow: igRow }}>
           <PlatformGlyph platform="instagram" />
           <span>{PLATFORM_NAME.instagram}</span>
-          <span className="t-meta sq-q-lane-count">{laneCount(days, "instagram")}</span>
+          <span className="t-meta sq-q-lane-count">{laneCount(days, "instagram", past)}</span>
         </div>
       )}
       {days.map((day, i) => {
@@ -99,8 +103,8 @@ export default function WeekGrid({
               <span className="sq-q-daynum">{date}</span>
               <span className="sq-sr">{day.isToday ? ", today" : ""}</span>
             </div>
-            {showThreads && <ThreadsCell day={day} onOpen={onOpen} />}
-            {showIg && <InstagramCell day={day} column={i} onOpen={onOpen} />}
+            {showThreads && <ThreadsCell day={day} past={past} onOpen={onOpen} />}
+            {showIg && <InstagramCell day={day} column={i} past={past} onOpen={onOpen} />}
           </div>
         );
       })}

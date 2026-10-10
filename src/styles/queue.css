@@ -40,6 +40,17 @@
   gap: var(--space-10);
   flex-wrap: wrap;
 }
+/* Past: the earlier / later bar above the read-only week */
+.sq-q-pastnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-12);
+}
+.sq-q-pastlabel {
+  text-align: center;
+}
 .sq-q-aside {
   display: block;
   font-size: 20px;

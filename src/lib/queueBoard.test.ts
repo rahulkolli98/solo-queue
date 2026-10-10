@@ -6,6 +6,9 @@ import {
   firstGap,
   formatStamp,
   fromInputValue,
+  pastHeadline,
+  pastRangeLabel,
+  pastWindowStart,
   queueHeadline,
   shortDay,
   startOfToday,
@@ -165,5 +168,42 @@ describe("queueHeadline", () => {
     expect(queueHeadline(1, 3).top).toBe("1 day,");
     expect(queueHeadline(4, 3).top).toBe("4 days,");
     expect(queueHeadline(0, 3).rust).toBe("queue.");
+  });
+});
+
+describe("Past pages", () => {
+  const TZ = "America/Chicago";
+
+  it("starts a page 7 days per page back, on the right local day", () => {
+    const now = Date.UTC(2026, 9, 9, 22, 0); // Fri 9 Oct 2026, 17:00 in Chicago
+    for (const [pages, first] of [[1, "2026-10-02"], [2, "2026-09-25"], [5, "2026-09-04"]] as const) {
+      const at = pastWindowStart(now, TZ, pages);
+      const p = toInputValue(at, TZ).slice(0, 10);
+      expect(p).toBe(first);
+    }
+  });
+
+  it("stays on the right day across a clock change (autumn and spring)", () => {
+    // Today Mon 9 Nov 2026 is after the clocks went back (1 Nov); 2 pages back is Mon 26 Oct, before it.
+    expect(toInputValue(pastWindowStart(Date.UTC(2026, 10, 9, 18, 0), TZ, 2), TZ).slice(0, 10)).toBe("2026-10-26");
+    // Today Mon 23 Mar 2026 is after the clocks went forward (8 Mar); 2 pages back is Mon 9 Mar.
+    expect(toInputValue(pastWindowStart(Date.UTC(2026, 2, 23, 18, 0), TZ, 2), TZ).slice(0, 10)).toBe("2026-03-09");
+    // And 3 pages back crosses the change: Mon 2 Mar.
+    expect(toInputValue(pastWindowStart(Date.UTC(2026, 2, 23, 18, 0), TZ, 3), TZ).slice(0, 10)).toBe("2026-03-02");
+  });
+
+  it("says how many posts went out, and counts only the published ones", () => {
+    const days = [
+      day(0, { threads: [card({ status: "published" }), card({ _id: "s2", status: "failed" })], instagram: [card({ _id: "s3", platform: "instagram", status: "published" })] }),
+      day(1),
+    ];
+    expect(pastHeadline(days)).toEqual({ top: "2 posts", rust: "went out.", rest: "" });
+    expect(pastHeadline([day(0, { threads: [card({ status: "published" })] })]).top).toBe("1 post");
+    expect(pastHeadline([day(0), day(1)])).toEqual({ top: "Nothing went", rust: "out", rest: " then." });
+  });
+
+  it("labels a page by its first and last day", () => {
+    expect(pastRangeLabel([day(0), day(1), day(2)])).toBe("25 SEP → 27 SEP");
+    expect(pastRangeLabel([])).toBe("");
   });
 });
