@@ -8,6 +8,8 @@ import { resolveTz, zonedParts, zonedWallToUtc } from "../../convex/lib/zoned";
  */
 
 export type Range = "week" | "three" | "month";
+/** What the board shows: a range ahead, or the days that already went by (read-only). */
+export type View = Range | "past";
 export type PlatformFilter = "both" | "threads" | "instagram";
 export type Platform = "threads" | "instagram";
 export type SlotStatus = "scheduled" | "claimed" | "published" | "failed";
@@ -17,6 +19,9 @@ export const QUERY_DAYS = 30;
 /** Days drawn as cards for each range. */
 export const SHOWN_DAYS: Record<Range, number> = { week: 7, three: 21, month: 30 };
 export const TIMELINE_DAYS = 21;
+/** Days in one Past page, and how many pages back it goes. */
+export const PAST_DAYS = 7;
+export const PAST_MAX_PAGES = 52;
 
 export interface BoardCard {
   _id: string;
@@ -104,6 +109,32 @@ export function startOfToday(now: number, tz: string): number {
   const zone = resolveTz(tz);
   const p = zonedParts(now, zone);
   return zonedWallToUtc({ year: p.year, month: p.month, day: p.day, hour: 0, minute: 0 }, zone);
+}
+
+const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
+
+/**
+ * Where the board's query starts for Past page `pagesBack` (1 = the 7 days before today, 2 = the 7 before those).
+ * It lands 3 hours after local midnight of the first day, so a clock change in between cannot move it to the day
+ * before or after; the backend reads the day from this instant and fetches from a day earlier.
+ */
+export function pastWindowStart(now: number, tz: string, pagesBack: number): number {
+  return startOfToday(now, tz) - pagesBack * PAST_DAYS * DAY_MS + 3 * HOUR_MS;
+}
+
+/** "2 OCT → 8 OCT" for the days of a Past page. */
+export function pastRangeLabel(days: BoardDay[]): string {
+  if (days.length === 0) return "";
+  return `${dayMonth(days[0].key)} → ${dayMonth(days[days.length - 1].key)}`;
+}
+
+/** The headline for a Past page: how many posts went out in those days. */
+export function pastHeadline(days: BoardDay[]): Headline {
+  const cards = days.flatMap((d) => [...d.threads, ...d.instagram]);
+  const out = cards.filter((c) => c.status === "published").length;
+  if (out === 0) return { top: "Nothing went", rust: "out", rest: " then." };
+  return { top: `${out} post${out === 1 ? "" : "s"}`, rust: "went out.", rest: "" };
 }
 
 /** "Sat 26 Sep, 12:00" in the founder's zone, 24-hour. */
