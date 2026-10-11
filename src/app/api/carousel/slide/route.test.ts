@@ -69,6 +69,23 @@ describe("POST /api/carousel/slide", () => {
     }
   }, 180_000);
 
+  it("draws every layout in the App card theme, with a 15-character pill", async () => {
+    const app = [
+      { layout: "cover", tone: "cream", kicker: "Just got a new Mac?", headline: "7 apps to\ninstall first", sub: "I use every one of them", tag: "#macapps" },
+      { layout: "cards", tone: "cream", kicker: "#macapps", headline: "Raycast", sub: "A far more powerful Spotlight.", cards: [{ text: "Launch apps, find files", tone: "cream" }, { text: "Clipboard history", tone: "cream" }, { text: "Hundreds of extensions", tone: "cream" }], tag: "Free", note: "Pro is paid" },
+      { layout: "list", tone: "ink", kicker: "#macapps", headline: "Rectangle", items: [{ text: "Left half" }, { text: "Right half" }], tag: "Free" },
+      { layout: "close", tone: "cream", kicker: "#macapps", headline: "Which ones do you already have?", sub: "Tell me in the comments.", pills: ["Save this", "Follow for more"] },
+      { layout: "statement", tone: "blue", headline: "One idea, said loud.", accent: "said loud.", tag: "Mac tips" },
+    ];
+    for (const [i, slide] of app.entries()) {
+      const res = await post({ slide, index: i, total: app.length, theme: "app-card" });
+      expect(res.status, slide.layout).toBe(200);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      expect([...bytes.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+      expect(bytes.length).toBeGreaterThan(8_000);
+    }
+  }, 180_000);
+
   it("draws the same slide differently in each theme, and refuses an unknown theme", async () => {
     const solo = new Uint8Array(await (await post({ slide, index: 0, total: 6 })).arrayBuffer());
     const named = new Uint8Array(await (await post({ slide, index: 0, total: 6, theme: "solo-queue" })).arrayBuffer());

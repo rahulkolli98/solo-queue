@@ -27,7 +27,7 @@ export const LIMITS = {
   cardBig: 8,
   cardText: 160,
   itemText: 100,
-  pill: 12,
+  pill: 16,
   tag: 30,
   note: 40,
 } as const;
