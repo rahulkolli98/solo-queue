@@ -13,6 +13,8 @@ export const GUIDE_INNER_W = SLIDE_WIDTH - 2 * GUIDE_PAD_X;
 const INNER_H = SLIDE_HEIGHT - GUIDE_PAD_TOP - GUIDE_PAD_BOTTOM;
 const SAFETY = 8;
 const MIN_SCALE = 0.5;
+/** A slide with room to spare is drawn bigger (the boxes and the note), as far as this, so the page is not half empty. */
+const MAX_SCALE = 1.35;
 const STEP = 0.02;
 export const HEAD_LINE = 0.96;
 export const PILL_H = 66;
@@ -27,7 +29,9 @@ const HEAD_SIZES: Record<string, number[]> = {
 
 /** The visual lines of a headline at `size` (an explicit line break starts a line; a long line wraps). */
 export function headLineCount(headline: string, size: number): number {
-  return wrapLines("anton", headline.toUpperCase(), size, 0, GUIDE_INNER_W - 0.04 * size);
+  // Narrower than the box: the renderer puts a word gap of 0.2 of the size between words, and a headline that lands
+  // right on the edge wraps one word early, so a line only counts as fitting when it has some room to spare.
+  return wrapLines("anton", headline.toUpperCase(), size, 0, GUIDE_INNER_W * 0.92 - 0.04 * size);
 }
 
 /** The widest explicit line of the headline at `size`, in pixels. */
@@ -73,7 +77,7 @@ export interface GuideSizes {
 
 export function guideSizes(slide: Slide, k: number, headline: number = guideHeadlineSize(slide)): GuideSizes {
   const r = (n: number) => Math.round(n * k);
-  return { k, headline, box: r(40), boxPad: r(34), note: r(50), gap: r(30) };
+  return { k, headline, box: r(40), boxPad: r(34), note: Math.round(50 * Math.min(k, 1.12)), gap: r(30) };
 }
 
 /** The lines inside a callout box: a card's text split on line breaks, or the list's items. */
@@ -99,8 +103,21 @@ export function guideBoxes(slide: Slide): GuideBox[] {
   return [];
 }
 
+/** The width a line has inside its box: the box's padding and border, and a window's prompt column, come off the page width. */
+function boxInnerWidth(box: GuideBox, s: GuideSizes): number {
+  return GUIDE_INNER_W - 2 * s.boxPad - (box.kind === "terminal" ? 60 : 36);
+}
+
+/** Whether any line inside a takeaway box or window would wrap at these sizes. */
+export function boxesWrap(slide: Slide, s: GuideSizes): boolean {
+  return guideBoxes(slide).some((box) => {
+    const inner = boxInnerWidth(box, s);
+    return box.lines.some((l) => wrapLines("dmMono", l, s.box, 0, inner) > 1);
+  });
+}
+
 function boxHeight(box: GuideBox, s: GuideSizes): number {
-  const inner = GUIDE_INNER_W - 2 * s.boxPad - (box.kind === "terminal" ? 48 : 0);
+  const inner = boxInnerWidth(box, s);
   const lines = box.lines.reduce((n, l) => n + wrapLines("dmMono", l, s.box, 0, inner), 0);
   return lines * s.box * 1.45 + 2 * s.boxPad + (box.kind === "terminal" ? 64 : 0);
 }
@@ -123,13 +140,19 @@ export interface GuideFit {
 /** The sizes to draw `slide` with: the largest scale (down to half) at which everything fits the page. */
 export function fitGuide(slide: Slide): GuideFit {
   const budget = INNER_H - SAFETY;
-  const steps = Math.round((1 - MIN_SCALE) / STEP);
+  const steps = Math.round((MAX_SCALE - MIN_SCALE) / STEP);
   const candidates = headlineCandidates(slide);
-  for (let i = 0; i <= steps; i += 1) {
-    const k = Math.round((1 - i * STEP) * 100) / 100;
-    for (const headline of candidates) {
-      const sizes = guideSizes(slide, k, headline);
-      if (guideContentHeight(slide, sizes) <= budget) return { k, sizes, fits: true };
+  // First choice: every line in the boxes stays on one line (the references' three short lines); only when no size
+  // down to 0.7 allows that does a box line wrap.
+  for (const strict of [true, false]) {
+    for (let i = 0; i <= steps; i += 1) {
+      const k = Math.round((MAX_SCALE - i * STEP) * 100) / 100;
+      if (strict && k < 0.7) break;
+      for (const headline of candidates) {
+        const sizes = guideSizes(slide, k, headline);
+        if (strict && boxesWrap(slide, sizes)) continue;
+        if (guideContentHeight(slide, sizes) <= budget) return { k, sizes, fits: true };
+      }
     }
   }
   return { k: MIN_SCALE, sizes: guideSizes(slide, MIN_SCALE), fits: false };
