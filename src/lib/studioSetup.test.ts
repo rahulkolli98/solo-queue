@@ -221,6 +221,7 @@ describe("the carousel's design (theme)", () => {
       { key: "solo-queue", name: "Solo Queue" },
       { key: "kraft-zine", name: "Kraft zine" },
       { key: "app-card", name: "App card" },
+      { key: "orange-guide", name: "Orange guide" },
     ]);
     // nothing explicit: the backend resolves the theme itself, so none is sent and the summary says nothing
     expect(r.themeToSend).toBeUndefined();

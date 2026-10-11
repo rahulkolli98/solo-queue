@@ -25,6 +25,12 @@ export const THEMES = [
     blurb: "A clean app-style guide: a light grey page, heavy dark titles, white rounded rows, a big pale number and one blue accent. Built for a cover, one item per slide and a closing question.",
     notes: true,
   },
+  {
+    key: "orange-guide",
+    name: "Orange guide",
+    blurb: "A bold explainer on warm cream: heavy condensed capitals with one orange phrase and a hand-drawn underline, hand-written notes with arrows, orange-outlined takeaway boxes and a command window.",
+    notes: true,
+  },
 ] as const;
 
 export type ThemeKey = (typeof THEMES)[number]["key"];

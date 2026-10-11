@@ -11,6 +11,7 @@ import { CARD_COLORS, CARD_SHADOW, PALETTE, SLIDE_COLORS, pillColors } from "@/l
 import { PAD_X, fitSlide, type Sizes } from "@/lib/carouselFit";
 import KraftSlide from "@/components/carousel/KraftSlide";
 import AppCardSlide from "@/components/carousel/AppCardSlide";
+import GuideSlide from "@/components/carousel/GuideSlide";
 import { themeOf } from "../../../convex/lib/themes";
 
 /**
@@ -314,6 +315,7 @@ export default function SlideView({
 }): ReactElement {
   if (themeOf(theme) === "kraft-zine") return <KraftSlide slide={slide} index={index} total={total} />;
   if (themeOf(theme) === "app-card") return <AppCardSlide slide={slide} index={index} total={total} />;
+  if (themeOf(theme) === "orange-guide") return <GuideSlide slide={slide} index={index} total={total} />;
   if (slide.layout === "statement") return <StatementSlide slide={slide} />;
   const colors = SLIDE_COLORS[slide.tone];
   const last = index >= total - 1;
