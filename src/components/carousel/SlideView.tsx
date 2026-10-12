@@ -289,7 +289,7 @@ function StatementSlide({ slide }: { slide: Slide }): ReactElement {
         <Headline slide={slide} size={s.headline} />
       </div>
       <div style={{ display: "flex", flex: 1 }} />
-      <div style={{ display: "flex", alignItems: "flex-start", height: 340 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", height: 300 }}>
         <Sub slide={slide} px={s.subPx} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 46 }}>

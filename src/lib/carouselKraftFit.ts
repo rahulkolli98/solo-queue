@@ -17,7 +17,8 @@ const MIN_SCALE = 0.5;
 const STEP = 0.02;
 /** A slide with room to spare is drawn bigger, as far as this (a cover is already large, so it grows less). */
 const MAX_SCALE = 1.3;
-const MAX_SCALE_FRONT = 1.1;
+const MAX_SCALE_FRONT = 1.6;
+const MAX_SCALE_CLOSE = 1.7;
 /** Cards are tilted a degree or so, which makes them a little taller than their box. */
 const TILT = 12;
 
@@ -232,7 +233,7 @@ export interface KraftFit {
 /** The sizes to draw `slide` with: the largest scale where the height fits and no headline word is wider than the row, from 1.3 (a slide with room to spare) down to half size. */
 export function fitKraft(slide: Slide, isLast = false): KraftFit {
   const budget = INNER_H - SAFETY;
-  const top = slide.layout === "cover" || slide.layout === "statement" ? MAX_SCALE_FRONT : MAX_SCALE;
+  const top = slide.layout === "cover" || slide.layout === "statement" ? MAX_SCALE_FRONT : slide.layout === "close" ? MAX_SCALE_CLOSE : MAX_SCALE;
   const steps = Math.round((top - MIN_SCALE) / STEP);
   for (let i = 0; i <= steps; i += 1) {
     const k = Math.round((top - i * STEP) * 100) / 100;

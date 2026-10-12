@@ -168,19 +168,52 @@ function contentHeight(slide: Slide, s: Sizes): number {
   }
 }
 
+/** How far a slide with room to spare may grow (a cover or close, and the others), and the space kept free when it does. */
+const GROW_FRONT = 1.5;
+const GROW_BODY = 1.4;
+const GROW_MARGIN = 90;
+
+function widestWord(slide: Slide, size: number): number {
+  const ls = -size * 0.062;
+  return Math.max(...slide.headline.split(" ").map((w) => textWidth("bricolage", w, size, ls)));
+}
+
+/** The room a statement headline may use: the slide less the kicker row, the italic block and the footer. */
+const STATEMENT_HEADLINE_ROOM = 640;
+const STATEMENT_MAX = 210;
+
+/** The largest headline size (never below the designed one) that still fits the room and keeps every word on one row. */
+export function statementHeadlineSize(slide: Slide): number {
+  const base = headlineSize(slide.layout, slide.headline);
+  for (let size = STATEMENT_MAX; size > base; size -= 2) {
+    const ls = -size * 0.062;
+    const widest = Math.max(...slide.headline.split(" ").map((w) => textWidth("bricolage", w, size, ls)));
+    if (widest <= INNER_W && headlineHeight(slide, size) <= STATEMENT_HEADLINE_ROOM) return size;
+  }
+  return base;
+}
+
 /**
  * The sizes to draw `slide` with: the designed sizes when it fits, otherwise the largest scale (down to half) whose
  * estimated height fits the slide. A statement slide is laid out on its own, with room to spare, and is not scaled.
  */
 export function fitSlide(slide: Slide): Fit {
   const budget = INNER_H - SAFETY;
-  if (slide.layout === "statement") return { k: 1, sizes: sizesFor(slide, 1), height: 0, budget, fits: true };
-  const steps = Math.round((1 - MIN_SCALE) / STEP);
+  if (slide.layout === "statement") {
+    // A statement slide is the headline: it grows until it fills the space above the italic line, so it is never half empty.
+    const sizes = { ...sizesFor(slide, 1), headline: statementHeadlineSize(slide) };
+    return { k: 1, sizes, height: 0, budget, fits: true };
+  }
+  // A slide with room to spare is drawn bigger instead of left half empty: a cover or a close grows the most.
+  const top = slide.layout === "cover" || slide.layout === "close" ? GROW_FRONT : GROW_BODY;
+  const steps = Math.round((top - MIN_SCALE) / STEP);
   for (let i = 0; i <= steps; i += 1) {
-    const k = Math.round((1 - i * STEP) * 100) / 100;
+    const k = Math.round((top - i * STEP) * 100) / 100;
     const sizes = sizesFor(slide, k);
     const height = contentHeight(slide, sizes);
-    if (height <= budget) return { k, sizes, height, budget, fits: true };
+    // Growing is checked against a tighter budget and the widest word, so a slightly low estimate cannot clip.
+    const room = k > 1 ? budget - GROW_MARGIN : budget;
+    if (height <= room && (k <= 1 || widestWord(slide, sizes.headline) <= INNER_W)) return { k, sizes, height, budget, fits: true };
   }
   const sizes = sizesFor(slide, MIN_SCALE);
   return { k: MIN_SCALE, sizes, height: contentHeight(slide, sizes), budget, fits: false };
