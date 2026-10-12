@@ -86,6 +86,23 @@ describe("POST /api/carousel/slide", () => {
     }
   }, 180_000);
 
+  it("draws every layout in the Orange guide theme", async () => {
+    const guide = [
+      { layout: "cover", tone: "cream", headline: "CLAUDE CODE\nJUST GOT MODS", accent: "MODS", note: "like Minecraft mods", sub: "plugins, hooks", tag: "@name" },
+      { layout: "cards", tone: "cream", headline: "1. TELL CLAUDE\nWHAT YOU WANT", accent: "WHAT YOU WANT", note: "plain English", cards: [{ text: "make a mod", tone: "ink" }, { text: "one\ntwo\nthree", tone: "cream" }], tag: "@name" },
+      { layout: "list", tone: "cream", headline: "THE HONEST CATCH", items: [{ text: "one" }, { text: "two" }], tag: "@name" },
+      { layout: "close", tone: "cream", headline: "COMMENT MODS\nFOR THE LIST", accent: "FOR THE LIST", note: "in your DMs", sub: "Community mods", pills: ["Status line", "Theme"], tag: "@name" },
+      { layout: "statement", tone: "cream", headline: "WHAT JUST DROPPED", tag: "@name" },
+    ];
+    for (const [i, slide] of guide.entries()) {
+      const res = await post({ slide, index: i, total: guide.length, theme: "orange-guide" });
+      expect(res.status, slide.layout).toBe(200);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      expect([...bytes.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+      expect(bytes.length).toBeGreaterThan(8_000);
+    }
+  }, 180_000);
+
   it("draws the same slide differently in each theme, and refuses an unknown theme", async () => {
     const solo = new Uint8Array(await (await post({ slide, index: 0, total: 6 })).arrayBuffer());
     const named = new Uint8Array(await (await post({ slide, index: 0, total: 6, theme: "solo-queue" })).arrayBuffer());

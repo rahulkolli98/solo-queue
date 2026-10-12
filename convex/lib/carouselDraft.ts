@@ -99,6 +99,17 @@ export function themeInstructions(theme: ThemeKey): string[] {
       "The theme cannot draw photos or app icons, so never ask for one.",
     ];
   }
+  if (theme === "orange-guide") {
+    return [
+      "Design: the Orange guide theme: a bold explainer on warm cream. Headlines are heavy condensed capitals, centred, in near-black with one orange phrase (set accent) that gets a hand-drawn underline, so write short capital-friendly headlines of two lines (about 4 to 6 words a line), the second line usually the orange one. The slide colour (tone) changes nothing; send any one.",
+      "note: a short hand-written aside (at most " + LIMITS.note + " characters) drawn in the margin with an arrow pointing down at the box below, such as \"plain English is enough\" or \"like A, but for B\". Add one to most slides.",
+      "Cover: headline is the hook (\"X JUST GOT Y\", the key word as the accent); note is the analogy; sub is a command or one plain sentence, drawn in a small command window; tag is the author's handle (for example \"@name\"), drawn bottom left on every slide.",
+      "Steps and items (layout cards, or list): headline is numbered when it is a step (\"1. TELL CLAUDE\nWHAT YOU WANT\", accent the second line); a card with tone ink is drawn as a command window (put the exact command or phrase in it); any other card is an orange-outlined box of exactly three short monospace lines, one per line break (at most about 28 characters a line), the plain takeaway; a list is the same box with one line per item. Send up to two cards: a command window then a takeaway box.",
+      "The honest-limits slide: headline THE HONEST CATCH with an accent second line saying what to check; a takeaway box of three lines of real caveats; a note saying who else says so.",
+      "Close (layout close): headline asks for one comment word (\"COMMENT \\\"WORD\\\"\nFOR THE LIST\") with the word as the accent; note says what they get and where (\"the whole list, in your DMs\"); sub is the dark panel's title (for example \"COMMUNITY LIST\"); pills are up to three short labels shown as the panel's rows.",
+      "The theme cannot draw characters, icons or photos, so never ask for one.",
+    ];
+  }
   if (theme !== "kraft-zine") return [];
   return [
     "Design: the Kraft zine theme. Slides are drawn as a printed zine on kraft paper, so write for that look. The background is the same kraft paper on every slide: the slide colour (tone) changes nothing, send any one. The only colour that matters is a card's tone: an \"ink\" card is drawn as a dark terminal window (use it for a command, a short checklist or steps, in short plain lines), any other card as a paper card.",
