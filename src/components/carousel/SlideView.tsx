@@ -246,7 +246,7 @@ function Pills({ slide }: { slide: Slide }): ReactElement {
 /** The wordmark on a statement slide. The dot is coral, except on a coral slide where it would disappear. */
 export const BRAND = "solo queue";
 
-function Wordmark({ tone }: { tone: Slide["tone"] }): ReactElement {
+function Wordmark({ tone, name }: { tone: Slide["tone"]; name?: string }): ReactElement {
   return (
     <div
       style={{
@@ -258,8 +258,8 @@ function Wordmark({ tone }: { tone: Slide["tone"] }): ReactElement {
         color: tone === "ink" ? PALETTE.cream : PALETTE.ink,
       }}
     >
-      {BRAND}
-      {tone !== "coral" && <span style={{ display: "flex", color: PALETTE.coral }}>.</span>}
+      {name ?? BRAND}
+      {!name && tone !== "coral" && <span style={{ display: "flex", color: PALETTE.coral }}>.</span>}
     </div>
   );
 }
@@ -294,7 +294,7 @@ function StatementSlide({ slide }: { slide: Slide }): ReactElement {
         <Sub slide={slide} px={s.subPx} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 46 }}>
-        <Wordmark tone={slide.tone} />
+        <Wordmark tone={slide.tone} name={slide.brand} />
         <div style={mono(24, slide.tone === "ink" ? PALETTE.cream : PALETTE.ink)}>{slide.tag ?? ""}</div>
       </div>
     </div>
