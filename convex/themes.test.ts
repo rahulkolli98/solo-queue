@@ -9,9 +9,12 @@ import { insertSlot, insertTopic, newTest, type TestConvex } from "../src/test-u
 
 describe("the theme list", () => {
   it("knows its themes, falls back to Solo Queue for anything else, and says which draw notes", () => {
-    expect(THEMES.map((t) => t.key)).toEqual(["solo-queue", "kraft-zine"]);
+    expect(THEMES.map((t) => t.key)).toEqual(["solo-queue", "kraft-zine", "app-card"]);
     expect(DEFAULT_THEME).toBe("solo-queue");
     expect(isThemeKey("kraft-zine")).toBe(true);
+    expect(isThemeKey("app-card")).toBe(true);
+    expect(themeName("app-card")).toBe("App card");
+    expect(themeShowsNotes("app-card")).toBe(true);
     expect(isThemeKey("neon")).toBe(false);
     expect(isThemeKey(undefined)).toBe(false);
     expect(themeOf("kraft-zine")).toBe("kraft-zine");

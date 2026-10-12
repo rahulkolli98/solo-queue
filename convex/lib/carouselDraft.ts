@@ -89,6 +89,16 @@ export function carouselInstructions(input: {
 
 /** What a theme other than the default draws, so the model writes for that design and uses what it shows. */
 export function themeInstructions(theme: ThemeKey): string[] {
+  if (theme === "app-card") {
+    return [
+      "Design: the App card theme: a clean, app-style guide on a light grey page with heavy near-black titles, white rounded rows and one blue accent. It is built for this shape: slide 1 a cover, then one item per slide, then a closing question. Write for that look.",
+      "Slide colour (tone): use cream for nearly every slide (the light page); ink gives a dark page and blue a blue page, so use them sparingly, for a cover or a closing slide; any other colour is drawn as the light page.",
+      "Cover: kicker is the blue question line above the title (for example \"Just got a new Mac?\"); headline is a huge title with the count (for example \"7 apps to install first\"); sub is one short line saying why the reader can trust it; tag is the small topic pill at the top left (a hashtag such as \"#macapps\").",
+      "Item slides (layout cards, or list): kicker is the same topic pill at the top left (a short hashtag, at most " + LIMITS.kicker + " characters); headline is just the item's name, one to three words; sub is one plain sentence saying what it does; then exactly three cards (or three list items), each one short, concrete fact or tip on a single line (leave tone cream and do not use a big figure unless it is a number the reader needs); tag is a small blue badge bottom left (for example \"Free\"; at most " + LIMITS.tag + " characters; leave it out when the source does not say); note is a muted grey note bottom right (for example \"Open source\" or \"Pro is paid\"; at most " + LIMITS.note + " characters; leave it out when unknown). Items are numbered by their order, most useful first.",
+      "Close (layout close): headline is one easy question (for example \"Which ones do you already have?\"); sub invites comments and the reader's own picks; pills are two or three short buttons (for example \"Save this\", \"Follow for more\"); kicker is the topic pill.",
+      "The theme cannot draw photos or app icons, so never ask for one.",
+    ];
+  }
   if (theme !== "kraft-zine") return [];
   return [
     "Design: the Kraft zine theme. Slides are drawn as a printed zine on kraft paper, so write for that look. The background is the same kraft paper on every slide: the slide colour (tone) changes nothing, send any one. The only colour that matters is a card's tone: an \"ink\" card is drawn as a dark terminal window (use it for a command, a short checklist or steps, in short plain lines), any other card as a paper card.",

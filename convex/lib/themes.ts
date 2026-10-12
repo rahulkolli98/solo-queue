@@ -19,6 +19,12 @@ export const THEMES = [
     blurb: "A printed zine on kraft paper: torn-tape labels, heavy condensed headlines, a red italic accent, paper cards, terminal windows and hand-written notes.",
     notes: true,
   },
+  {
+    key: "app-card",
+    name: "App card",
+    blurb: "A clean app-style guide: a light grey page, heavy dark titles, white rounded rows, a big pale number and one blue accent. Built for a cover, one item per slide and a closing question.",
+    notes: true,
+  },
 ] as const;
 
 export type ThemeKey = (typeof THEMES)[number]["key"];
