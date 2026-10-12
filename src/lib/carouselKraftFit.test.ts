@@ -32,16 +32,16 @@ describe("fitKraft: a headline word wider than the row (I-058)", () => {
     ] as const) {
       const slide: Slide = { layout: "cover", tone: "yellow", headline, accent };
       const fit = fitKraft(slide);
-      expect(widestHeadlineWord(slide, kraftSizes(slide, 1.1))).toBeGreaterThan(ROW);
+      expect(widestHeadlineWord(slide, kraftSizes(slide, 1.6))).toBeGreaterThan(ROW);
       expect(widestHeadlineWord(slide, fit.sizes)).toBeLessThanOrEqual(ROW);
-      expect(fit.k).toBeLessThan(1.1);
+      expect(fit.k).toBeLessThan(1.6);
       expect(fit.fits).toBe(true);
     }
   });
 
-  it("leaves a cover whose words all fit at its normal size", () => {
+  it("grows a cover whose words all fit to fill the slide", () => {
     const slide: Slide = { layout: "cover", tone: "yellow", headline: "Charge for what grows", accent: "grows" };
-    expect(fitKraft(slide).k).toBe(1.1);
+    expect(fitKraft(slide).k).toBeGreaterThan(1.1);
   });
 });
 
@@ -68,10 +68,10 @@ describe("fitKraft", () => {
     expect(longer.fits).toBe(true);
   });
 
-  it("scales a cover less (it is already large), and a one-slide statement the same way", () => {
+  it("grows a short cover and a one-slide statement to fill the slide", () => {
     const cover: Slide = { layout: "cover", tone: "cream", headline: "Short", sub: "A line." };
-    expect(fitKraft(cover).k).toBe(1.1);
-    expect(fitKraft({ ...cover, layout: "statement" }).k).toBe(1.1);
+    expect(fitKraft(cover).k).toBe(1.6);
+    expect(fitKraft({ ...cover, layout: "statement" }).k).toBe(1.6);
     expect(kraftHeadlineBase(cover)).toBeGreaterThan(kraftHeadlineBase({ ...THREE_CARDS }));
   });
 

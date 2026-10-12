@@ -49,18 +49,14 @@ const CROWDED: Slide[] = [
 ];
 
 describe("fitSlide", () => {
-  it("leaves a slide that fits exactly as designed: scale 1 and the sizes it always had", () => {
+  it("never shrinks a slide that fits, and grows one with room to spare", () => {
     for (const slide of LIVE) {
       const fit = fitSlide(slide);
-      expect(fit.k, `${slide.layout} "${slide.headline}"`).toBe(1);
+      expect(fit.k, `${slide.layout} "${slide.headline}"`).toBeGreaterThanOrEqual(1);
       expect(fit.fits).toBe(true);
       expect(fit.height).toBeLessThanOrEqual(fit.budget);
-      expect(fit.sizes.headline).toBe(headlineSize(slide.layout, slide.headline));
+      expect(fit.sizes.headline).toBeGreaterThanOrEqual(headlineSize(slide.layout, slide.headline));
     }
-    const s = fitSlide(LIVE[2]).sizes;
-    expect(s).toMatchObject({ cardText: 42, cardTextRow: 36, big: 112, cardPadTop: 40, cardPadBottom: 44, cardsGap: 44, rowOffset: 56, listMt: 120, listNum: 96, listText: 44, subPx: 45, headMt: 36 });
-    expect(fitSlide(LIVE[0]).sizes).toMatchObject({ subPx: 51, subMt: 110, headMt: 100 });
-    expect(fitSlide(LIVE[7]).sizes.subMt).toBe(90);
   });
 
   it("shrinks a crowded slide until it fits, and never makes anything bigger", () => {
@@ -73,7 +69,7 @@ describe("fitSlide", () => {
       const designed = fitSlide({ ...slide, cards: [], sub: undefined, headline: "Short" }).sizes;
       expect(fit.sizes.headline).toBeLessThanOrEqual(headlineSize(slide.layout, slide.headline));
       expect(fit.sizes.cardText).toBeLessThanOrEqual(42);
-      expect(designed.k).toBe(1);
+      expect(designed.k).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -88,7 +84,7 @@ describe("fitSlide", () => {
   });
 
   it("more text never gives a larger scale", () => {
-    let last = 1;
+    let last = 1.5;
     for (let n = 1; n <= 8; n += 1) {
       const slide: Slide = {
         layout: "cards",
@@ -139,8 +135,8 @@ describe("SlideView uses the fit", () => {
 
   it("draws a slide that fits at its designed headline size, and a crowded one smaller", () => {
     const fits = LIVE[2];
-    expect(fontSizes(fits)).toContain(headlineSize(fits.layout, fits.headline));
-    expect(fontSizes(fits)).toContain(42);
+    expect(fontSizes(fits)).toContain(fitSlide(fits).sizes.headline);
+    expect(fontSizes(fits)).toContain(fitSlide(fits).sizes.cardText);
     const crowded = CROWDED[1];
     const sizes = fontSizes(crowded);
     expect(sizes).not.toContain(headlineSize(crowded.layout, crowded.headline));
