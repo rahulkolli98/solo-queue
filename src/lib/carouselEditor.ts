@@ -182,6 +182,7 @@ export function tidySlide(slide: Slide): Slide {
   if (!blank(slide.accent)) out.accent = slide.accent;
   if (!blank(slide.sub)) out.sub = slide.sub;
   if (!blank(slide.tag)) out.tag = slide.tag;
+  if (!blank(slide.brand)) out.brand = slide.brand;
   if (!blank(slide.note)) out.note = slide.note;
   if (slide.cards) {
     out.cards = slide.cards.map((c) => {

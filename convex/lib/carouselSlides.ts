@@ -30,6 +30,7 @@ export const LIMITS = {
   pill: 12,
   tag: 30,
   note: 40,
+  brand: 20,
 } as const;
 
 const text = (max: number) => z.string().trim().max(max);
@@ -67,6 +68,8 @@ export const slideSchema = z.object({
   pills: z.array(text(LIMITS.pill).min(1)).max(3).optional(),
   /** The small caps tag at the bottom right of a statement slide ("Build in public"). */
   tag: text(LIMITS.tag).optional(),
+  /** The name drawn bottom left of a statement slide instead of "solo queue" (for a post about another product). */
+  brand: text(LIMITS.brand).optional(),
   /** A short hand-written aside that points at the slide's key figure. Only themes that draw notes show it (themes.ts). */
   note: text(LIMITS.note).optional(),
 });

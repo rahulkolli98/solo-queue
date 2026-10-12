@@ -34,5 +34,6 @@ export const slideValidator = v.object({
   items: v.optional(v.array(v.object({ label: v.optional(v.string()), text: v.string() }))),
   pills: v.optional(v.array(v.string())),
   tag: v.optional(v.string()),
+  brand: v.optional(v.string()),
   note: v.optional(v.string()),
 });
